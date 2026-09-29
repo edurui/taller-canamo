@@ -1,0 +1,18 @@
+Modelos locales distribuidos sin modificar sus pesos.
+
+Vosk español pequeño 0.42, Alphacephei: Apache-2.0.
+Fuente: https://alphacephei.com/vosk/models
+Motor Vosk 0.3.45: https://github.com/alphacep/vosk-api/tree/v0.3.45
+Texto de licencia: Vosk-LICENSE.txt.
+
+RapidOCR 3.9.2 y modelos ONNX de RapidAI/PaddleOCR: Apache-2.0.
+Detección PP-OCRv5 mobile, reconocimiento latino PP-OCRv5 mobile y orientación
+ch_ppocr_mobile_v2.0_cls_mobile. Copyright de sus autores conservado.
+Fuentes: https://github.com/RapidAI/RapidOCR/tree/v3.9.2
+https://github.com/PaddlePaddle/PaddleOCR
+https://www.modelscope.cn/models/RapidAI/RapidOCR
+Texto de licencia: RapidOCR-LICENSE.txt.
+
+URLs exactas y hashes: scripts/assistant-models.lock.json y manifest.json del
+paquete assistant_models. La descarga solo se realiza al preparar el paquete;
+la aplicación no envía documentos a estas direcciones.

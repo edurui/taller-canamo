@@ -1,0 +1,78 @@
+name: Build and verify Windows development installer (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      release_candidate:
+        description: 'Candidato Windows para ensayos; no habilita producción'
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      # Action revisions resolved from the official repositories on 2026-09-23.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: '17.0.20.1+1'
+          overwrite-settings: false
+      - name: Python dependencies verified by hashes
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements-dev.lock
+      - name: Frontend dependencies from lock
+        run: npm ci
+      - name: Browser used only by tests
+        run: npx playwright install chromium
+      - name: Install pinned Rust MSVC toolchain
+        working-directory: src-tauri
+        run: rustup show active-toolchain
+      - name: Test and build selected installer
+        shell: pwsh
+        run: |
+          $canamoBuildArguments = @('scripts/build_desktop.py')
+          if ('${{ inputs.release_candidate }}' -eq 'true') { $canamoBuildArguments += '--release-candidate' }
+          & .\.venv\Scripts\python.exe @canamoBuildArguments
+      - name: Install under a user path and verify bundled service
+        shell: pwsh
+        run: ./src-tauri/tests/verify-installed.ps1
+      - name: Native WebDriver tools (never included in installer)
+        shell: pwsh
+        run: |
+          cargo +1.98.1 install tauri-driver --version 2.0.6 --locked
+          cargo +1.98.1 install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
+          msedgedriver-tool
+      - name: Tauri UI with WebView2 and packaged service in the disposable runner account
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe src-tauri/tests/desktop_smoke.py --application src-tauri/target/release/taller-canamo.exe --native-driver ./msedgedriver.exe --isolated-windows-account
+      - name: Store installer and verification evidence for review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: taller-canamo-windows-${{ inputs.release_candidate && 'candidate' || 'development' }}
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            reports/windows-*.json
+            reports/sidecar-functional*
+            reports/e2e/
+            reports/desktop/
+            LEEME.md
+            docs/IMPORTACION-ACCESS.md
+            docs/BUILD-WINDOWS.md
+          if-no-files-found: error
+          retention-days: 14

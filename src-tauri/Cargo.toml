@@ -1,0 +1,39 @@
+[package]
+name = "taller-canamo"
+version = "0.9.1"
+edition = "2021"
+rust-version = "1.98"
+
+[[bin]]
+name = "taller-canamo"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[features]
+default = ["desktop"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:rfd", "dep:tauri-plugin-single-instance", "dep:tauri-plugin-autostart", "native-notifications"]
+native-notifications = ["dep:notify-rust", "dep:windows"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"], optional = true }
+serde_json = "1"
+base64 = "0.22"
+rfd = { version = "0.15", optional = true }
+tempfile = "3"
+sha2 = "=0.10.9"
+lopdf = { version = "=0.45.0", default-features = false }
+tauri-plugin-single-instance = { version = "2", optional = true }
+tauri-plugin-autostart = { version = "2", optional = true }
+
+[target.'cfg(not(windows))'.dependencies]
+notify-rust = { version = "4", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_Security", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Com"] }
+windows = { version = "0.61", features = ["Data_Xml_Dom", "UI_Notifications"], optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"

@@ -1,0 +1,19 @@
+{
+  "upstream": "https://downloads.saxonica.com/SaxonC/HE/12/SaxonCHE-linux-x86_64-12-10-0.zip",
+  "version": "12.10.0",
+  "sha256": "8db496a54568fac34950d4e581e832087c82dd0924545f67a5c56031c003d9ce",
+  "licenses": [
+    {
+      "path": "tools/legal/saxonche/SaxonCHE-linux-x86_64-12-10-0/notices/JAMESCLARK.txt",
+      "sha256": "183a25ac443925952e3512a0eed785520f29359605a16a425633f48b768207ba"
+    },
+    {
+      "path": "tools/legal/saxonche/SaxonCHE-linux-x86_64-12-10-0/notices/JLINE2.txt",
+      "sha256": "5a6fcc1b3d1fe075d851c03988a160b56391e3ee53c694e70076aba4fcdc1b4f"
+    },
+    {
+      "path": "tools/legal/saxonche/SaxonCHE-linux-x86_64-12-10-0/notices/LICENSE.txt",
+      "sha256": "7419ec28b8b41fffc3d26ec710e1416beeff91b1c2a14abb8e472db10082da46"
+    }
+  ]
+}

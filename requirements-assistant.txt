@@ -1,0 +1,5 @@
+# Optional local assistance engines. Bundled by the desktop builder; loaded on demand.
+-r requirements.txt
+vosk==0.3.45
+rapidocr==3.9.2
+onnxruntime==1.30.0

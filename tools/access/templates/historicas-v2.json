@@ -1,0 +1,30 @@
+{
+  "format": "canamo-import-v2",
+  "customers": [
+    {"legacy_code": "001", "name": "Cliente sintético actual", "phone": "600000001"}
+  ],
+  "vehicles": [
+    {"legacy_customer_code": "001", "plate": "1234XYZ", "km": 100}
+  ],
+  "invoices": [
+    {
+      "legacy_key": "001/0007",
+      "legacy_customer_code": "001",
+      "full_number": "0007",
+      "issue_date": "2010-03-28",
+      "base_cents": 1000,
+      "tax_cents": 160,
+      "total_cents": 1160,
+      "paid_cents": null,
+      "customer_snapshot": {},
+      "issuer_snapshot": {},
+      "vehicle_snapshot": null,
+      "lines": [
+        {"description": "Trabajo sintético con IVA histórico", "quantity": "1.0000", "unit_price": "10.0000", "base_cents": 1000, "tax_rate": "16"}
+      ],
+      "taxes": [
+        {"rate": "16", "kind": "subject", "reason": "", "base_cents": 1000, "tax_cents": 160}
+      ]
+    }
+  ]
+}

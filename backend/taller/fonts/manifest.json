@@ -1,0 +1,12 @@
+{
+  "family": "DejaVu Sans",
+  "version": "2.37",
+  "source": "https://github.com/dejavu-fonts/dejavu-fonts/releases/tag/version_2_37",
+  "binaries_origin": "Ubuntu fonts-dejavu-core, local installed package; fonts unmodified",
+  "license_source": "https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/version_2_37/LICENSE",
+  "files_sha256": {
+    "DejaVuSans-Bold.ttf": "5c1247acef7f2b8522a31742c76d6adcb5569bacc0be7ceaa4dc39dd252ce895",
+    "DejaVuSans.ttf": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+    "LICENSE.txt": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  }
+}

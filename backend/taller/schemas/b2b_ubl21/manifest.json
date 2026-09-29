@@ -1,0 +1,181 @@
+{
+  "reviewed_on": "2026-09-23",
+  "downloaded_at": "2026-09-22T23:51:38.292307+00:00",
+  "ubl_version": "2.1",
+  "en16931_version": "1.3.16",
+  "files": {
+    "ubl/xsd/common/UBL-XAdESv132-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-XAdESv132-2.1.xsd",
+      "sha256": "a4f726bcf8cc3f7d9ffa4dab99e005535a8e8b60dced1e5d94578d2e05afa96e",
+      "bytes": 21664
+    },
+    "ubl/xsd/common/UBL-CommonSignatureComponents-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-CommonSignatureComponents-2.1.xsd",
+      "sha256": "3db472305f029bba5c1ae157bfd0178f715c3f9b94bd8e6c557dbce5e88da874",
+      "bytes": 5548
+    },
+    "ubl/xsd/common/UBL-CommonBasicComponents-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-CommonBasicComponents-2.1.xsd",
+      "sha256": "bd4ad043ee1d9da1c7f8018dabf739cfafdfb59143d0d16b9ef769e6b7c408a7",
+      "bytes": 219895
+    },
+    "ubl/xsd/common/UBL-CoreComponentParameters-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-CoreComponentParameters-2.1.xsd",
+      "sha256": "8be3379dbdcbcc7802fafdd16bac72c48fff1c0bb364213a31a17911dd06100b",
+      "bytes": 3173
+    },
+    "ubl/xsd/common/CCTS_CCT_SchemaModule-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/CCTS_CCT_SchemaModule-2.1.xsd",
+      "sha256": "dd546e4809df86b6445589f69f0d6c9df162840ae386574ddfc1da7638103e15",
+      "bytes": 45268
+    },
+    "ubl/xsd/common/UBL-XAdESv141-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-XAdESv141-2.1.xsd",
+      "sha256": "1fa4625e9cefcb7a9abb5ac1b64315547450031eece8a55bd584e4ba4b79dbc1",
+      "bytes": 1316
+    },
+    "ubl/xsd/common/UBL-UnqualifiedDataTypes-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-UnqualifiedDataTypes-2.1.xsd",
+      "sha256": "09052d406b4293e2a5f9c2bfee6df10ad4d8d5f0b36e24a6349d7f7936d89eb6",
+      "bytes": 27300
+    },
+    "ubl/xsd/common/UBL-SignatureAggregateComponents-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-SignatureAggregateComponents-2.1.xsd",
+      "sha256": "17bb6b62d709b4fd81449a37655af36aa6a1276ad4fdb1b2e249a5ed4b7c2172",
+      "bytes": 7784
+    },
+    "ubl/xsd/common/UBL-QualifiedDataTypes-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-QualifiedDataTypes-2.1.xsd",
+      "sha256": "7dcb156e610239c97ae70940cf4653b88e48c3595bf5f56a2204a32e2893e6cf",
+      "bytes": 3590
+    },
+    "ubl/xsd/common/UBL-CommonExtensionComponents-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-CommonExtensionComponents-2.1.xsd",
+      "sha256": "ad7a4e490978adfbcfc5ec0bb20941cf11ac960ccf0c4de8791a7c731a8dbe87",
+      "bytes": 9491
+    },
+    "ubl/xsd/common/UBL-ExtensionContentDataType-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-ExtensionContentDataType-2.1.xsd",
+      "sha256": "fcee77a11870208e6377ea6311b9f2a050bca24bdad8606ea02d71e9f9e72f8d",
+      "bytes": 4314
+    },
+    "ubl/xsd/common/UBL-SignatureBasicComponents-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-SignatureBasicComponents-2.1.xsd",
+      "sha256": "cef924d7ba3d1d8ade14469325cde1364f8c174e46f0198ec02da8e9e748a489",
+      "bytes": 4207
+    },
+    "ubl/xsd/common/UBL-xmldsig-core-schema-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-xmldsig-core-schema-2.1.xsd",
+      "sha256": "101909c9f06456d61ddcc4fb982f1d40dc357b439f393b1a2eb46e42acd60809",
+      "bytes": 10750
+    },
+    "ubl/xsd/common/UBL-CommonAggregateComponents-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/common/UBL-CommonAggregateComponents-2.1.xsd",
+      "sha256": "939172ad8dd057cd403e7f763f6532184dd5ed4b9de24c42ebb35db4792ba613",
+      "bytes": 2420444
+    },
+    "ubl/xsd/maindoc/UBL-CreditNote-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/maindoc/UBL-CreditNote-2.1.xsd",
+      "sha256": "a54651b1225052f811bf2ba01346f13f2454e7cc3e0be290c91dd680dc7b7b1a",
+      "bytes": 57697
+    },
+    "ubl/xsd/maindoc/UBL-Invoice-2.1.xsd": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "archive_member": "xsd/maindoc/UBL-Invoice-2.1.xsd",
+      "sha256": "40fae8cb436f3a9506d7acce65ba162caef3b0bed4d5cbc0992b2153ded4edf4",
+      "bytes": 60178
+    },
+    "en16931/schematron/abstract/EN16931-model.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/abstract/EN16931-model.sch",
+      "sha256": "f43fe3fb10a89978280c972521488fa9223fffec604fdb08d2b3231b74f28c56",
+      "bytes": 52495
+    },
+    "en16931/schematron/abstract/EN16931-syntax.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/abstract/EN16931-syntax.sch",
+      "sha256": "1a0032ae03ecf4431b389476f1ecea74afed2f6e92d1ba2b9eac6757b2287ac4",
+      "bytes": 122699
+    },
+    "en16931/schematron/codelist/EN16931-UBL-codes.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/codelist/EN16931-UBL-codes.sch",
+      "sha256": "8b40ee8a553be0603b90688e6a0f77ae40871fabfa9d67e4afb1a6a1ccbb4b11",
+      "bytes": 32879
+    },
+    "en16931/schematron/EN16931-UBL-validation.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/EN16931-UBL-validation.sch",
+      "sha256": "210bcd857ff342841e341b6e27ab9b0bb806e2a2ae4235451d57bc8ab541f75a",
+      "bytes": 1872
+    },
+    "en16931/schematron/preprocessed/EN16931-UBL-validation-preprocessed.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/preprocessed/EN16931-UBL-validation-preprocessed.sch",
+      "sha256": "268d4f7a2688676695e6c69cba6fba69a6802604fee12cb544a6b30ff09555a3",
+      "bytes": 309768
+    },
+    "en16931/schematron/UBL/EN16931-UBL-model.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/UBL/EN16931-UBL-model.sch",
+      "sha256": "908ba03ba0ebdeb940c777b831aab591f822eb1c81ceb09b690f633fae6909c9",
+      "bytes": 72769
+    },
+    "en16931/schematron/UBL/EN16931-UBL-syntax.sch": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "schematron/UBL/EN16931-UBL-syntax.sch",
+      "sha256": "77891eb5f2d4b52b6d6f9f8edaaad2c618ed23e563c3563d67aab59d593ae1bf",
+      "bytes": 77830
+    },
+    "en16931/xslt/EN16931-UBL-validation.xslt": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "xslt/EN16931-UBL-validation.xslt",
+      "sha256": "39f9d282867f1a49e7708d9e29a53da89643e1ee56f10cec1ebcf1277595fcbd",
+      "bytes": 895489
+    },
+    "en16931/LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/ConnectingEurope/eInvoicing-EN16931/validation-1.3.16/LICENSE.txt",
+      "sha256": "fc22ec1dcd8bee4636a395fb332e2308cde870fb3fdc71a2e260b919877cdef5",
+      "bytes": 13871
+    },
+    "en16931/examples/ubl-tc434-example1.xml": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "examples/ubl-tc434-example1.xml",
+      "sha256": "507a03e3c45761c435cf81e4a32097bedb3cb9b724572a9989028a4dfc2c7b51",
+      "bytes": 21501
+    },
+    "en16931/examples/ubl-tc434-creditnote1.xml": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "archive_member": "examples/ubl-tc434-creditnote1.xml",
+      "sha256": "911d7ac2cb4fa72d21331c76914468e7d94eda03629e0def75c64ab18e3e9dce",
+      "bytes": 4935
+    }
+  },
+  "archives": {
+    "ubl": {
+      "url": "https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip",
+      "sha256": "60b80d76394a8a2add90723ecb8e0e2e9d826775de9749df37a72d60703f86ed",
+      "bytes": 57926016
+    },
+    "en16931": {
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "sha256": "bafada015efbc5248bf5e05ad2191e1d9833ef96e9dd5f4bce420a747342da85",
+      "bytes": 2650024
+    }
+  }
+}

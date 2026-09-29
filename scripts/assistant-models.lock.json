@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "reviewed_on": "2026-09-23",
+  "sources": [
+    "https://alphacephei.com/vosk/models",
+    "https://github.com/RapidAI/RapidOCR/tree/v3.9.2"
+  ],
+  "files": {
+    "ocr-detection.onnx": {
+      "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+      "sha256": "4d97c44a20d30a81aad087d6a396b08f786c4635742afc391f6621f5c6ae78ae",
+      "license": "Apache-2.0",
+      "upstream": "ch_PP-OCRv5_det_mobile"
+    },
+    "ocr-latin.onnx": {
+      "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv5/rec/latin_PP-OCRv5_rec_mobile.onnx",
+      "sha256": "b20bd37c168a570f583afbc8cd7925603890efbcdc000a59e22c269d160b5f5a",
+      "license": "Apache-2.0",
+      "upstream": "latin_PP-OCRv5_rec_mobile"
+    },
+    "ocr-orientation.onnx": {
+      "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv4/cls/ch_ppocr_mobile_v2.0_cls_mobile.onnx",
+      "sha256": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+      "license": "Apache-2.0",
+      "upstream": "ch_ppocr_mobile_v2.0_cls_mobile"
+    },
+    "vosk-model-small-es-0.42.zip": {
+      "url": "https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip",
+      "sha256": "09b239888f633ef2f0b4e09736e3d9936acfd810bc65d53fad45261762c6511f",
+      "license": "Apache-2.0",
+      "upstream": "vosk-model-small-es-0.42",
+      "checksum_source": "Medido en descarga HTTPS del editor; fijado para futuras instalaciones"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "antlr4-python3-runtime": {
+    "version": "4.9.3",
+    "license": "BSD-3-Clause",
+    "source": "https://raw.githubusercontent.com/antlr/antlr4/4.9.3/LICENSE.txt",
+    "file": "tools/legal/antlr4-python3-runtime/LICENSE.txt",
+    "sha256": "b1b379fcaf3219593a4c433feb1b35c780bed23fafaae440b1ae2771a9521e3a"
+  },
+  "flatbuffers": {
+    "version": "25.12.19",
+    "license": "Apache-2.0",
+    "source": "https://raw.githubusercontent.com/google/flatbuffers/v25.12.19/LICENSE",
+    "file": "tools/legal/flatbuffers/LICENSE.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  }
+}

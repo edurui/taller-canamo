@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "jackcess": {
+    "version": "5.0.1",
+    "url": "https://repo.maven.apache.org/maven2/com/healthmarketscience/jackcess/jackcess/5.0.1/jackcess-5.0.1.jar",
+    "sha256": "1950fc0fff15377a8c50ef7cb06855754fb755a5e7bf9401523ab4a0989fc442",
+    "license": "Apache-2.0"
+  },
+  "jre": {
+    "windows": {
+      "version": "17.0.20.1+1",
+      "url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip",
+      "sha256": "bc21a93923103cdaac93ee337b0ae4365e739fde36df823dd456bc67c8a9d352",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0"
+    },
+    "linux": {
+      "version": "17.0.20.1+1",
+      "url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jre_x64_linux_hotspot_17.0.20.1_1.tar.gz",
+      "sha256": "0b2b640e3046b64c8ec504de0ab9d91bb5610182bda21fad454681ce54d45a62",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0"
+    }
+  }
+}

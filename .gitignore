@@ -1,0 +1,84 @@
+# Dependencias, compilación y cachés de JavaScript/TypeScript.
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+.eslintcache
+coverage/
+/build/
+
+# Entornos, compilación, cachés y cobertura de Python.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage*
+coverage.xml
+htmlcov/
+
+# Tauri: conservar Cargo.lock, capabilities e iconos fuente.
+/src-tauri/target/
+/src-tauri/gen/schemas/
+/src-tauri/binaries/*
+!/src-tauri/binaries/.gitkeep
+
+# Recursos reconstruidos por los scripts y sus locks; tools/legal sí se versiona.
+/backend/taller/access_runtime/
+/backend/taller/assistant_models/
+/backend/taller/legal/
+
+# Datos locales, copias y referencias personales: nunca versionarlos.
+/private-reference/
+/data/
+/backups/
+/exports/
+/pdfs/
+/secure/
+/authorized-aeat-evidence/
+.env
+.env.*
+
+# Bases, archivos auxiliares y certificados, también con extensiones en mayúsculas.
+*.[mM][dD][bB]
+*.[aA][cC][cC][dD][bB]
+*.[lL][dD][bB]
+*.[lL][aA][cC][cC][dD][bB]
+*.[sS][qQ][lL][iI][tT][eE]*
+*.[dD][bB]
+*.[dD][bB]-*
+*.[cC][aA][nN][aA][mM][oO]
+*.[pP][fF][xX]
+*.[pP]12
+*.[pP][eE][mM]
+*.[kK][eE][yY]
+*.[cC][eE][rR]
+*.[cC][rR][tT]
+*.[dD][eE][rR]
+*.[dD][pP][aA][pP][iI]
+
+# Resultados de navegador y pruebas, incluidas capturas y trazas de sesiones.
+/.playwright-mcp/
+test-results/
+playwright-report/
+
+# Versionar solo informes redactados y scripts de reproducción en reports/.
+# Los JSON, logs, PDF, capturas y subdirectorios generados se conservan en disco.
+/reports/*
+!/reports/*.md
+!/reports/*.py
+
+# Logs y archivos temporales del sistema/editor.
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini

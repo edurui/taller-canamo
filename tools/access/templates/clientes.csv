@@ -1,0 +1,2 @@
+Cod_cli;Cliente;Cif o Nif;Direccion;Codigo_postal;Telefono1;Matricula;Notas
+001;Cliente sintético de migración;;Calle de prueba;41300;600000001;1234XYZ;Conservar código con ceros

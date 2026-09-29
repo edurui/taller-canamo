@@ -1,0 +1,12 @@
+[
+  {
+    "file": "JACKCESS-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/jahlborn/jackcess/17908417ae79b7272f6ae05aa28ea3554a2761b5/LICENSE.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "file": "JACKCESS-NOTICE.txt",
+    "url": "https://raw.githubusercontent.com/jahlborn/jackcess/19b3a8870864b6982b9d441ab8910eebf96f4f0a/NOTICE.txt",
+    "sha256": "937c6d63028fe96f278ed40b000f889b602d9c411dd3c8be010f4a8ab7c3c641"
+  }
+]

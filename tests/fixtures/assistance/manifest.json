@@ -1,0 +1,16 @@
+{
+  "synthetic": true,
+  "voice": {
+    "source_text": "Cambio de aceite y filtro. Revisar ruido al frenar. Confirmar antes de sustituir piezas.",
+    "generator": "eSpeak NG 1.51 Ubuntu noble, voz es, velocidad135",
+    "accuracy_limit": "La prueba acredita ejecución real sin red; no exige una transcripción perfecta ni la simula."
+  },
+  "ocr": {
+    "generator": "Pillow12.3.0, DejaVuSans40, PNG1400x600",
+    "source_text": "CLIENTE SINTÉTICO\nMatrícula:1234 BCD\nNIF:12345678Z\nKM:123456"
+  },
+  "sha256": {
+    "dictado-sintetico.wav": "b633b58b9416bb7c2e1a50f1d9f93abb0b4bb181310eec223dfa073dda141e72",
+    "ficha-sintetica.png": "5a1bd2e00eddfb7ea803e5aed5fef837733b414ffaed41aa70ba79e02f62ddb9"
+  }
+}
