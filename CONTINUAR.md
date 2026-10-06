@@ -15,7 +15,8 @@ DPAPI, instancia única, cierre/bandeja/notificaciones, copias/restauración y u
 Registrar resultados reales y hashes. El workflow preparado es manual; no se ha publicado
 ni ejecutado en un runner remoto. No desactivar antivirus o SmartScreen.
 
-Usar las fuentes actuales del 29/09/2026: el ZIP del 23/09 no contiene esta revisión visual.
+Usar las fuentes actuales del 06/10/2026: el ZIP del 23/09 no contiene la revisión visual
+ni la migración del Access real.
 Comprobar también los tres tamaños de letra con las escalas de Windows, los selectores y
 calendarios a pantalla completa en ventana estrecha, el cierre de modales anidados y el
 orden de líneas en la vista previa/lector PDF. La evidencia Linux y de navegador está en
@@ -36,15 +37,41 @@ activar producción solo después de completar todas las verificaciones. Una con
 un checkbox o un acuse sintético no autorizan la activación. No reconstruir el binario
 después de ensayarlo sin repetir la verificación correspondiente.
 
-## Archivo Access original
+## Access real: ensayo local de 06/10/2026
 
-Obtener una copia cerrada del MDB/ACCDB y conservar el original intacto. Seguir
-`docs/IMPORTACION-ACCESS.md`: diagnóstico → perfil de origen/mapeo → incidencias → simulación
-→ importación por lotes → conciliación → ensayo de rollback. Confirmar relaciones/claves,
-IVA y cobros realmente conservados; los datos ausentes siguen siendo desconocidos.
-El corte final de emisión y la serie nueva se acuerdan expresamente; no se deducen de una
-foto o del número máximo importado. El importador nativo y el paquete alternativo ya tienen
-implementación y pruebas con bases sintéticas.
+Los dos originales ya se han investigado sin modificarlos. Informe principal:
+`reports/ACCESS-REAL-2026-10-06.md`; análisis estructural y VBA en los informes enlazados.
+No volver a aplicar el requisito antiguo de totales completos a este MDB: usar el perfil
+sugerido de conservación parcial y la relación postal. Los importes desconocidos son
+NULL/«No consta», no cero; no reconstruir todo el archivo al 21 %.
+
+Resultados conciliados: 1.595 clientes, 1.290 vehículos, 5.133 históricos y 19.335 líneas.
+Se conservan las 27.621 filas raw. Quedan para revisión 18 clientes, 222 referencias
+de vehículos, 70 registros/candidatos de histórico y 326 líneas sin atribución segura;
+38 históricos importados tienen fecha conflictiva y 45 carecen de fecha. Son conflictos
+reales preservados, no aceptación fiscal ni un corte de producción.
+
+Para revisar al volver, abrir el ensayo aislado que indica el informe, desde el proyecto:
+
+```bash
+source .venv/bin/activate
+python scripts/run_preview.py --data "$HOME/.canamo-access-codex-rehearsal-20261006-b"
+```
+
+Configuración → Traer datos → lote del ensayo → motivos agrupados, registros originales
+y conciliación. Los ensayos A y C fueron revertidos y conservan evidencia; B queda importado para
+inspección local. No usar ninguno como carpeta operativa. La carpeta de diagnóstico
+anterior `.canamo-access-prueba` se ha conservado.
+
+Quien conoce el taller debe acreditar las titularidades de 105 matrículas compartidas,
+las identidades incompletas y, si se quiere completar el histórico monetario, aportar
+documentos impresos/periodos/criterios de redondeo verificables. El código recuperado del
+informe no acredita por sí solo lo que se imprimió en cada época. No es necesario resolver
+estas cuestiones para consultar los registros importados con sus datos desconocidos.
+
+El corte final y la última factura en Access siguen requiriendo confirmación física con
+el propietario. Obtener entonces una copia cerrada reciente, revisar diferencias con el
+mismo origen/perfil y acordar la serie nueva por separado. No se deduce del máximo importado.
 
 ## Contrato público B2B
 

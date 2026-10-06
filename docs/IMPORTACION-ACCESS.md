@@ -10,8 +10,14 @@ ACE, ODBC, Python ni Java instalados por el usuario. La arquitectura objetivo es
 Se abren únicamente tablas locales en modo de lectura. Se desactivan expresiones y
 resolución de vínculos. No se ejecutan consultas, formularios, informes, macros ni VBA.
 El diagnóstico enumera tablas vinculadas y nombres/tipos de consultas, pero no abre sus
-orígenes ni vuelca cadenas de conexión. La lectura del Access real del taller sigue
-pendiente: no se ha recibido ese archivo.
+orígenes ni vuelca cadenas de conexión. El 06/10/2026 se leyeron los dos MDB reales
+localmente, se compararon sus tablas y se recuperaron fórmulas/VBA sin ejecutarlos.
+Véanse `reports/ACCESS-REAL-2026-10-06.md`, `reports/ACCESS-FORENSICS-2026-10-06.md`
+y `reports/ACCESS-COMPARISON-2026-10-06.md`.
+
+Un contador interno Access obsoleto no equivale a una tabla ilegible. El diagnóstico
+conserva `rows` (filas recorridas), `reported_rows` y `row_count_mismatch`; staging
+concilia contra las filas realmente extraídas. La interfaz muestra la discrepancia.
 
 Jackcess declara soporte de formatos Access 2000–2019. Un formato no admitido, una base
 dañada o cifrada produce un error, sin importación parcial. El error distingue un codec
@@ -37,8 +43,9 @@ Fuentes oficiales revisadas el 23-09-2026:
    de código o matrícula ni autoriza una fusión.
 4. Selecciona la copia y pulsa Diagnosticar. La aplicación conserva sus bytes y SHA-256,
    los tipos/columnas y todas las filas locales; no altera el archivo seleccionado.
-5. Revisa el perfil sugerido y guarda el mapeo. Las fotografías sirven para sugerir
-   Clientes / Facturas / DETALLE, no para asumir su esquema real.
+5. Revisa el perfil sugerido y guarda el mapeo. Se inspeccionan las columnas reales;
+   se sugiere la relación postal y, cuando las cabeceras no guardan ningún total,
+   el modo de conservación parcial descrito abajo.
 6. Valida el mapeo, revisa las incidencias y los registros originales. La paginación no
    recorta el lote. Puedes guardar un informe completo con campos no mapeados.
 7. Confirma las advertencias y ejecuta Simular. Se aplica el mismo importador sobre una
@@ -75,7 +82,7 @@ el importador nunca decide el siguiente número ni envía históricos a AEAT.
 - Campos no mapeados: permanecen en el original, staging e informe. Binarios se extraen
   en base64; tipos complejos no convertidos se etiquetan y el Access original se conserva.
 
-Los importes monetarios de cabecera y línea deben poder expresarse exactamente en céntimos.
+En el modo completo, los importes monetarios de cabecera y línea deben poder expresarse exactamente en céntimos.
 Una fracción de céntimo en un importe guardado se señala como incidencia; no se redondea
 silenciosamente. Cantidades/precios conservan su precisión decimal. El CSV admite punto o
 coma decimal según perfil, sin separadores de millares; fechas ISO o día/mes/año explícitos.
@@ -90,6 +97,60 @@ Importes que ya existen nunca se sustituyen por la reconstrucción.
 Una diferencia entre líneas, grupos de IVA y cabecera bloquea por defecto. Se puede aceptar
 conservar exactamente el original con una explicación. La conciliación distingue el
 descuadre original conservado de una diferencia introducida al importar.
+
+## Históricos parciales: datos desconocidos sin inventar una factura
+
+El perfil `options.preservation=partial` se sugiere cuando Facturas/DETALLE contienen
+una clave compuesta utilizable pero ninguna base/cuota/total de cabecera. También puede
+seleccionarse explícitamente. El contrato canónico v2 admite `preservation: "partial"`;
+el modo completo y el contrato v1 conservan sus validaciones anteriores.
+
+La migración SQLite 8 permite fecha e importes NULL exclusivamente en históricos y
+sus versiones revertidas. Se distinguen `amounts_state` conocido/parcial/desconocido,
+`date_state` conocido/desconocido/conflicto y procedencia. **Un importe cero conocido
+sigue siendo cero; un importe desconocido se muestra como «No consta».** No se suman
+históricos incompletos como facturación, no se asignan sin fecha a un período y no se
+aceptan cobros/saldos sin total conocido. Una rectificación exige datos completos.
+
+El campo TOTAL de DETALLE se guarda como `amount_raw`, decimal exacto y sin clasificación
+fiscal: cantidad × precio no acredita por sí mismo base, IVA o total impreso. No se
+redondea por línea ni por factura. También quedan guardados el valor fuente y la fila
+completa. El modo parcial no aplica la opción de porcentaje global del informe.
+El PDF explica los datos desconocidos y muestra el importe original separado de Base.
+
+Reglas reproducibles del modo parcial:
+
+- Claves NULL, vacías o solo espacios: conservar para revisión; **cero no es vacío**.
+- Cabeceras idénticas con la misma clave: un histórico con todas las cabeceras fuente.
+- Líneas con clave compuesta completa y cliente válido sin cabecera: recuperar la
+  identidad desde esa clave y marcar `header_state=recovered_from_lines`.
+- Cabecera sin líneas: conservar sin líneas ni importes inventados.
+- Fecha única válida entre las líneas: conservarla como fecha de origen; varias fechas
+  distintas o una fecha inválida: NULL y candidatos originales, sin elegir primera/última.
+- Concepto, cantidad, precio o importe ausentes: conservar la línea y el dato desconocido.
+- Cliente sin nombre/código, clave de identidad duplicada, matrícula inválida o compartida:
+  guardar en cuarentena con motivo. No se inventa una persona ni un titular.
+- Dependencias de clientes no importables: conservar en cuarentena, sin atribuirlas a otro.
+- Tablas «2004», backup y versiones alternativas: evidencia para comparar; no duplicar
+  contactos/líneas automáticamente. El backup se analiza por separado, no se importa
+  como un segundo origen.
+
+«Conservados para revisión» significa que esas fichas/documentos no están activos en el
+trabajo diario. Permanecen en `raw_rows`, `records`, `row_decisions` y el informe completo
+privado. Las líneas de clave incompleta permanecen en `raw_rows` y `row_decisions` aunque
+no puedan pertenecer a un documento. La UI agrupa motivos y permite consultar claves y
+originales paginados. Los casos seguros avanzan tras revisar los grupos; no se requiere
+aceptar miles de avisos individualmente. Vincular una ficha exige motivo e identidad
+fiable; una titularidad ambigua no se resuelve por recencia de facturación.
+
+La conciliación distingue importados, conservados para revisión y valores desconocidos.
+Si no hay ningún importe conocido, el agregado monetario también es NULL. «Conciliado»
+acredita lo importado, **no que todos los conflictos del archivo hayan desaparecido**.
+Cada fila mapeada tiene una decisión trazable; todas las tablas extraídas se conservan.
+
+El informe principal recuperado usa 21 %, otras copias 18/16 %, fecha del día al imprimir
+y datos actuales de cliente. No se ha acreditado su selección por periodo ni redondeo
+histórico. No aplicar el calendario legal ni un tipo fijo a 2003–2026.
 
 ## Resolución, cambios y cobros
 
@@ -176,6 +237,18 @@ La herramienta no sobrescribe destinos existentes. CSV/JSON/ZIP intermedio se id
 tal en el diagnóstico; no se presenta como una prueba de lectura MDB.
 
 ## Construcción y comprobación reproducible
+
+Ensayo de desarrollo completo, con destino nuevo y privado, sin tocar la base operativa:
+
+```bash
+.venv/bin/python scripts/rehearse_access.py '/ruta/privada/copia.mdb' '/ruta/privada/ensayo-nuevo'
+```
+
+Incluye copia/hash, diagnóstico, perfil sugerido, previsualización, simulación, importación,
+conciliación, búsquedas, PDF, auditoría, integridad SQLite y rollback. `--keep-imported`
+conserva únicamente ese ensayo nuevo importado para inspección; no lo convierte en uso
+productivo. La salida contiene conteos, no registros. Los originales, PDF, copias e informe
+detallado quedan privados en el destino y no deben adjuntarse al repositorio.
 
 ```powershell
 # Desarrollo: JDK 17 o posterior de fuente oficial. El cliente recibe el JRE incluido.

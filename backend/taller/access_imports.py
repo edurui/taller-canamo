@@ -225,6 +225,7 @@ class Imports(AccessWriter):
         conn = stage.connect()
         try:
             conn.execute('DELETE FROM records'); conn.execute('DELETE FROM incidents')
+            conn.execute('DELETE FROM row_decisions')
             customers = bundle.get('customers', []); vehicles = list(bundle.get('vehicles', []))
             for customer in customers:
                 require(isinstance(customer, dict), 'Cliente no válido.')
@@ -277,12 +278,16 @@ class Imports(AccessWriter):
             counts = {entity: conn.execute('SELECT count(*) FROM records WHERE entity=?', (entity,)).fetchone()[0] for entity in ENTITIES}
             actions = {row['action']: row['n'] for row in conn.execute('SELECT action,count(*) AS n FROM records GROUP BY action')}
             incident_counts = {key: conn.execute('SELECT count(*) FROM incidents WHERE level=?', (key,)).fetchone()[0] for key in ('error', 'warning')}
+            incident_groups = [dict(row) for row in conn.execute('SELECT level,entity,message,count(*) AS count FROM incidents GROUP BY level,entity,message ORDER BY level,count(*) DESC')]
+            decisions = [dict(row) for row in conn.execute('SELECT entity,table_name,disposition,rule,count(*) AS count FROM row_decisions GROUP BY entity,table_name,disposition,rule ORDER BY entity,rule')]
+            quarantine_groups = [dict(row) for row in conn.execute("SELECT entity,json_extract(payload,'$.quarantine_reason') AS reason,count(*) AS count FROM records WHERE action='quarantine' GROUP BY entity,reason ORDER BY entity,reason")]
             clause, params = ('', ()) if level == 'all' else (' WHERE level=?', (level,))
             incidents = [dict(row) for row in conn.execute('SELECT * FROM incidents' + clause + ' ORDER BY CASE level WHEN \'error\' THEN 0 ELSE 1 END,id LIMIT ? OFFSET ?', (*params, PAGE_SIZE, page * PAGE_SIZE))]
             samples = [{**dict(row), 'payload': json.loads(row['payload'])} for row in conn.execute('SELECT position,entity,source_key,payload,action FROM records ORDER BY position LIMIT 12')]
             return {'batch_id': batch_id, 'token': batch_id, 'status': batch['status'], 'source_id': batch['source_id'], 'cursor': batch['cursor'],
                     'diagnostic': json.loads((folder / 'diagnostic.json').read_text(encoding='utf-8')), 'profile': batch['profile'], 'summary': batch['summary'], 'counts': counts, 'actions': actions,
                     'incident_counts': incident_counts, 'incidents': incidents, 'page': page, 'page_size': PAGE_SIZE,
+                    'incident_groups': incident_groups, 'row_decisions': decisions, 'quarantine_groups': quarantine_groups,
                     'errors': [row['message'] for row in incidents if row['level'] == 'error'], 'warnings': [row['message'] for row in incidents if row['level'] == 'warning'],
                     'sample': [row['payload'] for row in samples if row['entity'] == 'customers'], 'records': samples,
                     'capacity': self.capacity(batch_id),

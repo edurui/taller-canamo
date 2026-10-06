@@ -65,8 +65,9 @@ public final class CanamoAccess {
         try(BufferedWriter writer=Files.newBufferedWriter(destination.resolve(filename),StandardCharsets.UTF_8,StandardOpenOption.CREATE_NEW)) {
           for(Row row:table) {writer.write(json(row));writer.newLine();count++;}
         }
-        if(count!=table.getRowCount()) throw new IOException("Row count differs: "+table.getName());
-        tables.add(object("name",table.getName(),"linked",false,"columns",columns,"primary_key",keys,"rows",count,"file",filename));
+        long reportedRows=table.getRowCount();
+        tables.add(object("name",table.getName(),"linked",false,"columns",columns,"primary_key",keys,
+          "rows",count,"reported_rows",reportedRows,"row_count_mismatch",count!=reportedRows,"file",filename));
       }
       // Names and types only: no execution or expansion of query SQL / external paths.
       for(var query:db.getQueries()) queries.add(object("name",query.getName(),"type",query.getType().toString()));
@@ -76,6 +77,7 @@ public final class CanamoAccess {
   }
   static void fixture(Path destination,String kind) throws Exception {
     if(Files.exists(destination)) throw new IOException("Fixture destination exists");
+    long staleCountOffset = -1;
     try(Database db=DatabaseBuilder.create(kind.startsWith("mdb")?Database.FileFormat.V2000:Database.FileFormat.V2010,destination.toFile())) {
       Table customers=new TableBuilder("Clientes").addColumn(new ColumnBuilder("Cod_cli",DataType.TEXT).setLengthInUnits(20))
         .addColumn(new ColumnBuilder("Cliente",DataType.TEXT).setLengthInUnits(100))
@@ -84,6 +86,11 @@ public final class CanamoAccess {
         .addColumn(new ColumnBuilder("Notas",DataType.MEMO)).setPrimaryKey("Cod_cli").toTable(db);
       customers.addRow("001","Cliente sintético Álvarez","600000001","1234-XYZ","Línea uno\nLínea dos; €");
       customers.addRow("002","Cliente sintético Muñoz","600000002","5678 XYZ","Texto conservado");
+      if(kind.endsWith("-stale-count")) {
+        var table = (com.healthmarketscience.jackcess.impl.TableImpl)customers;
+        var format = com.healthmarketscience.jackcess.impl.JetFormat.VERSION_4;
+        staleCountOffset = (long)table.getTableDefPageNumber() * format.PAGE_SIZE + format.OFFSET_NUM_ROWS;
+      }
       Table invoices=new TableBuilder("Facturas").addColumn(new ColumnBuilder("COD_CLI",DataType.TEXT).setLengthInUnits(20))
         .addColumn(new ColumnBuilder("FACTURA",DataType.TEXT).setLengthInUnits(30))
         .addColumn(new ColumnBuilder("FECHA",DataType.SHORT_DATE_TIME))
@@ -102,6 +109,14 @@ public final class CanamoAccess {
       if(kind.endsWith("-copy")) {
         Table unrelated=new TableBuilder("Tabla adicional sin mapear").addColumn(new ColumnBuilder("Nota",DataType.TEXT).setLengthInUnits(100)).toTable(db);
         unrelated.addRow("Cambio físico de la copia, sin cambiar clientes/facturas");
+      }
+    }
+    // Deliberately stale metadata in a generated Jet 4 fixture only. Row pages
+    // are unchanged, reproducing an archive whose table counter was not updated.
+    if(staleCountOffset >= 0) {
+      try(RandomAccessFile file = new RandomAccessFile(destination.toFile(), "rw")) {
+        file.seek(staleCountOffset);
+        file.write(new byte[]{1,0,0,0});
       }
     }
   }

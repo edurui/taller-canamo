@@ -178,6 +178,7 @@ test("CSV: conflicto de código exige vínculo explícito y la reimportación co
     .getByRole("button", { name: "Validar mapeo y previsualizar", exact: true })
     .click();
   await expect(page.getByText(/1 incidencias bloqueantes/)).toBeVisible();
+  await page.getByText("Revisar incidencias individuales y sus claves", { exact: true }).click();
   await page.getByText(/Revisar · Clientes/).click();
   await chooseOption(page
     .getByRole("combobox", { name: "Resolución", exact: true }), "link");

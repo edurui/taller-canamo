@@ -113,6 +113,7 @@ class Staging:
           CREATE TABLE IF NOT EXISTS incidents(id INTEGER PRIMARY KEY,level TEXT NOT NULL,entity TEXT NOT NULL,source_key TEXT NOT NULL,message TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS line_rows(source_key TEXT NOT NULL,row_number INTEGER NOT NULL,data TEXT NOT NULL);
           CREATE INDEX IF NOT EXISTS line_key ON line_rows(source_key);
+          CREATE TABLE IF NOT EXISTS row_decisions(entity TEXT NOT NULL,table_name TEXT NOT NULL,row_number INTEGER NOT NULL,disposition TEXT NOT NULL,rule TEXT NOT NULL,source_key TEXT NOT NULL,PRIMARY KEY(entity,table_name,row_number));
         ''')
         return conn
 

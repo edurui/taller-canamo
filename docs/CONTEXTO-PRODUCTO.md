@@ -18,8 +18,10 @@ No se ha pedido uso concurrente, red entre PCs, tienda online ni acceso desde el
 
 ## Programa antiguo
 Las fotografías muestran Microsoft Access: relaciones, formularios e informe impreso.
-No se ha recibido el archivo MDB/ACCDB. La estructura real, macros, consultas y numeración
-siguen pendientes de comprobar. Las fotos permiten identificar estas tablas aproximadas:
+El 06/10/2026 se analizaron localmente los dos MDB reales. La estructura, consultas,
+fórmulas y VBA recuperados se documentan en `../reports/ACCESS-REAL-2026-10-06.md` y sus
+anexos; no se ha ejecutado Access ni acreditado la impresión/IVA de cada época.
+Las fotos permitieron identificar estas tablas, ahora contrastadas con los archivos:
 
 - `Codigos_Postal`: `cp_codpos`, `cp_poblacion`, `cp_provincia`.
 - `Clientes`: `Cod_cli`, `Cliente`, `Cif o Nif`, `Direccion`, `Codigo_postal`, `Telefono1`,
@@ -124,5 +126,6 @@ No reutilizar fechas legales desactualizadas de respuestas previas: verificarlas
 Certificado del titular/representación autorizado aún desconocido; identidad del productor
 pendiente. No pedir claves privadas en el chat ni hardcodearlas. Desarrollo local sin ellas;
 pruebas de autenticación posteriores en el entorno autorizado.
-MDB y certificado NO bloquean el empaquetado, tests o UI. Sí bloquean afirmar migración
-real y aceptación autenticada como terminadas. Mantener Access intacto hasta el corte acordado.
+El ensayo de migración real se ha ejecutado con conservación explícita de los datos
+desconocidos y conflictos. El certificado sigue bloqueando la aceptación autenticada.
+Mantener Access intacto hasta el corte acordado; un ensayo local no autoriza ese corte.

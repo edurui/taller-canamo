@@ -38,7 +38,9 @@ class AccessWriter:
                         action = 'skip'
                         conn.execute('DELETE FROM incidents WHERE entity=? AND source_key=?', (entity, key))
                         incident('warning', entity, key, 'Excluido explícitamente: ' + str(resolution['reason']))
-                    elif value.get('invalid'):
+                    elif value.get('quarantine_reason') and not resolution.get('link'):
+                        action = 'quarantine'
+                    elif value.get('invalid') and not resolution.get('link'):
                         continue
                     elif old and old['source_hash'] == record['source_hash']:
                         action = 'unchanged'
@@ -50,6 +52,8 @@ class AccessWriter:
                             incident('error', entity, key, 'Hay actividad posterior en destino; no se sobrescribirá. Revisa la ficha y conserva ambas evidencias.')
                     elif resolution.get('link'):
                         require(entity in ('customers', 'vehicles') and str(resolution.get('reason', '')).strip(), 'Solo se vinculan fichas con una razón documentada.')
+                        require(entity != 'vehicles' or value.get('customer_key'), 'La vinculación del vehículo necesita una clave de cliente fiable en el mapeo.')
+                        require(conn.execute('SELECT count(*) FROM records WHERE entity=? AND source_key=?', (entity, key)).fetchone()[0] == 1, 'La clave duplicada necesita un mapeo inequívoco antes de vincularla.')
                         require(target.execute('SELECT 1 FROM ' + TABLES[entity] + ' WHERE id=? AND archived=0', (resolution['link'],)).fetchone(), 'La ficha seleccionada no existe o está archivada.')
                         action = 'link'
                     if action in ('insert', 'replace'):
@@ -65,12 +69,32 @@ class AccessWriter:
                         elif entity == 'vehicles':
                             conflict = target.execute('SELECT id FROM vehicles WHERE plate_normalized=?', (plate(value['plate']),)).fetchone()
                             if conflict and (not old or conflict['id'] != old['target_id']): incident('error', entity, key, 'Matrícula ya registrada. Revisa titularidad y vincula explícitamente; no se transfiere automáticamente.')
-                            if conn.execute('SELECT 1 FROM plate_keys WHERE plate=? AND source_key!=?', (plate(value['plate']), key)).fetchone(): incident('error', entity, key, 'Matrícula compartida por varias filas; resuelve la titularidad.')
+                            if conn.execute('SELECT 1 FROM plate_keys WHERE plate=? AND source_key!=?', (plate(value['plate']), key)).fetchone():
+                                if value.get('preservation') == 'partial':
+                                    action = 'quarantine'; value['quarantine_reason'] = 'shared_vehicle_owner_unknown'
+                                    incident('warning', entity, key, 'Matrícula compartida: titulares sin cronología acreditada; todas las referencias quedan pendientes de revisión, sin asignar propietario.')
+                                else:
+                                    incident('error', entity, key, 'Matrícula compartida por varias filas; resuelve la titularidad.')
                         if entity != 'customers':
-                            customer = conn.execute("SELECT position FROM records WHERE entity='customers' AND source_key=? AND action!='skip'", (value['customer_key'],)).fetchone()
+                            customer = conn.execute("SELECT position FROM records WHERE entity='customers' AND source_key=? AND action NOT IN ('skip','quarantine') AND (action='link' OR coalesce(json_extract(payload,'$.invalid'),0)=0)", (value['customer_key'],)).fetchone()
                             existing = target.execute("SELECT target_id FROM import_records WHERE source_id=? AND entity='customers' AND source_key=? AND active=1", (batch['source_id'], value['customer_key'])).fetchone()
-                            if not customer and not existing: incident('error', entity, key, 'Cliente de origen no encontrado; mapea su clave o vincula una ficha explícitamente.')
+                            source_customer_present = conn.execute("SELECT 1 FROM records WHERE entity='customers' AND source_key=?", (value['customer_key'],)).fetchone()
+                            if not customer and (not existing or source_customer_present):
+                                if value.get('preservation') == 'partial':
+                                    action = 'quarantine'; value['quarantine_reason'] = 'customer_identity_unresolved'
+                                    incident('warning', entity, key, 'Cliente sin identidad completa: histórico conservado para revisión, sin asignarlo a otra persona.')
+                                else:
+                                    incident('error', entity, key, 'Cliente de origen no encontrado; mapea su clave o vincula una ficha explícitamente.')
                         if entity == 'invoices':
+                            if value.get('preservation') == 'partial' and value.get('vehicle_key'):
+                                vehicle = conn.execute("SELECT action,payload FROM records WHERE entity='vehicles' AND source_key=?", (value['vehicle_key'],)).fetchone()
+                                prior_vehicle = target.execute("SELECT target_id FROM import_records WHERE source_id=? AND entity='vehicles' AND source_key=? AND active=1", (batch['source_id'], value['vehicle_key'])).fetchone()
+                                if not (vehicle and vehicle['action'] not in ('skip', 'quarantine') and not json.loads(vehicle['payload']).get('invalid') or not vehicle and prior_vehicle):
+                                    value['unresolved_vehicle_key'] = value.pop('vehicle_key')
+                                    value['vehicle_identity_state'] = 'unknown'
+                                    incident('warning', entity, key, 'Vehículo sin identidad/titularidad fiable: el histórico se conserva sin atribuirle un vehículo.')
+                            if value.get('amounts_state') in ('partial', 'unknown'):
+                                incident('warning', entity, key, 'Importes finales no conservados: No consta; fuera de totales financieros y sin deuda inventada.')
                             if any(line['quantity'] is None or line['unit_price'] is None for line in value['lines']): incident('warning', entity, key, 'Cantidad o precio no conservados en alguna línea; se mostrará No consta y se mantendrá su importe original.')
                             if any(value['amount_differences'].values()) and not resolution.get('accept_difference'): incident('error', entity, key, 'Los importes históricos presentan diferencias. Acepta conservarlas con una explicación; nunca se corrigen automáticamente.')
                             if resolution.get('accept_difference'):
@@ -80,7 +104,17 @@ class AccessWriter:
                                 if certainty == 'unknown': incident('warning', entity, key, 'Datos originales de ' + {'customer':'receptor','issuer':'emisor','vehicle':'vehículo'}[part] + ' desconocidos; no se copiará la ficha actual.')
                             if value['payment_state'] == 'unknown': incident('warning', entity, key, 'Cobro no documentado: no se convierte en deuda pendiente.')
                             if value.get('legacy_v1_derived'): incident('warning', entity, key, 'Paquete v1: desglose reconstruido según su contrato antiguo; conserva el original y contrasta totales.')
-                    conn.execute('UPDATE records SET action=?,resolution=? WHERE position=?', (action, dumps(resolution), record['position']))
+                    conn.execute('UPDATE records SET action=?,resolution=?,payload=? WHERE position=?', (action, dumps(resolution), dumps(value), record['position']))
+                    if action == 'quarantine':
+                        conn.execute("UPDATE row_decisions SET disposition='quarantine',rule=? WHERE entity=? AND source_key=?", (value.get('quarantine_reason', 'identity_unresolved'), entity, key))
+                        if entity == 'invoices':
+                            conn.execute("UPDATE row_decisions SET disposition='quarantine',rule=? WHERE entity='lines' AND source_key=?", (value.get('quarantine_reason', 'identity_unresolved'), key))
+                    elif action == 'link':
+                        conn.execute("UPDATE row_decisions SET disposition='mapped',rule='explicit_identity_link' WHERE entity=? AND source_key=?", (entity, key))
+                    elif action == 'skip':
+                        conn.execute("UPDATE row_decisions SET disposition='excluded',rule='explicit_skip' WHERE entity=? AND source_key=?", (entity, key))
+                        if entity == 'invoices':
+                            conn.execute("UPDATE row_decisions SET disposition='excluded',rule='explicit_skip' WHERE entity='lines' AND source_key=?", (key,))
                 mapped_entities = {row['entity'] for row in conn.execute('SELECT DISTINCT entity FROM records')}
                 for old in target.execute('SELECT entity,source_key FROM import_records WHERE source_id=? AND active=1', (batch['source_id'],)):
                     if old['entity'] in mapped_entities and not conn.execute('SELECT 1 FROM records WHERE entity=? AND source_key=?', (old['entity'], old['source_key'])).fetchone():
@@ -108,6 +142,7 @@ class AccessWriter:
         entity, key = record['entity'], record['source_key']; value = json.loads(record['payload']); resolution = json.loads(record['resolution'])
         old = conn.execute('SELECT * FROM import_records WHERE source_id=? AND entity=? AND source_key=? AND active=1', (batch['source_id'], entity, key)).fetchone()
         if record['action'] == 'skip': return 'skipped'
+        if record['action'] == 'quarantine': return 'quarantined'
         if old and old['source_hash'] == record['source_hash']: return 'unchanged'
         require(record['action'] != 'unchanged', 'El destino ha cambiado desde la vista previa. Vuelve a simular.', 'conflict')
         require(not old or record['action'] == 'replace' and resolution.get('replace') and resolution.get('reason'), 'Conflicto de identidad: vuelve a revisar el lote.', 'conflict')
@@ -119,7 +154,7 @@ class AccessWriter:
             if entity == 'vehicles': require(conn.execute('SELECT customer_id FROM vehicles WHERE id=?', (identifier,)).fetchone()[0] == self._owner(conn, batch['source_id'], value['customer_key']), 'La matrícula pertenece a otro cliente; usa transferencia de titularidad fuera de la importación.', 'conflict')
         elif entity == 'customers':
             fields = {key: str(value.get(key, '') or '') for key in CUSTOMER_FIELDS}
-            fields['tax_id'] = plate(fields['tax_id']); fields['country'] = fields['country'] or 'ES'
+            fields['tax_id'] = plate(fields['tax_id'])
             fields['search_text'] = normalized(' '.join(fields.values())) + ' ' + plate(fields['phone']) + ' ' + plate(fields['phone2'])
             if old: conn.execute('UPDATE customers SET ' + ','.join(key + '=?' for key in fields) + ',updated_at=?,version=version+1 WHERE id=?', (*fields.values(), now(), identifier))
             else: conn.execute('INSERT INTO customers(id,' + ','.join(fields) + ',created_at,updated_at) VALUES(' + ','.join('?' for _ in range(len(fields) + 3)) + ')', (identifier, *fields.values(), now(), now()))
@@ -141,6 +176,7 @@ class AccessWriter:
                 vehicle = conn.execute("SELECT target_id FROM import_records WHERE source_id=? AND entity='vehicles' AND source_key=? AND active=1", (batch['source_id'], value['vehicle_key'])).fetchone()
                 require(vehicle, 'No se encuentra el vehículo de origen.'); vehicle_id = vehicle['target_id']
             payload = {key: value[key] for key in ('lines', 'taxes', 'base_cents', 'tax_cents', 'total_cents', 'payment_state', 'snapshot_certainty', 'amount_differences')}
+            payload.update({key: value[key] for key in ('preservation', 'amounts_state', 'amounts_provenance', 'date_state', 'date_candidates', 'header_state', 'vehicle_identity_state', 'unresolved_vehicle_key') if key in value})
             payload.update({'customer': value['customer_snapshot'], 'issuer': value['issuer_snapshot'], 'vehicle': value.get('vehicle_snapshot'), 'historical': True, 'test_document': False,
                             'invoice_type': value.get('invoice_type', 'F1'), 'source': 'Access/intermedio', 'branding': {}, 'notes': value.get('notes', ''), 'kilometres': value.get('kilometres'),
                             'footer': 'Documento histórico importado. Conserve el original.', 'import_provenance': {'source_id': batch['source_id'], 'source_key': key, 'source_hash': record['source_hash'], 'batch_id': batch['id'], 'calculation_evidence': value.get('calculation_evidence'), 'difference_evidence': resolution.get('reason') if resolution.get('accept_difference') else None}})
@@ -235,14 +271,18 @@ class AccessWriter:
 
     def reconcile(self, batch_id, page=0):
         batch = self._batch(batch_id); stage_conn = Staging(self._folder(batch_id)).connect(); page = max(0, int(page))
-        totals = {key: 0 for key in ('source_invoices', 'destination_invoices', 'source_lines', 'destination_lines', 'source_base_cents', 'source_tax_cents', 'source_total_cents', 'destination_base_cents', 'destination_tax_cents', 'destination_total_cents', 'unknown_payment', 'differences', 'excluded')}
+        totals = {key: 0 for key in ('source_invoices', 'destination_invoices', 'source_lines', 'destination_lines', 'source_base_cents', 'source_tax_cents', 'source_total_cents', 'destination_base_cents', 'destination_tax_cents', 'destination_total_cents', 'unknown_payment', 'differences', 'excluded', 'quarantined')}
+        for prefix in ('source', 'destination'):
+            for field in ('base_cents', 'tax_cents', 'total_cents'):
+                totals[prefix + '_unknown_' + field] = 0
         items = []
         try:
             with self.db.read() as conn:
                 for index, row in enumerate(stage_conn.execute("SELECT * FROM records WHERE entity='invoices' ORDER BY position")):
                     value = json.loads(row['payload']); current = conn.execute("SELECT * FROM import_records WHERE source_id=? AND entity='invoices' AND source_key=? AND active=1", (batch['source_id'], row['source_key'])).fetchone()
                     destination = conn.execute('SELECT * FROM documents WHERE id=? AND status=\'historical\'', (current['target_id'],)).fetchone() if current else None
-                    delta = {}; excluded = row['action'] == 'skip'
+                    delta = {}; excluded = row['action'] in ('skip', 'quarantine')
+                    totals['quarantined'] += int(row['action'] == 'quarantine')
                     if excluded or value.get('invalid'):
                         totals['excluded'] += int(excluded)
                         totals['differences'] += int(not excluded)
@@ -250,11 +290,16 @@ class AccessWriter:
                         continue
                     else:
                         totals['source_invoices'] += 1; totals['source_lines'] += len(value['lines'])
-                        for key in ('base_cents', 'tax_cents', 'total_cents'): totals['source_' + key] += value[key]
+                        for key in ('base_cents', 'tax_cents', 'total_cents'):
+                            if value[key] is None: totals['source_unknown_' + key] += 1
+                            else: totals['source_' + key] += value[key]
                         if destination:
                             payload = json.loads(destination['payload']); totals['destination_invoices'] += 1; totals['destination_lines'] += len(payload['lines'])
                             for key in ('base_cents', 'tax_cents', 'total_cents'):
-                                totals['destination_' + key] += destination[key]; delta[key] = destination[key] - value[key]
+                                if destination[key] is None: totals['destination_unknown_' + key] += 1
+                                else: totals['destination_' + key] += destination[key]
+                                delta[key] = int(destination[key] != value[key]) if destination[key] is None or value[key] is None else destination[key] - value[key]
+                            delta['issue_date'] = int(destination['issue_date'] != value['issue_date'])
                             delta['lines'] = len(payload['lines']) - len(value['lines']); delta['source_changed'] = int(current['source_hash'] != row['source_hash'])
                             delta['line_content'] = int(fingerprint(payload['lines']) != fingerprint(value['lines']))
                             delta['tax_breakdown'] = int(fingerprint(payload['taxes']) != fingerprint(value['taxes']))
@@ -267,12 +312,16 @@ class AccessWriter:
                 for entity in ENTITIES:
                     count = {'source': 0, 'destination': 0, 'excluded': 0, 'missing_keys': 0}
                     for row in stage_conn.execute('SELECT * FROM records WHERE entity=?', (entity,)):
-                        if row['action'] == 'skip': count['excluded'] += 1; continue
+                        if row['action'] in ('skip', 'quarantine'): count['excluded'] += 1; continue
                         count['source'] += 1
                         target = conn.execute('SELECT target_id FROM import_records WHERE source_id=? AND entity=? AND source_key=? AND active=1', (batch['source_id'], entity, row['source_key'])).fetchone()
                         present = bool(target and conn.execute('SELECT 1 FROM ' + TABLES[entity] + (' WHERE id=? AND status=\'historical\'' if entity == 'invoices' else ' WHERE id=? AND archived=0'), (target['target_id'],)).fetchone())
                         count['destination'] += int(present); count['missing_keys'] += int(not present)
                     entity_counts[entity] = count
+                for prefix in ('source', 'destination'):
+                    for field in ('base_cents', 'tax_cents', 'total_cents'):
+                        if totals[prefix + '_invoices'] and totals[prefix + '_unknown_' + field] == totals[prefix + '_invoices']:
+                            totals[prefix + '_' + field] = None
             return {'batch_id': batch_id, 'status': batch['status'], 'totals': totals, 'items': items, 'page': page, 'page_size': 50, 'changes': changes,
                     'entity_counts': entity_counts, 'balanced': batch['status'] == 'completed' and totals['differences'] == 0 and all(not count['missing_keys'] for count in entity_counts.values()), 'original_sha256': batch['source_digest'], 'series_changed': False, 'fiscal_enqueued': False}
         finally: stage_conn.close()
@@ -329,7 +378,7 @@ class AccessWriter:
             try:
                 with temporary.open('w', encoding='utf-8') as output:
                     output.write(dumps({'type': 'review', 'value': self.review(batch_id)}) + '\n')
-                    for table in ('incidents', 'records', 'raw_rows'):
+                    for table in ('incidents', 'records', 'raw_rows', 'row_decisions'):
                         for row in conn.execute('SELECT * FROM ' + table): output.write(dumps({'type': table, 'value': dict(row)}) + '\n')
                     output.write(dumps({'type': 'reconciliation', 'value': self.reconcile(batch_id)}) + '\n'); output.flush(); os.fsync(output.fileno())
                 os.replace(temporary, path)

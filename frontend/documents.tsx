@@ -1110,7 +1110,7 @@ export function DocumentEditor({
       !s.archived &&
       s.kind ===
         (value.invoice_type.startsWith("R") ? "rectification" : kind) &&
-      (s.year === 0 || s.year === Number(value.issue_date.slice(0, 4))),
+      (s.year === 0 || s.year === Number((value.issue_date ?? "").slice(0, 4))),
   );
   return (
     <>
@@ -1157,6 +1157,14 @@ export function DocumentEditor({
         )}
       </PageHead>
       {error && <Notice tone="error">{error}</Notice>}
+      {historical && (doc?.amounts_state !== "known" || !doc?.issue_date) && (
+        <Notice>
+          Histórico incompleto. Los datos ausentes figuran como «No consta».
+          Los importes originales sin clasificación fiscal no acreditan la base,
+          el IVA ni el total de la factura.
+          {doc?.date_state === "conflict" && " El origen conserva fechas diferentes; no se ha elegido una por defecto."}
+        </Notice>
+      )}
       {doc &&
         !isDraft &&
         !["void", "import_reverted"].includes(doc.status) &&
@@ -1281,7 +1289,8 @@ export function DocumentEditor({
               </Field>
               <Input
                 label="Kil&oacute;metros"
-                value={value.kilometres}
+                value={value.kilometres ?? ""}
+                placeholder={historical ? "No consta" : undefined}
                 type="number"
                 min={0}
                 max={10000000}
@@ -1311,6 +1320,9 @@ export function DocumentEditor({
               )}
             </div>
             <div className="line-items">
+              {historical && value.lines.length === 0 && (
+                <p className="padded subtle">No constan líneas en el archivo histórico.</p>
+              )}
               <span className="sr-only" role="status">
                 {orderMessage}
               </span>
@@ -1414,7 +1426,7 @@ export function DocumentEditor({
                         }}
                         value={line.description}
                         disabled={!editable}
-                        placeholder="Por ejemplo, cambio de aceite y filtro"
+                        placeholder={editable ? "Por ejemplo, cambio de aceite y filtro" : "No consta"}
                         onChange={(e) =>
                           lineChange(i, "description", e.target.value)
                         }
@@ -1430,6 +1442,11 @@ export function DocumentEditor({
                       />
                     </Field>
                   </div>
+                  {historical && line.amount_raw != null && (
+                    <p className="small subtle">
+                      Importe original sin clasificación fiscal: {String(line.amount_raw).replace(".", ",")}
+                    </p>
+                  )}
                   <div className="line-values">
                     <Input
                       label="Cantidad"
@@ -1449,7 +1466,7 @@ export function DocumentEditor({
                       }
                     />
                     <Input
-                      label="Precio sin IVA"
+                      label={historical && doc?.amounts_state !== "known" ? "Precio original" : "Precio sin IVA"}
                       aria-label={"Precio " + (i + 1)}
                       inputMode="decimal"
                       value={line.unit_price ?? ""}
@@ -1495,7 +1512,7 @@ export function DocumentEditor({
                     <div className="line-total">
                       <small>Base</small>
                       <strong>
-                        {money(totals.lines?.[i]?.base_cents || 0)}
+                        {money(totals.lines?.[i]?.base_cents ?? (editable ? 0 : null))}
                       </strong>
                     </div>
                     {editable && value.correction_mode !== "tax_only" && (
@@ -1517,7 +1534,8 @@ export function DocumentEditor({
                     <div className="line-advanced">
                       <Input
                         label="Descuento %"
-                        value={line.discount || "0"}
+                        value={line.discount ?? (editable ? "0" : "")}
+                        placeholder={editable ? undefined : "No consta"}
                         disabled={
                           !editable || value.correction_mode === "tax_only"
                         }
@@ -1535,13 +1553,16 @@ export function DocumentEditor({
                           disabled={
                             !editable || value.correction_mode === "tax_only"
                           }
-                          value={line.tax_kind || "S1"}
+                          value={line.tax_kind || (historical ? "historical" : "S1")}
                           onChange={(e) => {
                             lineChange(i, "tax_kind", e.target.value);
                             if (e.target.value !== "S1")
                               lineChange(i, "tax_rate", "0");
                           }}
                         >
+                          {historical && (
+                            <option value="historical">No consta clasificación fiscal</option>
+                          )}
                           <option value="S1">Sujeta y no exenta</option>
                           {["E1", "E2", "E3", "E4", "E5", "E6"].map((x) => (
                             <option key={x} value={x}>
@@ -1550,7 +1571,7 @@ export function DocumentEditor({
                           ))}
                         </Select>
                       </Field>
-                      {line.tax_kind && line.tax_kind !== "S1" && (
+                      {line.tax_kind && line.tax_kind !== "S1" && line.tax_kind !== "historical" && (
                         <Input
                           label="Motivo legal de exenci&oacute;n"
                           value={line.tax_reason || ""}
@@ -1722,12 +1743,15 @@ export function DocumentEditor({
               {!doc!.payment_known && (
                 <div className="padded">
                   <Notice>
-                    El archivo histórico no acredita el cobro. Esta factura se
-                    excluye del pendiente hasta documentar su saldo.
+                    {doc!.total_cents === null
+                      ? "El total histórico no consta. No se puede calcular un saldo ni registrar cobros."
+                      : "El archivo histórico no acredita el cobro. Esta factura se excluye del pendiente hasta documentar su saldo."}
                   </Notice>
-                  <Button onClick={() => setPaymentState(true)}>
-                    Documentar saldo inicial
-                  </Button>
+                  {doc!.total_cents !== null && (
+                    <Button onClick={() => setPaymentState(true)}>
+                      Documentar saldo inicial
+                    </Button>
+                  )}
                 </div>
               )}
               {doc!.payment_baseline && (
@@ -1816,6 +1840,12 @@ export function DocumentEditor({
                 <span>{money(t.tax_cents)}</span>
               </div>
             ))}
+            {historical && !totals.taxes?.length && (
+              <div className="summary-line">
+                <span>IVA (desglose no conservado)</span>
+                <span>{money(totals.tax_cents ?? null)}</span>
+              </div>
+            )}
             <div className="summary-total">
               <span>Total</span>
               <strong>{money(totals.total_cents)}</strong>
@@ -1831,7 +1861,8 @@ export function DocumentEditor({
             <Input
               label="Fecha del documento"
               type="date"
-              value={value.issue_date}
+              value={value.issue_date ?? ""}
+              hint={historical && !value.issue_date ? "No consta una fecha confirmada en el origen." : undefined}
               disabled={!editable}
               onChange={(e) => {
                 const days =
@@ -1994,9 +2025,14 @@ export function DocumentEditor({
               <p className="small subtle">
                 La factura original se conserva siempre.
               </p>
-              <Button tone="full" onClick={() => setCorrection("rectify")}>
+              <Button tone="full" disabled={historical && !doc?.can_rectify} onClick={() => setCorrection("rectify")}>
                 Crear rectificativa
               </Button>
+              {historical && !doc?.can_rectify && (
+                <p className="small subtle">
+                  Requiere fecha e importes fiscales completos acreditados en el original.
+                </p>
+              )}
               {doc!.status === "issued" && (
                 <Button
                   tone="ghost full"

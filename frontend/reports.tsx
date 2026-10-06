@@ -143,6 +143,18 @@ export function ReportsPage() {
         data.billing && (
           <>
             <Notice>{data.notice}</Notice>
+            {!!data.billing.excluded_incomplete_count && (
+              <Notice>
+                {data.billing.excluded_incomplete_count} históricos del período
+                no conservan todos los importes fiscales y se excluyen de la facturación.
+              </Notice>
+            )}
+            {!!data.billing.undated_historical_count && (
+              <Notice>
+                {data.billing.undated_historical_count} históricos no conservan fecha
+                confirmada y no se asignan a ningún período. Puedes consultarlos en el historial.
+              </Notice>
+            )}
             <div className="stat-grid">
               <div className="stat-card">
                 <span>Facturación del período</span>

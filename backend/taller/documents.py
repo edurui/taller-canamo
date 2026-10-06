@@ -13,8 +13,21 @@ METHODS = ('cash','card','transfer','bizum','other')
 IMMUTABLE = ('issued','historical','void')
 _CUSTOMER_SNAPSHOT_FIELDS = ('id','legacy_code','name','tax_id','address','postal_code','city','province','country','phone','email')
 
-PAYMENT_KNOWN_SQL = "(d.status NOT IN ('historical','import_reverted') OR coalesce(json_extract(d.payload,'$.payment_state'),'unknown') != 'unknown' OR EXISTS(SELECT 1 FROM document_payment_baselines b WHERE b.document_id=d.id))"
+AMOUNTS_KNOWN_SQL = "(d.base_cents IS NOT NULL AND d.tax_cents IS NOT NULL AND d.total_cents IS NOT NULL)"
+PAYMENT_KNOWN_SQL = "(d.total_cents IS NOT NULL AND (d.status NOT IN ('historical','import_reverted') OR coalesce(json_extract(d.payload,'$.payment_state'),'unknown') != 'unknown' OR EXISTS(SELECT 1 FROM document_payment_baselines b WHERE b.document_id=d.id)))"
 PAID_SQL = "(coalesce((SELECT b.paid_cents FROM document_payment_baselines b WHERE b.document_id=d.id),0)+coalesce((SELECT sum(p.amount_cents) FROM payments p WHERE p.document_id=d.id),0))"
+
+
+def _historical_availability(document):
+    """Expose availability independently of values, without changing immutable payloads."""
+    known = sum(document[key] is not None for key in ('base_cents','tax_cents','total_cents'))
+    document['amounts_state'] = 'known' if known == 3 else 'partial' if known else 'unknown'
+    payload = document.get('payload') or {}
+    document['date_state'] = 'known' if document['issue_date'] else payload.get('date_state', document.get('date_state','unknown'))
+    provenance = payload.get('amounts_provenance', document.get('amounts_provenance') or {})
+    document['amounts_provenance'] = json.loads(provenance) if isinstance(provenance,str) else provenance
+    document['can_rectify'] = document['kind'] == 'invoice' and document['status'] in ('issued','historical') and document['amounts_state'] == 'known' and bool(document['issue_date'])
+    return document
 
 
 def _is_test_document(environment):
@@ -45,10 +58,11 @@ class Documents:
         require(row, 'No se encuentra el documento.', 'not_found')
         result = dict(row)
         result['payload'] = json.loads(row['payload'])
+        _historical_availability(result)
         result['payments'] = [dict(p) for p in conn.execute('SELECT * FROM payments WHERE document_id=? ORDER BY created_at',(identifier,))]
         baseline = conn.execute('SELECT * FROM document_payment_baselines WHERE document_id=?',(identifier,)).fetchone()
         result['payment_baseline'] = dict(baseline) if baseline else None
-        result['payment_known'] = bool(baseline or result['status'] not in ('historical','import_reverted') or result['payload'].get('payment_state','unknown')!='unknown')
+        result['payment_known'] = result['total_cents'] is not None and bool(baseline or result['status'] not in ('historical','import_reverted') or result['payload'].get('payment_state','unknown')!='unknown')
         result['paid_cents'] = (sum(p['amount_cents'] for p in result['payments']) + (baseline['paid_cents'] if baseline else 0)) if result['payment_known'] else None
         result['pending_cents'] = result['total_cents'] - result['paid_cents'] if result['payment_known'] else None
         result['conversion_identity_locked'] = bool(row['origin_id'] or conn.execute(
@@ -84,8 +98,8 @@ class Documents:
         with self.db.read() as conn:
             conn.create_function('normalized_plate',1,plate,deterministic=True)
             total = conn.execute('SELECT count(*)'+joins,params).fetchone()[0]
-            rows = conn.execute("SELECT d.id,d.kind,d.status,d.issue_date,d.due_date,d.full_number,d.customer_id,d.vehicle_id,d.total_cents,d.base_cents,d.version,d.customer_name,d.plate,"+PAYMENT_KNOWN_SQL+" AS payment_known, CASE WHEN "+PAYMENT_KNOWN_SQL+" THEN "+PAID_SQL+" ELSE NULL END AS paid_cents,(SELECT o.status FROM fiscal_records r JOIN fiscal_outbox o ON o.record_id=r.id WHERE r.document_id=d.id ORDER BY r.seq DESC LIMIT 1) AS fiscal_state"+joins+' ORDER BY d.issue_date DESC,d.created_at DESC,d.id DESC LIMIT 50 OFFSET ?',(*params,max(0,int(page))*50))
-            return {'items':[dict(r) for r in rows],'total':total,'page':page}
+            rows = conn.execute("SELECT d.id,d.kind,d.status,d.issue_date,d.due_date,d.full_number,d.customer_id,d.vehicle_id,d.total_cents,d.base_cents,d.tax_cents,d.version,d.customer_name,d.plate,coalesce(json_extract(d.payload,'$.date_state'),'unknown') AS date_state,json_extract(d.payload,'$.amounts_provenance') AS amounts_provenance,"+PAYMENT_KNOWN_SQL+" AS payment_known, CASE WHEN "+PAYMENT_KNOWN_SQL+" THEN "+PAID_SQL+" ELSE NULL END AS paid_cents,(SELECT o.status FROM fiscal_records r JOIN fiscal_outbox o ON o.record_id=r.id WHERE r.document_id=d.id ORDER BY r.seq DESC LIMIT 1) AS fiscal_state"+joins+' ORDER BY d.issue_date DESC,d.created_at DESC,d.id DESC LIMIT 50 OFFSET ?',(*params,max(0,int(page))*50))
+            return {'items':[_historical_availability(dict(r)) for r in rows],'total':total,'page':page}
 
     def save(self,data):
         with self.db.transaction() as conn:
@@ -126,6 +140,7 @@ class Documents:
             require(kind=='invoice' and reference_id, 'La rectificativa debe indicar la factura original.')
             original = conn.execute('SELECT * FROM documents WHERE id=?',(reference_id,)).fetchone()
             require(original and original['kind']=='invoice' and original['status'] in ('issued','historical'), 'Factura original no v\u00e1lida.')
+            self._require_rectifiable(original)
             require(original['customer_id']==customer_id, 'La rectificativa debe corresponder al mismo cliente.')
             require(notes, 'Indica el motivo de rectificaci\u00f3n.')
         else:
@@ -202,6 +217,7 @@ class Documents:
             vehicle = conn.execute('SELECT * FROM vehicles WHERE id=?',(document['vehicle_id'],)).fetchone() if document['vehicle_id'] else None
             original = self.get(document['reference_id'],conn) if payload['invoice_type'].startswith('R') else None
             if original:
+                self._require_rectifiable(original)
                 require(original['kind']=='invoice' and original['status'] in ('issued','historical')
                         and original['customer_id']==document['customer_id'], 'La factura original ya no permite esta rectificativa.')
             payload['operation_date']=self._operation_date(payload.get('operation_date'),document['issue_date'],original)
@@ -400,6 +416,7 @@ class Documents:
     def rectify(self,identifier,reason,invoice_type='R4',lines=None,operation_date=None,tax_adjustments=None):
         original = self.get(identifier)
         require(original['kind']=='invoice' and original['status'] in ('issued','historical'), 'Selecciona una factura emitida.')
+        self._require_rectifiable(original)
         require(reason and invoice_type in ('R1','R2','R3','R4'), 'Indica el motivo y tipo de rectificaci\u00f3n.')
         operation_date=self._operation_date(operation_date,today(),original)
         if tax_adjustments is not None:
@@ -419,6 +436,12 @@ class Documents:
                           'operation_date':operation_date,'tax_adjustments':tax_adjustments,
                           'payment_method':original['payload'].get('payment_method') if original['payload'].get('payment_method') in METHODS else self.settings.get()['billing']['payment_method'],
                           'kilometres':original['payload'].get('kilometres') or 0})
+
+    @staticmethod
+    def _require_rectifiable(document):
+        require(document['issue_date'] and all(document[key] is not None for key in ('base_cents','tax_cents','total_cents')),
+                'El histórico no conserva fecha e importes fiscales completos. Revisa el original antes de preparar una rectificativa.',
+                'historical_incomplete')
 
     def void(self,identifier,reason,confirmation):
         require(confirmation=='ANULAR' and str(reason).strip(), 'Escribe ANULAR e indica el motivo del error material.')
@@ -448,6 +471,7 @@ class Documents:
                 return self.get(identifier,conn)
             doc = self.get(identifier,conn)
             require(doc['kind']=='invoice' and doc['status'] in ('issued','historical'), 'Solo se registran cobros de facturas emitidas.')
+            require(doc['total_cents'] is not None, 'El total histórico no consta. No se puede calcular un saldo ni registrar cobros.', 'historical_amount_unknown')
             require(doc['payment_known'], 'El cobro histórico no está documentado. Registra primero su saldo inicial con la evidencia disponible.')
             pending = doc['pending_cents']
             require(amount_cents != 0 and ((0 < amount_cents <= pending) or (pending <= amount_cents < 0)), 'El importe debe corresponder al saldo pendiente, sin excederlo.')
@@ -467,6 +491,7 @@ class Documents:
                 return self.get(identifier,conn)
             document = self.get(identifier,conn)
             require(document['kind']=='invoice' and document['status']=='historical' and not document['payment_known'], 'Solo se documenta el saldo inicial de una histórica con cobro desconocido.')
+            require(document['total_cents'] is not None, 'El total histórico no consta. No se puede documentar un saldo inicial.', 'historical_amount_unknown')
             require(min(0,document['total_cents'])<=paid_cents<=max(0,document['total_cents']), 'El saldo cobrado debe estar comprendido entre cero y el importe de la factura.')
             require(not document['payments'], 'Esta histórica ya tiene movimientos. Revisa la conciliación antes de fijar su saldo inicial.')
             conn.execute('INSERT INTO document_payment_baselines VALUES(?,?,?,?,?)',(identifier,paid_cents,evidence.strip(),idempotency_key,now()))
@@ -481,6 +506,7 @@ class Documents:
         key = 'opening-adjust:'+idempotency_key
         with self.db.transaction() as conn:
             document = self.get(identifier,conn)
+            require(document['total_cents'] is not None, 'El total histórico no consta. No se puede corregir un saldo inicial.', 'historical_amount_unknown')
             require(document['kind']=='invoice' and document['status']=='historical' and document['payment_baseline'], 'Primero documenta el saldo inicial desconocido de la histórica.')
             detail = dumps({'paid_cents':paid_cents,'evidence':evidence.strip()})
             prior = conn.execute('SELECT * FROM payments WHERE idempotency_key=?',(key,)).fetchone()

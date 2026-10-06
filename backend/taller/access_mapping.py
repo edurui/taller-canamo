@@ -41,7 +41,7 @@ def fingerprint(value):
 def source_key(row, columns):
     require(isinstance(columns, list) and columns, 'Selecciona las columnas de la clave de origen.')
     values = [row.get(column) for column in columns]
-    require(all(value is not None and str(value) != '' and not isinstance(value, (dict, list, bool)) for value in values), 'La clave de origen tiene valores vacíos o complejos.')
+    require(all(value is not None and str(value).strip() != '' and not isinstance(value, (dict, list, bool)) for value in values), 'La clave de origen tiene valores vacíos o complejos.')
     return dumps([str(value) for value in values])
 
 
@@ -61,12 +61,15 @@ def exact_decimal(value, separator='.'):
         number = Decimal(text)
     except InvalidOperation as exc:
         raise AppError('Importe decimal no válido: ' + text[:60]) from exc
-    require(number.is_finite() and abs(number) < Decimal('100000000000'), 'Importe fuera de rango.')
+    require(number.is_finite() and number.copy_abs() < Decimal('100000000000'), 'Importe fuera de rango.')
     return number
 
 
 def cents(value, separator='.'):
-    number = exact_decimal(value, separator) * 100
+    original = exact_decimal(value, separator).as_tuple()
+    # Shift the exponent exactly: multiplication would round to the ambient
+    # Decimal context before detecting a tiny fraction of a cent.
+    number = Decimal((original.sign, original.digits, original.exponent + 2))
     require(number == number.to_integral_value(), 'El importe contiene fracciones de céntimo. Conserva el original y documenta su redondeo antes de importar.')
     return int(number)
 
@@ -107,11 +110,20 @@ def suggested_profile(manifest):
         date = fields(line, ('issue_date',)).get('issue_date')
         if date:
             inf['issue_date'] = '@lines.' + date
-    return {'version': 1, 'customers': {'table': customer['name'] if customer else '', 'key': ck, 'fields': cf, 'joins': []},
+    postal = choose('Codigos_Postal')
+    joins = []
+    if postal and cf.get('postal_code'):
+        columns = {heading(column['name']): column['name'] for column in postal['columns']}
+        if all(name in columns for name in ('cp_codpos', 'cp_poblacion', 'cp_provincia')):
+            joins = [{'table': postal['name'], 'local': cf['postal_code'], 'foreign': columns['cp_codpos'],
+                      'fields': {'city': columns['cp_poblacion'], 'province': columns['cp_provincia']}}]
+    partial = bool(invoice and line and ikc and inf.get('full_number') and all(lk)
+                   and not any(inf.get(name) for name in ('base', 'tax', 'total')))
+    return {'version': 1, 'customers': {'table': customer['name'] if customer else '', 'key': ck, 'fields': cf, 'joins': joins},
             'vehicles': {'table': customer['name'] if customer and vf.get('plate') else '', 'key': ck + ([vf['plate']] if vf.get('plate') else []), 'customer_key': ck, 'fields': vf, 'ignore_blank': 'plate'},
             'invoices': {'table': invoice['name'] if invoice else '', 'key': ik, 'customer_key': [ikc] if ikc else [], 'fields': inf, 'snapshots': {'customer': {}, 'issuer': {}, 'vehicle': {}}},
             'lines': {'table': line['name'] if line else '', 'invoice_key': [key for key in lk if key], 'fields': lf, 'order_by': []},
-            'options': {'decimal_separator': '.', 'date_format': 'iso'}, 'historical_calculation': None}
+            'options': {'decimal_separator': '.', 'date_format': 'iso', 'preservation': 'partial' if partial else 'strict'}, 'historical_calculation': None}
 
 
 def validate_profile(profile, manifest):
@@ -139,6 +151,7 @@ def validate_profile(profile, manifest):
             available = {column['name'] for column in target['columns']}
             require(join.get('foreign') in available and all(column in available for column in join.get('fields', {}).values()), 'Campos de relación no válidos.')
     options = profile.get('options', {})
+    require(options.get('preservation', 'strict') in ('strict', 'partial'), 'Modo de conservación no válido.')
     require(options.get('decimal_separator', '.') in ('.', ',') and options.get('date_format', 'iso') in ('iso', 'dmy'), 'Formato de fecha/decimal no válido.')
     calculation = profile.get('historical_calculation')
     if calculation:
@@ -150,8 +163,12 @@ def validate_profile(profile, manifest):
 def canonical_historical(invoice, *, legacy_v1=False):
     """Validate supplied historic figures without substituting a current tax regime."""
     require(isinstance(invoice, dict), 'Factura histórica no válida.')
+    if invoice.get('preservation') == 'partial' and not legacy_v1:
+        from .access_partial import canonical_partial
+        return canonical_partial(invoice)
     result = dict(invoice)
-    require(str(result.get('full_number', '')).strip(), 'Falta el número original.')
+    result['full_number'] = scalar(result.get('full_number'), 'Número')
+    require(result['full_number'].strip(), 'Falta el número original.')
     result['issue_date'] = iso_date(result.get('issue_date'))
     lines = result.get('lines')
     require(isinstance(lines, list) and len(lines) > 0, 'La factura no contiene líneas.')
@@ -197,6 +214,7 @@ def canonical_historical(invoice, *, legacy_v1=False):
     result.update({'base_cents': base, 'tax_cents': tax, 'total_cents': total, 'lines': canonical, 'amount_differences': differences})
     result.setdefault('taxes', [{'rate': '', 'kind': 'historical', 'reason': 'Desglose histórico no conservado', 'base_cents': base, 'tax_cents': tax}])
     require(isinstance(result['taxes'], list) and result['taxes'], 'El desglose histórico de impuestos no es válido.')
+    result['taxes'] = [dict(group) if isinstance(group, dict) else group for group in result['taxes']]
     for group in result['taxes']:
         require(isinstance(group, dict) and all(isinstance(group.get(key), int) and not isinstance(group[key], bool) for key in ('base_cents', 'tax_cents')), 'Cada grupo fiscal histórico necesita base y cuota originales en céntimos.')
         group.setdefault('rate', ''); group.setdefault('kind', 'historical'); group.setdefault('reason', '')
@@ -217,12 +235,16 @@ def canonical_historical(invoice, *, legacy_v1=False):
 
 def map_tables(stage, profile, manifest):
     validate_profile(profile, manifest)
+    if profile.get('options', {}).get('preservation') == 'partial':
+        from .access_partial import map_partial_tables
+        return map_partial_tables(stage, profile, manifest)
     sep = profile.get('options', {}).get('decimal_separator', '.')
     date_format = profile.get('options', {}).get('date_format', 'iso')
     calculation = profile.get('historical_calculation')
     conn = stage.connect()
     try:
         conn.execute('DELETE FROM records'); conn.execute('DELETE FROM incidents'); conn.execute('DELETE FROM line_rows')
+        conn.execute('DELETE FROM row_decisions')
         def incident(level, entity, key, message):
             conn.execute('INSERT INTO incidents(level,entity,source_key,message) VALUES(?,?,?,?)', (level, entity, key, message))
         lines_config = profile.get('lines', {})

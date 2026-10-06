@@ -38,7 +38,7 @@ type Profile = {
   vehicles?: Mapping;
   invoices?: Mapping;
   lines?: Mapping;
-  options?: { decimal_separator: string; date_format: string };
+  options?: { decimal_separator: string; date_format: string; preservation?: "strict" | "partial" };
   historical_calculation?: { tax_rate: string; evidence: string } | null;
 };
 type Source = { id: string; name: string };
@@ -46,6 +46,8 @@ type Table = {
   name: string;
   linked: boolean;
   rows: number | null;
+  reported_rows?: number;
+  row_count_mismatch?: boolean;
   primary_key?: string[];
   columns: { name: string; type: string }[];
 };
@@ -89,6 +91,8 @@ type Review = {
   };
   incident_counts: { error: number; warning: number };
   incidents: Incident[];
+  incident_groups?: { level: string; entity: string; message: string; count: number }[];
+  quarantine_groups?: { entity: string; reason: string; count: number }[];
   page: number;
   page_size: number;
   summary: {
@@ -100,7 +104,7 @@ type Review = {
 type Reconciliation = {
   balanced: boolean;
   status: string;
-  totals: Record<string, number>;
+  totals: Record<string, number | null> & { source_invoices: number; excluded: number };
   items: {
     source_key: string;
     full_number: string;
@@ -158,6 +162,7 @@ const labels: Record<string, string> = {
   unchanged: "Sin cambios",
   replace: "Cambios de origen",
   skip: "Excluidos",
+  quarantine: "Conservados para revisión",
   link: "Vinculados",
 };
 const fields: Record<Entity, string[]> = {
@@ -560,6 +565,7 @@ function ProfileEditor({
               onChange({
                 ...profile,
                 options: {
+                  ...profile.options,
                   date_format: profile.options?.date_format || "iso",
                   decimal_separator: event.target.value,
                 },
@@ -577,6 +583,7 @@ function ProfileEditor({
               onChange({
                 ...profile,
                 options: {
+                  ...profile.options,
                   decimal_separator: profile.options?.decimal_separator || ".",
                   date_format: event.target.value,
                 },
@@ -588,6 +595,20 @@ function ProfileEditor({
           </Select>
         </Field>
       </div>
+      <Field label="Conservación del histórico">
+        <Select value={profile.options?.preservation || "strict"} onChange={(event) => onChange({
+          ...profile,
+          options: { decimal_separator: ".", date_format: "iso", ...profile.options, preservation: event.target.value as "strict" | "partial" },
+        })}>
+          <option value="strict">Importes y fechas originales completos</option>
+          <option value="partial">Conservar datos incompletos sin reconstruirlos</option>
+        </Select>
+      </Field>
+      {profile.options?.preservation === "partial" && <Notice>
+        Los importes y fechas desconocidos se muestran como «No consta». Los decimales originales se conservan sin redondear.
+        Las identidades ambiguas quedan agrupadas para revisión y no bloquean los registros seguros.
+        Este modo no aplica un porcentaje global de IVA.
+      </Notice>}
       <details>
         <summary>Importes calculados por el informe antiguo</summary>
         <Notice tone="warning">
@@ -598,6 +619,7 @@ function ProfileEditor({
         <label>
           <input
             type="checkbox"
+            disabled={profile.options?.preservation === "partial"}
             checked={Boolean(profile.historical_calculation)}
             onChange={(event) =>
               onChange({
@@ -1243,7 +1265,9 @@ export function ImportPanel({ refresh, notify }: Props) {
                   {review.diagnostic.tables.map((table) => (
                     <tr key={table.name}>
                       <td>{table.name}</td>
-                      <td>{table.rows ?? "No leída"}</td>
+                      <td>{table.rows ?? "No leída"}{table.row_count_mismatch && <small style={{ display: "block" }}>
+                        Contador interno: {table.reported_rows}. Se conservan todas las filas recorridas.
+                      </small>}</td>
                       <td>{table.linked ? "Vínculo bloqueado" : "Local"}</td>
                     </tr>
                   ))}
@@ -1326,6 +1350,29 @@ export function ImportPanel({ refresh, notify }: Props) {
                 {review.incident_counts.warning} advertencias. Se muestran 50
                 por página; la descarga incluye todas.
               </Notice>
+              {Boolean(review.quarantine_groups?.length) && <Notice tone="warning">
+                Hay registros conservados para revisión. Se mantienen sus originales y motivos; no se han asignado propietarios ni identidades dudosas.
+                La conciliación de lo importado no equivale a resolver estos casos.
+                <ul>{review.quarantine_groups?.map((group) => <li key={`${group.entity}:${group.reason}`}>
+                  {labels[group.entity]}: {group.count} · {({
+                    shared_vehicle_owner_unknown: "Matrícula compartida sin titularidad acreditada",
+                    customer_identity_unresolved: "Cliente sin identidad completa",
+                    customer_identity_incomplete: "Código o nombre de cliente incompleto",
+                    vehicle_identifier_invalid: "Identificador de vehículo no válido",
+                    header_identity_incomplete: "Cabecera sin clave completa",
+                    invoice_identity_conflict: "Cabecera en conflicto",
+                    duplicate_source_identity: "Clave de origen duplicada",
+                  } as Record<string, string>)[group.reason] || "Identidad pendiente de revisión"}
+                </li>)}</ul>
+              </Notice>}
+              <details open={profile.options?.preservation === "partial"}>
+                <summary>Incidencias agrupadas por motivo</summary>
+                <ul>{review.incident_groups?.map((group, index) => <li key={index}>
+                  <strong>{group.count}</strong> · {labels[group.entity]} · {group.message}
+                </li>)}</ul>
+              </details>
+              <details>
+                <summary>Revisar incidencias individuales y sus claves</summary>
               {review.incidents.map((incident) => (
                 <ResolveIncident
                   key={`${review.batch_id}:${incident.id}`}
@@ -1362,6 +1409,7 @@ export function ImportPanel({ refresh, notify }: Props) {
                   )
                 }
               />
+              </details>
               <details>
                 <summary>
                   Ver registros y campos originales ({recordTotal})
@@ -1489,12 +1537,20 @@ export function ImportPanel({ refresh, notify }: Props) {
                         </th>
                         <td>
                           {key.endsWith("cents")
-                            ? money(reconciliation.totals["source_" + key])
+                            ? reconciliation.totals["source_" + key] === null
+                              ? `No consta (${reconciliation.totals["source_unknown_" + key]} históricos)`
+                              : reconciliation.totals["source_unknown_" + key]
+                              ? `${reconciliation.totals["source_unknown_" + key]} no constan; suma conocida: ${money(reconciliation.totals["source_" + key])}`
+                              : money(reconciliation.totals["source_" + key])
                             : reconciliation.totals["source_" + key]}
                         </td>
                         <td>
                           {key.endsWith("cents")
-                            ? money(reconciliation.totals["destination_" + key])
+                            ? reconciliation.totals["destination_" + key] === null
+                              ? `No consta (${reconciliation.totals["destination_unknown_" + key]} históricos)`
+                              : reconciliation.totals["destination_unknown_" + key]
+                              ? `${reconciliation.totals["destination_unknown_" + key]} no constan; suma conocida: ${money(reconciliation.totals["destination_" + key])}`
+                              : money(reconciliation.totals["destination_" + key])
                             : reconciliation.totals["destination_" + key]}
                         </td>
                       </tr>
@@ -1505,7 +1561,7 @@ export function ImportPanel({ refresh, notify }: Props) {
               <p>
                 Facturas con cobro no documentado:{" "}
                 {reconciliation.totals.unknown_payment}. Excluidas
-                explícitamente: {reconciliation.totals.excluded}. Documentos con
+                o conservadas para revisión: {reconciliation.totals.excluded} (pendientes: {reconciliation.totals.quarantined || 0}). Documentos con
                 diferencias: {reconciliation.totals.differences}.
               </p>
               <details>

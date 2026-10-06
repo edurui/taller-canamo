@@ -7,9 +7,9 @@ import hashlib
 import sqlite3
 from datetime import datetime, timezone
 
-from . import v0002_fiscal, v0003_import_history, v0004_wire_evidence, v0005_agenda_exceptions, v0006_b2b, v0007_b2b_source_files
+from . import v0002_fiscal, v0003_import_history, v0004_wire_evidence, v0005_agenda_exceptions, v0006_b2b, v0007_b2b_source_files, v0008_partial_history
 
-MIGRATIONS = (v0002_fiscal,v0003_import_history,v0004_wire_evidence,v0005_agenda_exceptions,v0006_b2b,v0007_b2b_source_files)
+MIGRATIONS = (v0002_fiscal,v0003_import_history,v0004_wire_evidence,v0005_agenda_exceptions,v0006_b2b,v0007_b2b_source_files,v0008_partial_history)
 LATEST_VERSION = MIGRATIONS[-1].VERSION
 
 

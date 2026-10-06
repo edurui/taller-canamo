@@ -1,10 +1,48 @@
-# Estado verificado · 29 de septiembre de 2026
+# Estado verificado · 6 de octubre de 2026
 
-**Revisión e implementación locales cerradas sobre la especificación principal
-PROMPT_MAESTRO_TALLER_CANAMO.md.** Versión 0.9.1 de desarrollo: no apta todavía para emitir
-facturas operativas. Quedan las comprobaciones externas enumeradas al final, sin atribuirles
-resultados locales. La revisión de interfaz posterior está documentada en
+**Migración del Access real implementada y ensayada localmente con conservación explícita
+de datos desconocidos y conflictos.** Versión 0.9.1 de desarrollo: no apta todavía para
+emitir facturas operativas. Quedan conflictos históricos que requieren evidencia humana
+y las comprobaciones externas, sin atribuirles resultados locales. La revisión previa
+de interfaz está documentada en
 `reports/MEJORAS-INTERFAZ-2026-09-29.md`; la entrega del 23/09 es evidencia histórica.
+
+## Access real · 06/10/2026
+
+Informe actual: `reports/ACCESS-REAL-2026-10-06.md` y anexos. Los dos MDB existen y se
+leyeron en modo read-only; sus SHA-256 permanecen iguales. Se recuperaron fórmulas de
+informes y 12/11 módulos VBA, pero no su vigencia por periodo ni redondeo/impresión
+histórica suficiente para reconstruir importes. No se impone 21 % ni calendario legal.
+
+- Lector corregido para contadores internos obsoletos, con conteos efectivos/metadatos
+  visibles. Fixture MDB real que reproduce discrepancia de contador.
+- Migración SQLite 8: fechas/importes históricos desconocidos NULL, estados explícitos,
+  precisión raw y procedencia. Facturación nueva mantiene restricciones. PDF/listado/UI
+  muestran «No consta», sin deuda, pagos ni agregados financieros inventados.
+- Perfil sugerido sobre columnas reales, relación postal y modo parcial. Cabeceras
+  idénticas consolidadas, identidades huérfanas recuperadas por clave compuesta, conflictos
+  agrupados, decisiones por fila y originales completos. No se inventan propietarios.
+- Ensayos limpios A/B y comprobación final C: **1.595 clientes, 1.290 vehículos, 5.133
+  históricos, 19.335 líneas**; 27.621 filas raw conservadas, conciliación sin diferencias,
+  series/cola fiscal intactas. A y C revertidos, B conservado para inspección; no operativo.
+- Pendientes explícitos: 18 clientes, 222 referencias de vehículos, 70 candidatos de
+  histórico y 326 líneas no atribuibles; 38 históricos importados con fecha conflictiva
+  y 45 sin fecha. No presentarlos como resueltos ni como datos perdidos.
+- Búsqueda comprobada para los 1.595 códigos de cliente y 1.290 matrículas importados;
+  seis comprobaciones de PDF, dashboard/reportes, auditoría e integridad SQLite/FK.
+
+Verificación actual: **496 pytest correctas, 208,45 s**; **47 pruebas dirigidas Access/
+contratos correctas, 37,24 s**; pip check, ambos typechecks y Vite correctos;
+**41 E2E correctas**, 141,260 s (incluida accesibilidad). Servicio empaquetado final con
+9 grupos funcionales correctos, 18 pruebas Rust correctas, check/build Tauri Linux y
+diagnóstico correctos, **8/8 comprobaciones de ventana Tauri/WebKit real**, incluido
+selector GTK, con datos sintéticos. Véase `reports/ACCESS-DESKTOP-2026-10-06.md`.
+
+Git ahora sí tiene `main` en `a67f8d24c03ab439820bfc11198629d909878e13`. Se preservó
+el cambio previo del lector y el diff inicial; los cambios de esta sesión quedan locales,
+sin commit, staging ni push. No hay bases ni certificados trackeados/staged ni PII real
+en las adiciones revisadas. Los apartados fechados de septiembre son evidencia anterior,
+no describen el esquema ni los artefactos reconstruidos actuales.
 
 ## Revisión de Git · 29/09/2026
 

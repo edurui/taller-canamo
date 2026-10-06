@@ -79,19 +79,25 @@ def validate_printable_text(document):
 
 
 def euros(cents):
+    if cents is None:
+        return 'No consta'
     value = f'{Decimal(cents) / 100:,.2f}'
     return value.replace(',', 'X').replace('.', ',').replace('X', '.') + ' EUR'
 
 
 def date_label(value):
-    return '/'.join(reversed(value.split('-'))) if value else '-'
+    return '/'.join(reversed(value.split('-'))) if value else 'No consta'
 
 
 def unit_price_label(value):
     if value is None or value == '':
         return 'No consta'
     number = Decimal(str(value))
-    places = max(2, min(4, -number.as_tuple().exponent))
+    require(number.is_finite(), 'Precio histórico no válido para imprimir.', 'pdf_number')
+    places = max(2, -number.as_tuple().exponent)
+    if places > 16 or number.adjusted() > 16:
+        # Keep the exact stored decimal while avoiding exponent-driven expansion.
+        return str(number).replace('.', ',') + ' EUR'
     return f'{number:,.{places}f}'.replace(',', 'X').replace('.', ',').replace('X', '.') + ' EUR'
 
 
@@ -217,7 +223,7 @@ def render_document(document, settings, root: Path):
                 'Cliente: ' + str(customer.get('legacy_code') or customer.get('id', '')[:8] or 'No documentado')]
     if vehicle:
         metadata += ['Matrícula: ' + str(vehicle.get('plate') or 'No documentada'),
-                     'Kilómetros: ' + str(payload.get('kilometres', 0))]
+                     'Kilómetros: ' + str(payload.get('kilometres') if payload.get('kilometres') is not None else 'No consta')]
     if payload.get('reference'):
         reference = payload['reference']
         metadata += ['Rectifica: ' + str(reference.get('full_number', '')),
@@ -233,8 +239,10 @@ def render_document(document, settings, root: Path):
     rows = [[paragraph(label, small) for label in ('Cantidad', 'Concepto', 'Precio', 'Dto.', 'Base')]]
     for line in payload['lines']:
         rows.append([
-            paragraph('No consta' if line.get('quantity') in (None, '') else str(line['quantity']).replace('.', ','), right), paragraph(line['description']), paragraph(unit_price_label(line.get('unit_price')), right),
-            paragraph(str(line.get('discount', '0')).replace('.', ',') + ' %', right), paragraph(euros(line['base_cents']), right)])
+            paragraph('No consta' if line.get('quantity') in (None, '') else str(line['quantity']).replace('.', ','), right),
+            paragraph((line.get('description') or 'No consta') + ('\nImporte original sin clasificación fiscal: ' + str(line['amount_raw']).replace('.', ',') if line.get('amount_raw') is not None else '')),
+            paragraph(unit_price_label(line.get('unit_price')), right),
+            paragraph('No consta' if line.get('discount') in (None, '') else str(line['discount']).replace('.', ',') + ' %', right), paragraph(euros(line.get('base_cents')), right)])
     table = Table(rows, colWidths=[49, CONTENT_WIDTH - 49 - 78 - 40 - 87, 78, 40, 87],
                   repeatRows=1, splitInRow=1, hAlign='LEFT')
     table.setStyle(TableStyle([
@@ -248,12 +256,18 @@ def render_document(document, settings, root: Path):
                  else 'IVA ' + str(tax['rate']) + ' %' if tax['kind'] == 'S1' else 'Exenta ' + tax['kind'])
         label += '\nBase: ' + euros(tax['base_cents'])
         tax_rows.append([paragraph(label), paragraph(euros(tax['tax_cents']), right)])
+    if not payload['taxes']:
+        tax_rows.append([paragraph('IVA (desglose no conservado)'), paragraph(euros(document['tax_cents']), right)])
     tax_rows.append([paragraph('TOTAL', heading), paragraph(euros(document['total_cents']), right)])
     totals = Table(tax_rows, colWidths=[160, 122], hAlign='RIGHT')
     totals.setStyle(TableStyle([
         ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('BACKGROUND', (0, -1), (-1, -1), YELLOW), ('VALIGN', (0, 0), (-1, -1), 'TOP')]))
     story = [meta_table, Spacer(1, 8)]
+    if historical and (not document['issue_date'] or any(document.get(key) is None for key in ('base_cents','tax_cents','total_cents'))):
+        story += [paragraph('Histórico incompleto. Los datos ausentes figuran como «No consta». Los importes originales sin clasificación fiscal no acreditan la base, el IVA ni el total de la factura.', small), Spacer(1, 8)]
+    if not payload['lines']:
+        story += [paragraph('No constan líneas en el archivo histórico.', small), Spacer(1, 6)]
     if payload.get('operation_date'):
         story += [paragraph('Fecha de operación: ' + date_label(payload['operation_date']), small), Spacer(1, 6)]
     if payload.get('correction_mode') == 'tax_only':

@@ -54,16 +54,17 @@ export function useRef<T>(initial: T): { current: T } {
 }
 export const uuid = () => crypto.randomUUID();
 export const money = (value: number | null = 0) =>
+  value === null ? "No consta" :
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(
     (value || 0) / 100,
   );
-export const dateText = (v: string = "") =>
+export const dateText = (v: string | null = "") =>
   v
     ? new Date(v.length === 10 ? v + "T12:00:00" : v).toLocaleDateString(
         "es-ES",
         { day: "2-digit", month: "short", year: "numeric" },
       )
-    : "\u2014";
+    : v === null ? "No consta" : "\u2014";
 export const localDate = (d = new Date()) =>
   [
     d.getFullYear(),

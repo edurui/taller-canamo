@@ -14,7 +14,7 @@ from pathlib import Path
 
 from . import __version__
 from .db import SCHEMA_VERSION, dumps, uid
-from .documents import PAID_SQL, PAYMENT_KNOWN_SQL, METHODS
+from .documents import PAID_SQL, PAYMENT_KNOWN_SQL, AMOUNTS_KNOWN_SQL, METHODS
 from .errors import require
 from .validation import iso_date, now, today
 from .backups import Backups, CHUNK_BYTES, MAX_BYTES, MAX_FILES, _valid_name
@@ -119,16 +119,20 @@ class Reporting:
         with self.db.read() as conn:
             conn.execute('BEGIN')
             clause = "d.kind='invoice' AND d.status IN ('issued','historical') AND d.issue_date BETWEEN ? AND ?"
+            financial_clause = clause + ' AND ' + AMOUNTS_KNOWN_SQL
+            incomplete = conn.execute('SELECT count(*) FROM documents d WHERE '+clause+' AND NOT '+AMOUNTS_KNOWN_SQL, (first,last)).fetchone()[0]
+            undated = conn.execute("SELECT count(*) FROM documents WHERE kind='invoice' AND status='historical' AND issue_date IS NULL").fetchone()[0]
             totals = dict(conn.execute('SELECT count(*) AS count,coalesce(sum(base_cents),0) AS base_cents,'
                     'coalesce(sum(tax_cents),0) AS tax_cents,coalesce(sum(total_cents),0) AS total_cents,'
                     "sum(CASE WHEN reference_id IS NOT NULL THEN 1 ELSE 0 END) AS rectifications,"
                     "sum(CASE WHEN status='historical' THEN 1 ELSE 0 END) AS historical_count,"
                     "sum(CASE WHEN json_extract(payload,'$.test_document')=1 THEN 1 ELSE 0 END) AS test_count "
-                    'FROM documents d WHERE ' + clause, (first, last)).fetchone())
+                    'FROM documents d WHERE ' + financial_clause, (first, last)).fetchone())
             totals = {key: value or 0 for key, value in totals.items()}
+            totals.update(excluded_incomplete_count=incomplete, undated_historical_count=undated)
             months = [dict(row) for row in conn.execute('SELECT substr(issue_date,1,7) AS month,count(*) AS count,'
                     'sum(base_cents) AS base_cents,sum(tax_cents) AS tax_cents,sum(total_cents) AS total_cents '
-                    'FROM documents d WHERE ' + clause + ' GROUP BY month ORDER BY month DESC', (first, last))]
+                    'FROM documents d WHERE ' + financial_clause + ' GROUP BY month ORDER BY month DESC', (first, last))]
             cash = [dict(row) for row in conn.execute('SELECT substr(p.paid_on,1,7) AS month,p.method,count(*) AS count,'
                     'sum(CASE WHEN p.amount_cents>0 THEN p.amount_cents ELSE 0 END) AS received_cents,'
                     'sum(CASE WHEN p.amount_cents<0 THEN -p.amount_cents ELSE 0 END) AS returned_cents,'
@@ -166,6 +170,7 @@ class Reporting:
                 'cash': collected, 'cash_months': cash, 'opening_adjustments': adjustments, 'opening_balances': opening,
                 'receivables': {**debts, 'unknown_documents': unknown}, 'work': work, 'low_stock': low, 'dashboard': dashboard,
                 'notice': 'Resumen operativo, no contabilidad ni declaración tributaria. Los documentos de prueba se identifican. '
+                          'La facturación suma solo documentos con base, IVA y total conocidos; los históricos sin fecha no se asignan a ningún período. '
                           'Cobros por fecha de pago; saldos y trabajos muestran el estado actual de los documentos del período. '
                           'Los mínimos corresponden a las existencias actuales.'}
 
@@ -203,14 +208,14 @@ class Reporting:
         with self.db.lock, self.db.read() as conn:
             conn.execute('BEGIN')
             if kind == 'document_lines':
-                documents = conn.execute('SELECT * FROM documents WHERE issue_date BETWEEN ? AND ? ORDER BY issue_date,id', (first, last))
+                documents = conn.execute('SELECT * FROM documents WHERE (issue_date BETWEEN ? AND ? OR (? AND issue_date IS NULL)) ORDER BY issue_date,id', (first, last, not start and not end))
                 rows = (line for row in documents for line in _lines([dict(row)]))
                 fields = LINE_FIELDS
             else:
                 table = CSV_TABLES[kind]
                 condition, params = '', ()
                 if kind == 'invoices':
-                    condition, params = " WHERE kind='invoice' AND issue_date BETWEEN ? AND ?", (first, last)
+                    condition, params = " WHERE kind='invoice' AND (issue_date BETWEEN ? AND ? OR (? AND issue_date IS NULL))", (first, last, not start and not end)
                 elif kind == 'payments':
                     condition, params = ' WHERE paid_on BETWEEN ? AND ?', (first, last)
                 rows = (dict(row) for row in conn.execute('SELECT * FROM '+table+condition+' ORDER BY rowid', params))
