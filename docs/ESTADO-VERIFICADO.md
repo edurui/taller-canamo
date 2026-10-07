@@ -1,4 +1,4 @@
-# Estado verificado · 6 de octubre de 2026
+# Estado verificado · 7 de octubre de 2026
 
 **Migración del Access real implementada y ensayada localmente con conservación explícita
 de datos desconocidos y conflictos.** Versión 0.9.1 de desarrollo: no apta todavía para
@@ -6,6 +6,37 @@ emitir facturas operativas. Quedan conflictos históricos que requieren evidenci
 y las comprobaciones externas, sin atribuirles resultados locales. La revisión previa
 de interfaz está documentada en
 `reports/MEJORAS-INTERFAZ-2026-09-29.md`; la entrega del 23/09 es evidencia histórica.
+
+## Clientes · 07/10/2026
+
+Optimización terminada de `customers.list` y `CustomersPage`, desde el commit publicado
+`388cb2ac000823b5af6c8a13402abc27defd3def`. Se eliminan `last_visit`, la lectura de documentos
+y campos no consumidos; las matrículas se agregan sólo para los 50 clientes de la página.
+Se conserva `legacy_code`, utilizado por el selector del asistente de importación.
+Sin índices nuevos, migración, FTS, debounce ni cambio en `customers.search`/`useLoad`.
+La tabla permanece durante recargas; datos anteriores identificados y no seleccionables,
+respuestas obsoletas descartadas, errores visibles y espacio de estado estable.
+
+Medianas reales: apertura **1.163,111 → 5,926 ms**, página índice 10 **4.135,003 → 6,346 ms**,
+nombre parcial **44,758 → 1,934 ms**, matrícula parcial **7,679 → 1,949 ms**. p95 final
+máximo de estos casos: **12,830 ms**. Sintético de **15.000 clientes / 30.000 vehículos /
+60.000 documentos**: apertura/paginación **53,116 / 61,455 ms** de mediana y
+**59,325 / 71,044 ms** p95. Benchmark, EXPLAIN, alternativas y límites en
+`reports/CLIENTES-PERFORMANCE-2026-10-07.md`.
+
+Verificado: **520 pytest correctas (152,25 s)**, 35 dirigidas (4,49 s), buscador por
+separado 10 (0,79 s), pip check, ambos typechecks, build y los cinco E2E nuevos correctos;
+cuatro auditorías Axe sin violaciones y revisión visual a 1024/320 px. Batería E2E
+completa final: **46 correctas, 130,126 s**, sin fallos, omitidas ni reintentos. Recorrido real: 21 comprobaciones
+contra una copia privada. Los 23 archivos del origen se mantienen idénticos y pasan
+integridad/FK; los datos de clientes/vehículos/documentos de la copia no han cambiado.
+El origen real no contiene clientes archivados ni varias matrículas activas por cliente:
+los casos positivos están cubiertos con datos sintéticos.
+
+Cambios locales sin staging, commit ni push, con esquema v8. No se recompiló ni se afirma
+haber probado un nuevo binario Tauri/Windows en este encargo; la evidencia nativa de abajo
+pertenece a la revisión Access anterior. Para comprobar la interfaz actual se usa el
+preview recién construido y la copia indicada en `CONTINUAR.md`.
 
 ## Access real · 06/10/2026
 
@@ -38,9 +69,9 @@ contratos correctas, 37,24 s**; pip check, ambos typechecks y Vite correctos;
 diagnóstico correctos, **8/8 comprobaciones de ventana Tauri/WebKit real**, incluido
 selector GTK, con datos sintéticos. Véase `reports/ACCESS-DESKTOP-2026-10-06.md`.
 
-Git ahora sí tiene `main` en `a67f8d24c03ab439820bfc11198629d909878e13`. Se preservó
-el cambio previo del lector y el diff inicial; los cambios de esta sesión quedan locales,
-sin commit, staging ni push. No hay bases ni certificados trackeados/staged ni PII real
+Al cerrar aquella revisión, `main` estaba en `a67f8d24c03ab439820bfc11198629d909878e13`
+y sus cambios seguían locales. Después se publicaron en `388cb2ac000823b5af6c8a13402abc27defd3def`;
+la optimización de Clientes del 07/10 parte de ese commit y permanece local. No hay bases ni certificados trackeados/staged ni PII real
 en las adiciones revisadas. Los apartados fechados de septiembre son evidencia anterior,
 no describen el esquema ni los artefactos reconstruidos actuales.
 

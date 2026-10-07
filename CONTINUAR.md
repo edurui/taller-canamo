@@ -6,6 +6,26 @@ La edición de desarrollo conserva sus avisos de prueba y no debe usarse para fa
 operativamente. Los siguientes pasos requieren medios o datos que no están disponibles
 en este entorno; no son instrucciones para volver a programar los módulos.
 
+## Clientes: rendimiento verificado · 07/10/2026
+
+Consultar `reports/CLIENTES-PERFORMANCE-2026-10-07.md`: mediciones antes/después sobre el
+ensayo de 1.595 clientes y un sintético de 15.000, contratos, EXPLAIN y pruebas.
+Los cambios permanecen locales sobre `388cb2ac000823b5af6c8a13402abc27defd3def`, sin push.
+Para revisar la versión actual desde el repositorio:
+
+```bash
+source .venv/bin/activate
+python scripts/run_preview.py --data /tmp/canamo-clientes-preview-20261007/data
+```
+
+Esta copia privada temporal ya está preparada y verificada. Abrir Clientes, paginar,
+filtrar y abrir una ficha. El origen `$HOME/.canamo-access-codex-rehearsal-20261006-b/data`
+permanece intacto: el arranque ordinario escribe ajustes/copias y por eso se ensayó
+sobre la copia. Si el sistema limpia `/tmp`, recrearla con el origen cerrado antes de
+repetir la prueba. No introducir modificaciones de prueba en el ensayo original.
+La verificación nueva es de servicio Python y navegador; no reutilizar los binarios
+nativos anteriores como evidencia de esta revisión visual.
+
 ## Windows e impresión
 
 En Windows 11 x64 de desarrollo, seguir `docs/BUILD-WINDOWS.md`: dependencias fijadas,
@@ -15,7 +35,7 @@ DPAPI, instancia única, cierre/bandeja/notificaciones, copias/restauración y u
 Registrar resultados reales y hashes. El workflow preparado es manual; no se ha publicado
 ni ejecutado en un runner remoto. No desactivar antivirus o SmartScreen.
 
-Usar las fuentes actuales del 06/10/2026: el ZIP del 23/09 no contiene la revisión visual
+Usar las fuentes actuales del 07/10/2026: el ZIP del 23/09 no contiene la revisión visual
 ni la migración del Access real.
 Comprobar también los tres tamaños de letra con las escalas de Windows, los selectores y
 calendarios a pantalla completa en ventana estrecha, el cierre de modales anidados y el
@@ -51,11 +71,11 @@ de vehículos, 70 registros/candidatos de histórico y 326 líneas sin atribuci�
 38 históricos importados tienen fecha conflictiva y 45 carecen de fecha. Son conflictos
 reales preservados, no aceptación fiscal ni un corte de producción.
 
-Para revisar al volver, abrir el ensayo aislado que indica el informe, desde el proyecto:
+Para revisar al volver, usar la copia privada preparada del ensayo, desde el proyecto:
 
 ```bash
 source .venv/bin/activate
-python scripts/run_preview.py --data "$HOME/.canamo-access-codex-rehearsal-20261006-b"
+python scripts/run_preview.py --data /tmp/canamo-clientes-preview-20261007/data
 ```
 
 Configuración → Traer datos → lote del ensayo → motivos agrupados, registros originales

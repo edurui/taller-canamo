@@ -125,7 +125,8 @@ def test_large_csv_no_old_15000_record_cutoff_and_resume(app):
 
 def test_changes_in_live_customer_block_replacement_and_full_rollback(app):
     data = bundle(); initial = app.imports.preview(json.dumps(data), 'json'); finish(app, initial['batch_id'])
-    customer = app.contacts.list_customers()['items'][0]
+    listed = app.contacts.list_customers()['items'][0]
+    customer = app.contacts.customer(listed['id'])
     app.contacts.save_customer({**customer, 'name': 'Nombre editado después en destino'})
     changed_data = json.loads(json.dumps(data)); changed_data['customers'][0]['name'] = 'Nombre distinto en copia final'
     preview = app.imports.preview(json.dumps(changed_data), 'json')

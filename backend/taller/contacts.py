@@ -101,14 +101,32 @@ class Contacts:
         params = [int(bool(archived))]
         condition = 'c.archived=?'
         if query:
-            condition += " AND (c.search_text LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM vehicles vv WHERE vv.customer_id=c.id AND vv.plate_normalized LIKE ? ESCAPE '\\'))"
+            # Materialize the matching owners once per query instead of probing
+            # vehicles for every customer. Keep archived-vehicle matches, as before.
+            condition += " AND (c.search_text LIKE ? ESCAPE '\\' OR c.id IN (SELECT vv.customer_id FROM vehicles vv WHERE vv.plate_normalized LIKE ? ESCAPE '\\'))"
             params.extend(['%'+sql_like(query)+'%','%'+sql_like(plate(query))+'%'])
         with self.db.read() as conn:
             count = conn.execute('SELECT count(*) FROM customers c WHERE '+condition,params).fetchone()[0]
-            rows = conn.execute('''SELECT c.*,(SELECT group_concat(v.plate, ', ') FROM vehicles v WHERE v.customer_id=c.id AND v.archived=0) AS plates,
-                (SELECT max(d.issue_date) FROM documents d WHERE d.customer_id=c.id AND d.kind='invoice') AS last_visit
-                FROM customers c WHERE '''+condition+' ORDER BY normalized(c.name) LIMIT 50 OFFSET ?',(*params,max(0,int(page))*50))
-            return {'items':[dict(r) for r in rows],'total':count,'page':page}
+            offset = max(0,int(page))*50
+            if offset >= count:
+                return {'items': [], 'total': count, 'page': page}
+            items = [dict(row) for row in conn.execute('''SELECT c.id,c.name,c.city,c.phone,c.tax_id,c.legacy_code
+                FROM customers c WHERE '''+condition+' ORDER BY normalized(c.name) LIMIT 50 OFFSET ?',
+                (*params,offset))]
+            # Resolve plates only for the displayed page, using idx_vehicle_owner.
+            # Filtering by one plate still displays every active plate of its owner.
+            # legacy_code is also needed by the import assistant's identity picker;
+            # editing a customer uses the separate, complete customers.get contract.
+            plates = {}
+            if items:
+                placeholders = ','.join('?' for _ in items)
+                plates = {row['customer_id']: row['plates'] for row in conn.execute(
+                    "SELECT customer_id,group_concat(plate, ', ') AS plates FROM vehicles "
+                    'WHERE customer_id IN ('+placeholders+') AND archived=0 GROUP BY customer_id',
+                    [item['id'] for item in items])}
+            for item in items:
+                item['plates'] = plates.get(item['id'])
+            return {'items':items,'total':count,'page':page}
 
     def save_vehicle(self, data):
         identifier = data.get('id') or uid()

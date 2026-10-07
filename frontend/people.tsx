@@ -296,17 +296,83 @@ export function VehicleForm({
     </Modal>
   );
 }
+type CustomerListItem = {
+  id: string;
+  name: string;
+  city: string;
+  phone: string;
+  tax_id: string;
+  legacy_code: string | null;
+  plates: string | null;
+};
+
 export function CustomersPage({ navigate, notify }: Row) {
-  const [query, setQuery] = useState(""),
-    [page, setPage] = useState(0),
-    [archived, setArchived] = useState(false),
-    [form, setForm] = useState(false),
-    [tick, setTick] = useState(0);
-  const [data, loading, error] = useLoad<Row>(
-    "customers.list",
-    { query, page, archived },
-    { items: [], total: 0 },
-    tick,
+  const [request, setRequest] = useState({
+    query: "",
+    page: 0,
+    archived: false,
+    revision: 0,
+  });
+  const [form, setForm] = useState(false);
+  const [result, setResult] = useState<{
+    revision: number;
+    data: { items: CustomerListItem[]; total: number } | null;
+    page: number;
+    error: string;
+  }>({ revision: -1, data: null, page: 0, error: "" });
+  const { query, page, archived, revision } = request;
+  const updateRequest = (change: Partial<Omit<typeof request, "revision">>) =>
+    setRequest((previous) => ({
+      ...previous,
+      ...change,
+      revision: previous.revision + 1,
+    }));
+  React.useEffect(() => {
+    let current = true;
+    api<{ items: CustomerListItem[]; total: number }>("customers.list", {
+      query,
+      page,
+      archived,
+    })
+      .then((data) => {
+        if (current) setResult({ revision, data, page, error: "" });
+      })
+      .catch((error: Error) => {
+        if (current)
+          setResult((previous) => ({
+            ...previous,
+            revision,
+            error: error.message,
+          }));
+      });
+    return () => {
+      current = false;
+    };
+  }, [query, page, archived, revision]);
+  // Invalidate in the filter's render, including A → B → A before B completes.
+  // The last successful table stays mounted, but cannot open obsolete matches.
+  const loading = result.revision !== revision;
+  const error = loading ? "" : result.error;
+  const stale = loading || Boolean(error);
+  const data = result.data;
+  const count = `${data?.total ?? 0} ${data?.total === 1 ? "cliente" : "clientes"}`;
+  const status = loading ? (
+    data ? (
+      <>
+        <span>Actualizando…</span>
+        <span>Anteriores: {data.total}</span>
+      </>
+    ) : (
+      "Buscando clientes…"
+    )
+  ) : error ? (
+    data ? (
+      `Anteriores: ${data.total}`
+    ) : (
+      "Lista no disponible"
+    )
+  ) : (
+    count
   );
   return (
     <>
@@ -326,105 +392,157 @@ export function CustomersPage({ navigate, notify }: Row) {
               aria-label="Filtrar clientes"
               placeholder="Buscar nombre, matr&iacute;cula, tel&eacute;fono..."
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(0);
-              }}
+              onChange={(e) =>
+                updateRequest({ query: e.target.value, page: 0 })
+              }
             />
           </div>
           <label className="check-row">
             <input
               type="checkbox"
               checked={archived}
-              onChange={(e) => {
-                setArchived(e.target.checked);
-                setPage(0);
-              }}
+              onChange={(e) =>
+                updateRequest({ archived: e.target.checked, page: 0 })
+              }
             />{" "}
             Archivados
           </label>
-          <span className="subtle">{data.total} clientes</span>
-        </div>
-        {error && <Notice tone="error">{error}</Notice>}
-        {loading ? (
-          <Loading />
-        ) : data.items.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th>Tel&eacute;fono</th>
-                  <th>Veh&iacute;culos</th>
-                  <th>NIF / CIF</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((c: Row) => (
-                  <tr
-                    key={c.id}
-                    className="clickable"
-                    onClick={() => navigate("customer", { id: c.id })}
-                  >
-                    <td>
-                      <button
-                        className="row-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate("customer", { id: c.id });
-                        }}
-                      >
-                        <Avatar name={c.name} />
-                        <span>
-                          <strong>{c.name}</strong>
-                          <small>{c.city || "Sin direcci\u00f3n"}</small>
-                        </span>
-                      </button>
-                    </td>
-                    <td className="nowrap">{c.phone || "\u2014"}</td>
-                    <td>{c.plates || "Sin veh\u00edculo"}</td>
-                    <td className="subtle">{c.tax_id || "Pendiente"}</td>
-                    <td>
-                      <Icon name="right" size={16} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty
-            icon="users"
-            title={
-              query
-                ? "No encontramos ese cliente"
-                : "Tu agenda de clientes, a mano"
-            }
-            text={
-              query
-                ? "Prueba con una parte del nombre o de la matr\u00edcula."
-                : "A\u00f1ade tu primer cliente. Despu\u00e9s podr\u00e1s importar los de Access."
-            }
+          <span
+            className="subtle"
+            role="status"
+            aria-live="polite"
+            style={{
+              flex: "0 0 10em",
+              minHeight: "2.6em",
+              lineHeight: 1.3,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              textAlign: "right",
+              whiteSpace: "normal",
+            }}
           >
-            <Button tone="primary" icon="plus" onClick={() => setForm(true)}>
-              A&ntilde;adir cliente
-            </Button>
-          </Empty>
+            {status}
+          </span>
+        </div>
+        {error && (
+          <Notice tone="error">
+            No se pudo cargar la lista. {error}{" "}
+            <Button onClick={() => updateRequest({})}>Reintentar</Button>
+          </Notice>
         )}
-        <Pager total={data.total} page={page} onChange={setPage} />
+        <div aria-busy={loading} aria-label="Listado de clientes" role="region">
+          {!data && loading ? (
+            <Loading />
+          ) : data?.items.length ? (
+            <div className="table-scroll" tabIndex={0}>
+              <table
+                aria-label={
+                  stale ? "Resultados anteriores de clientes" : "Clientes"
+                }
+              >
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Tel&eacute;fono</th>
+                    <th>Veh&iacute;culos</th>
+                    <th>NIF / CIF</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((c) => (
+                    <tr
+                      key={c.id}
+                      className={stale ? undefined : "clickable"}
+                      onClick={() => {
+                        if (!stale) navigate("customer", { id: c.id });
+                      }}
+                    >
+                      <td>
+                        <button
+                          className="row-link"
+                          disabled={stale}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!stale) navigate("customer", { id: c.id });
+                          }}
+                        >
+                          <Avatar name={c.name} />
+                          <span>
+                            <strong>{c.name}</strong>
+                            <small>{c.city || "Sin direcci\u00f3n"}</small>
+                          </span>
+                        </button>
+                      </td>
+                      <td className="nowrap">{c.phone || "\u2014"}</td>
+                      <td>{c.plates || "Sin veh\u00edculo"}</td>
+                      <td className="subtle">{c.tax_id || "Pendiente"}</td>
+                      <td>
+                        <Icon name="right" size={16} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : data && !stale ? (
+            <Empty
+              icon="users"
+              title={
+                query
+                  ? "No encontramos ese cliente"
+                  : "Tu agenda de clientes, a mano"
+              }
+              text={
+                query
+                  ? "Prueba con una parte del nombre o de la matr\u00edcula."
+                  : "A\u00f1ade tu primer cliente. Despu\u00e9s podr\u00e1s importar los de Access."
+              }
+            >
+              <Button tone="primary" icon="plus" onClick={() => setForm(true)}>
+                A&ntilde;adir cliente
+              </Button>
+            </Empty>
+          ) : null}
+          {data && data.total > 50 && (
+            <div className="pager">
+              <span>
+                {stale && "Consulta anterior: "}
+                {result.page * 50 + 1}–
+                {Math.min((result.page + 1) * 50, data.total)} de {data.total}
+              </span>
+              <Button
+                icon="left"
+                disabled={stale || !result.page}
+                onClick={() => updateRequest({ page: result.page - 1 })}
+              >
+                Anterior
+              </Button>
+              <Button
+                icon="right"
+                disabled={stale || (result.page + 1) * 50 >= data.total}
+                onClick={() => updateRequest({ page: result.page + 1 })}
+              >
+                Siguiente
+              </Button>
+            </div>
+          )}
+        </div>
       </section>
-      <Presence>{form && (
-        <CustomerForm
-          onClose={() => setForm(false)}
-          onSaved={(c) => {
-            setForm(false);
-            setTick((t) => t + 1);
-            notify("Cliente guardado");
-            navigate("customer", { id: c.id });
-          }}
-        />
-      )}</Presence>
+      <Presence>
+        {form && (
+          <CustomerForm
+            onClose={() => setForm(false)}
+            onSaved={(c) => {
+              setForm(false);
+              updateRequest({});
+              notify("Cliente guardado");
+              navigate("customer", { id: c.id });
+            }}
+          />
+        )}
+      </Presence>
     </>
   );
 }
