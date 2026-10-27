@@ -5,6 +5,7 @@ All private databases, evidence, PDF and backups remain inside that destination.
 """
 import argparse
 import base64
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -57,7 +58,7 @@ def rehearse(source, destination, rollback=True):
     print(json.dumps({'phase': 'imported'}), flush=True)
     reconciliation = app.imports.reconcile(preview['batch_id'])
     check(reconciliation['balanced'], 'reconciliation')
-    with Staging(folder).connect() as stage:
+    with closing(Staging(folder).connect()) as stage, stage:
         raw_counts = {row[0]: row[1] for row in stage.execute('SELECT table_name,count(*) FROM raw_rows GROUP BY table_name')}
         for table in diagnosed['diagnostic']['tables']:
             if not table.get('linked'):

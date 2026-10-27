@@ -1,6 +1,7 @@
 """Bounded, local Access extraction and durable source storage."""
 import base64
 import binascii
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -118,7 +119,7 @@ class Staging:
         return conn
 
     def load_extracted(self, manifest, directory):
-        with self.connect() as conn:
+        with closing(self.connect()) as conn, conn:
             conn.execute('DELETE FROM raw_rows')
             for table in manifest['tables']:
                 if table.get('linked'):
