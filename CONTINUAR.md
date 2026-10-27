@@ -6,6 +6,43 @@ La edición de desarrollo conserva sus avisos de prueba y no debe usarse para fa
 operativamente. Los siguientes pasos requieren medios o datos que no están disponibles
 en este entorno; no son instrucciones para volver a programar los módulos.
 
+## Preparación Windows y copia de ensayo · 27/10/2026
+
+Copia cifrada actual creada, restaurada y comparada: 1.598 clientes, 1.292 vehículos
+y 5.145 históricos; 22 tablas y 36 recursos idénticos. También restaurada desde la
+interfaz. El Access actualizado completo conserva las incidencias pendientes como
+evidencia; no se resuelven identidades ni importes por suposición. Contraseña local
+separada de la entrega. El traslado definitivo permanece sin activar.
+
+Build real en el workflow público existente, solo con código y datos sintéticos.
+814 pytest Windows, ambos typechecks y build correctos sobre `dabe244`; seis fallos
+de arnés E2E corregidos en `b7d6da9`. Los seis casos ya pasan en el paso inicial
+Windows; la construcción completa sigue en curso. Local final: 814 pytest y 164
+E2E correctas. Aún no se acepta ningún instalador. Resultado y seguimiento:
+`reports/PREPARACION-WINDOWS-2026-10-27.md`.
+
+El usuario confirma disponer de un archivo Personal Information Exchange: no se
+ha recibido ni validado. Configurarlo en el Windows de destino y comprobar vigencia
+y legitimación; no enviarlo al chat ni incluirlo en Git/copias generales. Mantener
+los bloqueos de emisión y los requisitos del expediente fiscal.
+
+## Access actualizado en la prueba local · 27/10/2026
+
+La copia persistente de `npm run start` ya incorpora 3 clientes, 2 vehículos y 12
+históricos nuevos: totales 1.598 / 1.292 / 5.145. Intervalo solicitado desde 05/10;
+altas de facturas con fecha única entre 09 y 26/10. No volver a importar todo ni
+reemplazar SQLite. Si el preview sigue abierto, basta recargar la interfaz.
+
+Dos facturas nuevas quedan pendientes por cambio de nombre y NIF en sus códigos de
+cliente. El usuario ha elegido conservarlas pendientes; no sobrescribir las fichas
+ni atribuirles las facturas sin aclarar la identidad. Una matrícula ya registrada
+y dos líneas sin número también quedan documentadas aparte. Comparaciones e importes
+por factura están en el expediente privado de actualización, fuera de Git.
+
+Informe sanitizado, comprobaciones y límites: `reports/ACCESS-ACTUALIZACION-2026-10-27.md`.
+El MDB conserva las mismas fórmulas y sigue sin guardar los importes finales. Las
+estimaciones no son contraste con papel/PDF y no habilitan cobros ni fiscalidad.
+
 ## Listados ordenables y acciones · 08/10/2026
 
 Implementadas cabeceras ascendente/descendente/original en las 21 tablas de datos,

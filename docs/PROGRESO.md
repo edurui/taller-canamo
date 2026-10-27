@@ -1,4 +1,17 @@
-# Registro de trabajo · actualizado el 29/09/2026
+# Registro de trabajo · actualizado el 27/10/2026
+
+Preparación de entrega Windows: copia cifrada real restaurada y verificada,
+814 pytest Windows correctas, typechecks/build correctos y seis regresiones de
+navegador corregidas y aprobadas en el paso inicial Windows. Construcción completa
+todavía en curso; ningún instalador aceptado. Local final: 814 pytest y 164 E2E
+correctas. Detalle y límites: `../reports/PREPARACION-WINDOWS-2026-10-27.md`.
+
+Actualización incremental del Access nuevo aplicada únicamente a la prueba local:
+3 clientes, 2 vehículos y 12 históricos con 38 líneas. Los datos previos permanecen
+intactos; ensayo de repetición sin duplicados y comprobación del navegador correctos.
+Dos facturas quedan pendientes de identidad por decisión del usuario. Estado actual
+y análisis de importes: `ESTADO-VERIFICADO.md` y
+`../reports/ACCESS-ACTUALIZACION-2026-10-27.md`. La matriz inferior es histórica.
 
 La revisión de interfaz del 29/09 está al final de este documento y en
 `reports/MEJORAS-INTERFAZ-2026-09-29.md`. La matriz siguiente conserva el cierre anterior.

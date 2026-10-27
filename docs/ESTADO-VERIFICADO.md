@@ -1,5 +1,52 @@
 # Estado verificado · 27 de octubre de 2026
 
+## Entrega Windows en preparación · 27/10/2026
+
+Creada y restaurada la copia cifrada real de los datos actuales: 1.598 clientes,
+1.292 vehículos y 5.145 históricos, con el MDB actualizado completo conservado como
+lote solo diagnosticado para preservar pendientes. Coinciden 22 tablas y 36 recursos;
+reapertura, integridad/FK y auditoría correctas. Restauración desde la interfaz
+comprobada, con datos tras recargar, sin errores JS ni violaciones Axe en el recorrido.
+El destino nuevo conserva `transfer_required`; no se activó el traslado definitivo.
+
+Corregidos requisitos del workflow, lectura UTF-8 de metadatos y conservación exacta
+de recursos fijados por SHA-256, resolutores XML, fsync y permisos en Windows.
+814 pytest y 164 E2E locales correctas; checkout Windows nuevo con 69 recursos
+idénticos a sus hashes. Sobre `dabe244` han pasado
+los dos casos de regresión, **814 pytest Windows**, ambos typechecks y el build.
+La batería de navegador detectó seis incidencias del arnés (158 casos correctos),
+corregidas en `b7d6da9`: UTF-8 explícito y esperas sobre la aplicación lista.
+Los seis recorridos dirigidos ya pasan tanto localmente como en Windows; sigue
+la construcción completa del candidato sobre `b7d6da9`. Todavía sin instalador
+aceptado. Seguimiento, comandos,
+evidencias, incidencias y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
+
+## Access actualizado: altas incrementales de la prueba local · 27/10/2026
+
+Aplicada a la previsualización persistente la selección nueva desde el 05/10/2026,
+incluido, hasta el 27/10/2026: **3 clientes, 2 vehículos y 12 facturas históricas con
+38 líneas**. Totales actuales: **1.598 clientes, 1.292 vehículos y 5.145 facturas**.
+Se reutilizó el origen anterior y no se sustituyó ningún registro existente.
+Los clientes nuevos se detectan por diferencia de claves: Access no conserva fecha de alta.
+
+La copia nueva contiene 14 facturas nuevas, fechadas del 09 al 26/10. Dos utilizan
+códigos cuyos clientes han cambiado de nombre y NIF; el usuario ha indicado dejarlas
+pendientes. También quedan sin alta automática una matrícula ya asignada y dos líneas
+nuevas del 13/10 sin número de factura. Los originales completos y el desglose privado
+se conservan fuera del repositorio; no se atribuyen esas incidencias a otra persona.
+
+Ensayo aislado, simulación, conciliación, idempotencia de un segundo lote, conservación
+exacta de filas anteriores, integridad/FK y auditoría correctos. Aplicación mediante
+RPC autenticado del preview abierto, con copia previa. Navegador real: 12 detalles de
+factura, tres búsquedas de clientes y dos auditorías Axe sin violaciones. Sin cambios
+de fuentes ejecutables ni dependencias; no se repitieron pytest/build/E2E sintéticas.
+
+Forense actualizado: 15 objetos y 12 módulos VBA idénticos al MDB anterior. Cabeceras
+sin base/IVA/total final; las 14 propuestas son estimaciones y se contrastaron con
+aritmética decimal independiente. En destino quedan 5.046 estimadas y las mismas
+99 pendientes de revisión anteriores. No se crearon cobros, deudas ni envíos fiscales,
+ni se modificaron series. Informe: `reports/ACCESS-ACTUALIZACION-2026-10-27.md`.
+
 ## Lote para publicar en main · 27/10/2026
 
 Agrupadas las mejoras del 7 y 8 de octubre para el commit/push solicitado por el

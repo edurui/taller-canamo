@@ -1,9 +1,11 @@
 # Construir, instalar y comprobar Windows
 
-Estado a 2026-09-23: Tauri compila y se ha ejecutado con su servicio PyInstaller en Linux.
-El código Win32 de procesos, notificaciones y ShellExecute pasa comprobación de tipos para MSVC.
-**No se ha ejecutado todavía un build, instalador, WebView2 o notificación en Windows.**
-Evidencia y límites: `reports/escritorio-final-2026-09-23.md`.
+Revisión 2026-10-27: se está ejecutando el workflow real en `windows-2025`, con
+datos sintéticos, para construir y ensayar un candidato. Se han corregido errores
+detectados allí; **todavía no hay un instalador Windows aceptado**. Resultado,
+fuentes exactas y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
+La ejecución Tauri/PyInstaller Linux y la comprobación de tipos MSVC de septiembre
+son evidencia anterior, en `reports/escritorio-final-2026-09-23.md`.
 
 ## Construcción en un Windows 11 x64 de desarrollo
 
@@ -22,8 +24,10 @@ La condición de candidato no habilita emisión real: siguen siendo obligatorios
 del productor, certificado, cadena, ensayos autorizados y expediente verificable. Primero se
 construye el candidato; luego se ensayan y documentan **esos mismos bytes**. El expediente
 debe identificar su SHA-256. No se recompila después de generar el expediente: cualquier
-reconstrucción o cambio del ejecutable requiere repetir la comprobación del artefacto. Esta
-sesión no construye un candidato Windows ni genera evidencias positivas ficticias.
+reconstrucción o cambio del ejecutable requiere repetir la comprobación del artefacto.
+El workflow manual acepta `release_candidate=true` para ejecutar esa construcción completa.
+Instala el JDK exacto fijado en `tools/access/dependencies.lock.json` desde el archivo
+oficial, comprueba su SHA-256 y configura `JAVA_HOME`; no utiliza un alias flotante.
 
 Después de los ensayos reales, el mantenedor puede comprobar e instalar el expediente ya
 existente con el servicio de **ese mismo candidato**:
@@ -60,7 +64,7 @@ Vosk y ONNX Runtime. El cliente final no instala Java ni descarga modelos para l
 También incorpora las fuentes DejaVu 2.37 con sus licencias; el verificador exige fuente
 TrueType incrustada en el PDF y comprueba que la CLI rechaza un expediente inexistente.
 
-Resultados esperados, aún pendientes de generarse en Windows:
+Resultados de una construcción Windows correcta (consultar su aceptación en el informe):
 
 - `src-tauri/target/release/bundle/nsis/*-setup.exe`: instalador NSIS por usuario, en castellano.
 - `src-tauri/target/release/taller-canamo.exe` y `canamo-service.exe`: aplicación y servicio junto a ella.
