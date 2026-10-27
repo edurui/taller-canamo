@@ -232,3 +232,11 @@ menús accesibles se ejecutan además con transición de 1,2 s, para exigir esa 
 `npm run typecheck:e2e`: correcto. Cuatro casos dirigidos correctos (7,3 s).
 Batería E2E local completa: **164 correctas (4,0 min)**, cero fallos, omitidas o flaky. El gate Windows previo incorpora esos cuatro
 casos: exige diez correctos, cero omitidos, fallidos o flaky, antes del build largo.
+
+El resumen de `desktop_smoke.py` también reproduce UnicodeEncodeError en CP1252
+por las flechas de sus comprobaciones. Se escapa únicamente su JSON de consola,
+conservando los caracteres originales al leer JSON y el informe UTF-8 en disco.
+Control negativo anterior y comprobación corregida ejecutados sin abrir la app ni
+repetir baterías. Se cancela `40573597348` durante preparación de dependencias para
+incorporarlo antes del siguiente build completo. El selector Edge Driver aplica
+la misma separación PSModulePath ya requerida por pwsh → Windows PowerShell 5.1.

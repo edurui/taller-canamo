@@ -350,7 +350,9 @@ raise SystemExit(status.get(program,0))
                 wait_for(service_stopped, timeout=15)
             log.close()
     (args.output / "result.json").write_text(json.dumps({"ok": True, "platform": sys.platform, "artifacts": artifacts, "save_dialog": save_evidence, "checks": checks, "limits": ["No comprueba impresora, notificación visible ni instalador Windows", "Las invocaciones xdg-open/lpr opcionales usan receptores de prueba; no abren lector/navegador ni envían impresión real"]}, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"ok": True, "checks": checks}, ensure_ascii=False))
+    # Keep console JSON portable to Windows legacy code pages. The UTF-8 file
+    # above retains literal Unicode; JSON readers recover the same strings here.
+    print(json.dumps({"ok": True, "checks": checks}, ensure_ascii=True))
 
 
 if __name__ == "__main__":

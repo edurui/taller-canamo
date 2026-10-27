@@ -538,3 +538,11 @@ TypeScript tiene `strict:true`, pero conserva contratos `Row/any`; no se afirma 
 No queda un defecto funcional reproducido sin corregir en los recorridos ejecutados.
 Las dependencias externas impiden aprobar aún su uso operativo; no implican métodos vacíos
 ni tareas de programación trasladadas al usuario como si fueran configuración.
+
+El resumen de `desktop_smoke.py` también reproduce UnicodeEncodeError en CP1252
+por las flechas de sus comprobaciones. Se escapa únicamente su JSON de consola,
+conservando los caracteres originales al leer JSON y el informe UTF-8 en disco.
+Control negativo anterior y comprobación corregida ejecutados sin abrir la app ni
+repetir baterías. Se cancela `40573597348` durante preparación de dependencias para
+incorporarlo antes del siguiente build completo. El selector Edge Driver aplica
+la misma separación PSModulePath ya requerida por pwsh → Windows PowerShell 5.1.

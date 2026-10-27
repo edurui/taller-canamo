@@ -97,7 +97,12 @@ jobs:
       - name: Match Edge Driver to the installed WebView2 (test tools only)
         shell: pwsh
         run: |
+          # This tool invokes Windows PowerShell 5.1. Let that child build its
+          # own module path instead of inheriting PowerShell 7's module set.
+          Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
           msedgedriver-tool
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo obtener Edge Driver para WebView2.' }
+          if (-not (Test-Path ./msedgedriver.exe)) { throw 'Falta el Edge Driver seleccionado.' }
       - name: Tauri UI with WebView2 and packaged service in the disposable runner account
         shell: pwsh
         run: .\.venv\Scripts\python.exe src-tauri/tests/desktop_smoke.py --application src-tauri/target/release/taller-canamo.exe --native-driver ./msedgedriver.exe --isolated-windows-account
