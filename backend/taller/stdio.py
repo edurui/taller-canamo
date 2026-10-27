@@ -49,7 +49,9 @@ def serve(root, source=None, target=None, background=True):
             except Exception:
                 logging.error("RPC action failed. No request payload has been logged.")
                 response = {"id": identifier, "ok": False, "error": {"message": "Error interno. Revisa el historial antes de repetir una emision.", "code": "internal"}}
-            target.write(json.dumps(response, ensure_ascii=False, separators=(",", ":")) + "\n")
+            # ASCII JSON is valid UTF-8 under every Windows console code page.
+            # Escapes preserve the original Unicode when the bridge parses it.
+            target.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
             target.flush()
             if response["ok"] and request.get("action") == "app.shutdown":
                 # The reply acknowledges the completed backup. Exit after flushing

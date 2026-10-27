@@ -121,7 +121,7 @@ def main(argv=None):
         result=install(args.data,args.install_release_evidence) if args.install_release_evidence else verify(args.data)
     except (AppError,OSError,sqlite3.DatabaseError,ValueError,TypeError,KeyError) as exc:
         result={'ok':False,'error':str(exc)[:1500],'production_activated':False,'network_called':False}
-    print(json.dumps(result,ensure_ascii=False))
+    print(json.dumps(result,ensure_ascii=True))
     return 0 if result['ok'] else 1
 
 

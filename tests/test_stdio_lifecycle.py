@@ -10,6 +10,25 @@ from taller.errors import AppError
 from taller.stdio import serve
 
 
+def test_protocol_preserves_unicode_with_a_legacy_console(tmp_path):
+    # JSON over pipes must remain valid UTF-8 even when Windows selects CP1252.
+    name = "Cliente Cañamo — Ελληνικά 🛠"
+    requests = [
+        {"id": 1, "action": "customers.save", "params": {"data": {"name": name}}},
+        {"id": 2, "action": "bootstrap"},
+        {"id": 3, "action": "app.shutdown"},
+    ]
+    incoming = io.BytesIO(("\n".join(json.dumps(row, ensure_ascii=False) for row in requests) + "\n").encode("utf-8"))
+    output = io.BytesIO()
+    console = io.TextIOWrapper(output, encoding="cp1252", newline="\n")
+    serve(tmp_path / "datos-á", incoming, console, background=False)
+    decoded = output.getvalue().decode("utf-8", errors="strict")
+    rows = [json.loads(line) for line in decoded.splitlines()]
+    assert len(rows) == 3 and all(row["ok"] for row in rows)
+    assert rows[0]["result"]["name"] == name
+    assert rows[1]["result"]["data_directory"] == str((tmp_path / "datos-á").resolve())
+
+
 def test_shutdown_ack_exits_and_runs_backup_once(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr("taller.app.App.shutdown", lambda self: calls.append("backup") or {"ok": True})

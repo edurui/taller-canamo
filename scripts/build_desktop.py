@@ -94,12 +94,6 @@ def main():
         for filename in ("package-lock.json", "requirements-dev.lock", "src-tauri/Cargo.lock"):
             if not (ROOT / filename).is_file():
                 raise SystemExit(f"Falta el lock reproducible {filename}.")
-        run([sys.executable, "-m", "pytest", "--maxfail=1",
-             "--junitxml=" + str(ROOT / "reports" / "windows-pytest.xml")])
-        run([npm, "run", "typecheck"])
-        run([npm, "run", "typecheck:e2e"])
-        run([npm, "run", "build"])
-        run([npm, "run", "test:e2e"])
     source_policy = json.loads((ROOT / "backend" / "taller" / "release-policy.json").read_text(encoding="utf-8"))
     expected_version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
     if source_policy != {"format_version": 1, "application_version": expected_version, "edition": "development"}:
@@ -111,6 +105,14 @@ def main():
         policy_hash = sha256(release_policy)
         executable = build_sidecar(target, release_policy)
     if not args.sidecar_only:
+        # Diagnose the frozen protocol/engines before the longer full suites.
+        # All suites still gate acceptance of these same, unchanged bytes.
+        run([sys.executable, "-m", "pytest", "--maxfail=1",
+             "--junitxml=" + str(ROOT / "reports" / "windows-pytest.xml")])
+        run([npm, "run", "typecheck"])
+        run([npm, "run", "typecheck:e2e"])
+        run([npm, "run", "build"])
+        run([npm, "run", "test:e2e"])
         run([cargo, "test", "--locked", "--no-default-features", "--lib"], cwd=ROOT / "src-tauri",
             env={**os.environ, "CANAMO_TEST_PYTHON": sys.executable})
         installer_directory = ROOT / "src-tauri" / "target" / "release" / "bundle" / "nsis"

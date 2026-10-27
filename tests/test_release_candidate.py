@@ -184,7 +184,8 @@ def test_standalone_entry_verifies_without_initializing_app_or_writing_db(app):
         before='\n'.join(conn.iterdump())
     result=subprocess.run([sys.executable,'-m','taller.release_tools','--data',str(app.db.root),
                            '--verify-release-evidence'],cwd=Path(fiscal_release.__file__).resolve().parent.parent,
-                          capture_output=True,text=True,timeout=10)
+                          capture_output=True,text=True,encoding='utf-8',timeout=10,
+                          env={**os.environ,'PYTHONIOENCODING':'cp1252'})
     assert result.returncode==1 and result.stderr==''
     output=json.loads(result.stdout)
     assert output['ok'] is False and output['network_called'] is False

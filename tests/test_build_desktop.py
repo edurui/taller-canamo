@@ -82,3 +82,14 @@ def test_simulated_windows_rejects_changed_inputs_and_removes_old_acceptance(win
         module.main()
     assert not report.exists()
     assert json.loads((root / 'reports/windows-staged-sidecar.json').read_text())['fixture'].startswith('simulated')
+
+
+def test_broken_frozen_service_stops_before_the_full_suites(windows_builder, monkeypatch):
+    module, _, calls = windows_builder
+    def failed_service(*args):
+        raise RuntimeError('Synthetic frozen protocol failure')
+    monkeypatch.setattr(module, 'build_sidecar', failed_service)
+    with pytest.raises(RuntimeError, match='frozen protocol'):
+        module.main()
+    assert not any(command[1:3] == ['-m', 'pytest'] for command in calls)
+    assert not any(command[1:3] == ['run', 'test:e2e'] for command in calls)
