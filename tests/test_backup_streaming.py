@@ -4,6 +4,7 @@ import hashlib
 import io
 import os
 import struct
+import stat
 import zipfile
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -24,6 +25,32 @@ def resource(app, size=6*CHUNK_BYTES):
             digest.update(block)
             output.write(block)
     return path, digest.hexdigest()
+
+
+def test_backup_export_and_restore_flush_writable_file_handles(app, monkeypatch):
+    # Windows rejects fsync on read-only CRT descriptors. Preserve a real flush
+    # while enforcing that constraint on every platform, including Linux CI.
+    original_fsync = os.fsync
+    checked = []
+
+    def writable_fsync(descriptor):
+        if stat.S_ISREG(os.fstat(descriptor).st_mode):
+            os.write(descriptor, b'')
+            checked.append(descriptor)
+        return original_fsync(descriptor)
+
+    monkeypatch.setattr(os, 'fsync', writable_fsync)
+    app.contacts.save_customer({'name': 'Cliente sintético para comprobar copias'})
+    exported = app.db.root / 'synthetic-export.csv'
+    exported.write_bytes(b'Synthetic CSV\n')
+    registered = app.backups.register_export(exported, 'synthetic.csv', 'text/csv')
+    assert app.backups.download_chunk(registered['capability'], 0)['eof']
+    app.backups.release_download(registered['capability'])
+    backup = app.backups.create()
+    preview = app.backups._preview_path(app.db.root / 'backups' / backup['name'])
+    assert app.backups.restore(preview['token'], 'RESTAURAR')['restored']
+    assert app.contacts.list_customers()['total'] == 1
+    assert checked
 
 
 def upload(backups, result):

@@ -1,5 +1,6 @@
 """Synthetic forensic vectors: decompression, privacy boundary and read-only extraction."""
 import importlib.util
+import base64
 import json
 import os
 from pathlib import Path
@@ -79,8 +80,29 @@ def test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows(tmp_p
     serialized = json.dumps(summary)
     for private in ['Cliente', '600000001', '1234-XYZ', 'forbidden.mdb', str(source)]:
         assert private not in serialized
-    assert destination.stat().st_mode & 0o077 == 0
-    assert (destination / 'summary.json').stat().st_mode & 0o077 == 0
+    if os.name == 'nt':
+        # POSIX mode bits do not describe Windows access. Check the actual DACL,
+        # including the inherited permissions of an extracted evidence file.
+        for path in (destination, destination / 'summary.json'):
+            literal = str(path).replace("'", "''")
+            command = (
+                "$acl=Get-Acl -LiteralPath '" + literal + "';"
+                "$sid=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value;"
+                "$rules=$acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]);"
+                "@{sid=$sid;protected=$acl.AreAccessRulesProtected;"
+                "allowed=@($rules|Where-Object {$_.AccessControlType -eq 'Allow'}|"
+                "ForEach-Object {$_.IdentityReference.Value})}|ConvertTo-Json -Compress"
+            )
+            encoded = base64.b64encode(command.encode('utf-16le')).decode('ascii')
+            powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+            acl = json.loads(subprocess.check_output(
+                [str(powershell), '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], text=True))
+            assert set(acl['allowed']) == {acl['sid']}
+            if path == destination:
+                assert acl['protected']
+    else:
+        assert destination.stat().st_mode & 0o077 == 0
+        assert (destination / 'summary.json').stat().st_mode & 0o077 == 0
     with pytest.raises(ValueError, match='already exists'):
         forensics.extract(source, destination)
 

@@ -5,6 +5,7 @@ import io
 import json
 import sqlite3
 import zipfile
+from contextlib import closing
 
 import pytest
 
@@ -280,7 +281,7 @@ def test_persisted_v8_simulation_migrates_and_resumes_before_import(app, tmp_pat
     legacy = simulated.with_suffix('.v8.sqlite')
     # Build the actual v8 schema, then retain only data from its common tables.
     # This represents a saved simulation from the previous application version.
-    with sqlite3.connect(simulated) as source, sqlite3.connect(legacy, isolation_level=None) as old:
+    with closing(sqlite3.connect(simulated)) as source, closing(sqlite3.connect(legacy, isolation_level=None)) as old:
         upgrade(old, SCHEMA, migrations=tuple(m for m in MIGRATIONS if m.VERSION <= 8))
         tables = [row[0] for row in old.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name!='schema_migrations'")]
         for table in tables:

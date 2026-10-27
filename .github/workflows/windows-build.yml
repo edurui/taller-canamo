@@ -81,6 +81,7 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*-setup.exe
             reports/windows-*.json
+            reports/windows-*.xml
             reports/sidecar-functional*
             reports/e2e/
             reports/desktop/

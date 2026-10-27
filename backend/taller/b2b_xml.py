@@ -10,6 +10,7 @@ from lxml import etree
 from saxonche import PySaxonProcessor, PySaxonApiError
 
 from .errors import AppError, require
+from .schema_paths import verified_file_aliases
 from .money import amount, calculate
 from .validation import valid_tax_id
 
@@ -74,7 +75,7 @@ def validation_session():
     resources survive this context, so the next batch verifies hashes again.
     """
     manifest = resources()
-    allowed = {str((RESOURCES/path).resolve()) for path in manifest['files'] if path.endswith('.xsd')}
+    allowed = verified_file_aliases((RESOURCES/path).resolve() for path in manifest['files'] if path.endswith('.xsd'))
     try:
         with PySaxonProcessor(license=False) as processor:
             processor.set_configuration_property('http://saxon.sf.net/feature/allowedProtocols','#none')
@@ -98,7 +99,7 @@ class _BatchValidator:
         class Resolver(etree.Resolver):
             def resolve(self,url,pubid,context):
                 require(url in allowed, 'Dependencia XSD B2B no admitida.', 'b2b_schema')
-                return self.resolve_filename(url,context)
+                return self.resolve_filename(str(allowed[url]),context)
         try:
             if name not in self.schemas:
                 parser = etree.XMLParser(resolve_entities=False,no_network=True,load_dtd=False)

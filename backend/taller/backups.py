@@ -511,7 +511,9 @@ class Backups:
                 encoded = dumps(manifest).encode('utf-8')
                 require(len(encoded)<=MAX_MANIFEST_BYTES and actual_total+len(encoded)<=MAX_BYTES, 'El manifiesto o el contenido de la copia supera los límites.')
                 archive.writestr('manifest.json', encoded)
-            with archive_path.open('rb') as handle:
+            # Windows _commit/FlushFileBuffers requires a writable descriptor.
+            # Keep the durability flush rather than skipping it on that platform.
+            with archive_path.open('r+b') as handle:
                 os.fsync(handle.fileno())
             if password:
                 encrypted = Path(temp)/'encrypted.canamo'
@@ -588,7 +590,7 @@ class Backups:
         size = path.stat().st_size
         require(size<=MAX_ARCHIVE_BYTES, 'La exportación supera el límite de transporte de 9 GiB.')
         digest = _file_hash(path)
-        with path.open('rb') as source:
+        with path.open('r+b') as source:
             os.fsync(source.fileno())
         target = self.export_root/(uid()+Path(name).suffix)
         os.replace(path, target)
@@ -1054,7 +1056,7 @@ class Backups:
                     previous[name] = destination.exists()
                 for path in new.rglob('*'):
                     if path.is_file():
-                        with open(path,'rb') as handle: os.fsync(handle.fileno())
+                        with open(path,'r+b') as handle: os.fsync(handle.fileno())
                 for path in sorted((path for path in work.rglob('*') if path.is_dir()),key=lambda path:len(path.parts),reverse=True):
                     _sync_directory(path)
                 _sync_directory(work)

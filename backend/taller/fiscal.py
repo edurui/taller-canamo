@@ -22,6 +22,7 @@ from lxml import etree
 from . import __version__
 from .db import dumps, uid
 from .errors import AppError, require
+from .schema_paths import verified_file_aliases
 from .money import amount, canonical_tax_rate
 from .validation import TZ, now, valid_tax_id
 from .sorting import order_by, text_order, label_order, STATUS_LABELS
@@ -75,7 +76,7 @@ def official_schema(name):
     verify_schema_files()
     folder = BUNDLED_SCHEMA_DIR.resolve()
     # Do not let a schema import read arbitrary files or contact a network host.
-    allowed = {str(folder/filename): folder/filename for filename in SCHEMA_FILES}
+    allowed = verified_file_aliases(folder/filename for filename in SCHEMA_FILES)
     allowed[XMLDSIG_URL] = folder/'xmldsig-core-schema.xsd'
     allowed[XMLDSIG_URL.replace('https:', 'http:', 1)] = folder/'xmldsig-core-schema.xsd'
 

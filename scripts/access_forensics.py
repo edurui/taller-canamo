@@ -17,9 +17,11 @@ import re
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'backend'))
 RUNTIME = ROOT / 'backend/taller/access_runtime'
 MAX_STREAM = 16 * 1024 * 1024
 MAX_DECOMPRESSED = 16 * 1024 * 1024
@@ -226,7 +228,8 @@ def extract(source: Path, destination: Path) -> dict:
         raise ValueError('Source must be a file')
     before = sha256(source)
     destination.mkdir(mode=0o700, parents=True)
-    os.chmod(destination, 0o700)
+    from taller.certificates import private_directory
+    private_directory(str(destination))
     old_umask = os.umask(0o077)
     try:
         library = RUNTIME / 'lib/jackcess-5.0.1.jar'
