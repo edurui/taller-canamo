@@ -55,6 +55,13 @@ jobs:
       - name: Install pinned Rust MSVC toolchain
         working-directory: src-tauri
         run: rustup show active-toolchain
+      - name: Compile native WebDriver tools before the full build
+        shell: pwsh
+        run: |
+          cargo +1.98.1 install tauri-driver --version 2.0.6 --locked
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la preparación de tauri-driver.' }
+          cargo +1.98.1 install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la preparación del selector Edge Driver.' }
       - name: Check Windows regressions before the full build
         shell: pwsh
         run: |
@@ -87,11 +94,9 @@ jobs:
       - name: Install under a user path and verify bundled service
         shell: pwsh
         run: ./src-tauri/tests/verify-installed.ps1
-      - name: Native WebDriver tools (never included in installer)
+      - name: Match Edge Driver to the installed WebView2 (test tools only)
         shell: pwsh
         run: |
-          cargo +1.98.1 install tauri-driver --version 2.0.6 --locked
-          cargo +1.98.1 install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
           msedgedriver-tool
       - name: Tauri UI with WebView2 and packaged service in the disposable runner account
         shell: pwsh
