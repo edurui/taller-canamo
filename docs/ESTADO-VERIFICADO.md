@@ -11,14 +11,16 @@ El destino nuevo conserva `transfer_required`; no se activó el traslado definit
 
 Corregidos requisitos del workflow, lectura UTF-8 de metadatos y conservación exacta
 de recursos fijados por SHA-256, resolutores XML, fsync y permisos en Windows.
-814 pytest y 164 E2E locales correctas; checkout Windows nuevo con 69 recursos
+818 pytest y 164 E2E locales correctas; checkout Windows nuevo con 69 recursos
 idénticos a sus hashes. Sobre `dabe244` han pasado
 los dos casos de regresión, **814 pytest Windows**, ambos typechecks y el build.
 La batería de navegador detectó seis incidencias del arnés (158 casos correctos),
 corregidas en `b7d6da9`: UTF-8 explícito y esperas sobre la aplicación lista.
-Los seis recorridos dirigidos ya pasan tanto localmente como en Windows; sigue
-la construcción completa del candidato sobre `b7d6da9`. Todavía sin instalador
-aceptado. Seguimiento, comandos,
+La batería completa de 164 E2E Windows ya pasó sobre `b7d6da9`. Después se corrigió
+la codificación del protocolo congelado y se detectó una conexión SQLite de ensayo
+sin cierre. El servicio ya ejecutó PDF, XML, OCR, voz y lectura Access; su descarte
+se vuelve a comprobar sobre `8dcf8ad`. Cinco regresiones iniciales Windows correctas.
+Todavía sin instalador aceptado. Seguimiento, comandos,
 evidencias, incidencias y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
 
 ## Access actualizado: altas incrementales de la prueba local · 27/10/2026

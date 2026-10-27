@@ -102,7 +102,7 @@ recursos oficiales son solo sus saltos de línea originales. Su whitespace publi
 se conserva: el `diff --check` de fuentes excluye esos recursos verbatim y pasa;
 los recursos se verifican byte a byte, sin alterar el validador de integridad.
 
-Pruebas Python locales finales tras las correcciones Windows: **814 correctas, 164,67 s**,
+Pruebas Python locales finales tras las correcciones Windows: **818 correctas, 57,72 s**,
 cero fallos. Nuevas regresiones para alias exactos y sincronización con escritura;
 74 pruebas dirigidas correctas antes de la batería completa. Logs/XML
 en `reports/windows-delivery-2026-10-27/`, fuera de Git. Antes, 25 pruebas dirigidas
@@ -127,8 +127,16 @@ Intentos públicos y fuentes exactas:
   typecheck de aplicación/E2E y build correctos. Navegador: 158 correctas y seis
   fallos (7 min); no llegó a empaquetar. Fuente `dabe244`.
 - [40555479990](https://github.com/edurui/taller-canamo/actions/runs/40555479990):
-  candidato en curso, fuente `b7d6da9`, con comprobación de los seis recorridos
-  de navegador antes de la batería completa.
+  **814 pytest Windows (445,21 s) y 164 E2E Windows (7,5 min) correctas**,
+  typechecks y build correctos. PyInstaller creó el servicio, pero su arranque
+  detectó salida JSON CP1252, incompatible con el lector UTF-8. Fuente `b7d6da9`.
+- [40559653905](https://github.com/edurui/taller-canamo/actions/runs/40559653905):
+  fuente `64d89c7`, detenido antes de baterías largas: el servicio congelado ya
+  arranca y supera PDF, cadena, CEN/EN16931, OCR, voz y lectura/mapeo Access.
+  Falla el descarte de la importación sintética; aún sin NSIS aceptado.
+- [40561307066](https://github.com/edurui/taller-canamo/actions/runs/40561307066):
+  candidato en curso, fuente `8dcf8ad`; cinco regresiones Python iniciales
+  correctas, pendiente completar la verificación del servicio y las baterías.
 
 Las seis incidencias de navegador anteriores se localizaron en el arnés: tres
 lectores Python emitían CP1252 y Node los interpretaba como UTF-8; ahora todas las
@@ -140,8 +148,33 @@ el siguiente menú. Los seis recorridos pasan localmente en 13,8 s; typecheck E2
 correcto. No se sustituyen acentos, se eliminan aserciones ni se añaden reintentos.
 No cambió código de aplicación ni datos en esta corrección. Batería completa de
 navegador local final: **164 correctas, 3,9 min**, cero fallos, omitidas o reintentos.
-En Windows ya pasaron también los seis recorridos iniciales corregidos sobre
-`b7d6da9`; continúa la batería completa y construcción, aún sin aceptar un EXE.
+En Windows también pasó la batería completa sobre `b7d6da9`; aún sin aceptar un EXE.
+
+El siguiente fallo era del protocolo empaquetado: la consola Windows elegía CP1252
+y la salida JSON incluía caracteres literales. El IPC y la CLI de expediente ahora
+usan escapes JSON ASCII, un subconjunto válido de UTF-8; el receptor recupera los
+caracteres originales, sin cambiarlos en SQLite, PDF o pantalla. Dos controles
+negativos reproducen el fallo anterior en 0,42 s; con la corrección pasan 44
+dirigidas en 1,32 s. La regresión fuerza consola CP1252 e incluye español, griego,
+un emoji y ruta con tilde. El paso inicial Windows incluye ahora este caso.
+
+La construcción verifica primero el servicio congelado y sus motores; después
+ejecuta todas las pruebas Python/E2E y Rust, construye Tauri y verifica el instalador.
+Una regresión de orquestación exige abortar antes de las baterías largas si falla
+el servicio empaquetado. No se omite ninguna prueba ni se acepta un paquete con
+pruebas incompletas: todas se refieren a los mismos bytes y permanece la guarda
+de estabilidad de fuentes/recursos.
+
+En la investigación del descarte se localizó una conexión sin cerrar en
+`Staging.load_extracted`: el contexto SQLite hacía commit/rollback, pero no cerraba
+el archivo. Se usa `closing` y se conserva el contexto transaccional. Se corrige
+el mismo patrón en el guion de ensayo; no aparecen otros contextos de conexión
+sin cierre en backend/scripts. Dos regresiones retienen una referencia fuerte
+para que el GC no oculte el fallo: éxito y error debían cerrar la conexión, y el
+error debía revertir las filas parciales. Ambas fallan en la versión anterior
+(0,05 s); 26 dirigidas correctas después (8,34 s). La confirmación del descarte
+en el ejecutable congelado corresponde al siguiente intento, no a estas pruebas
+locales. Los MDB y datos reales no se usan en este diagnóstico.
 
 ## Impresión y condiciones de puesta en marcha
 
