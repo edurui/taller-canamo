@@ -94,7 +94,8 @@ def main():
         for filename in ("package-lock.json", "requirements-dev.lock", "src-tauri/Cargo.lock"):
             if not (ROOT / filename).is_file():
                 raise SystemExit(f"Falta el lock reproducible {filename}.")
-        run([sys.executable, "-m", "pytest", "--junitxml=" + str(ROOT / "reports" / "windows-pytest.xml")])
+        run([sys.executable, "-m", "pytest", "--maxfail=1",
+             "--junitxml=" + str(ROOT / "reports" / "windows-pytest.xml")])
         run([npm, "run", "typecheck"])
         run([npm, "run", "typecheck:e2e"])
         run([npm, "run", "build"])

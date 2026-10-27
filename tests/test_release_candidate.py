@@ -1,6 +1,7 @@
 """Local release-policy tests; no assertion represents external acceptance."""
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -124,7 +125,7 @@ def test_tools_do_not_activate_or_mutate_database(app,tmp_path):
     assert not (app.db.root/'secure'/'release-evidence').exists()
 
 
-def test_copy_preserves_results_and_only_referenced_evidence(tmp_path):
+def test_copy_preserves_results_and_only_referenced_evidence(tmp_path,monkeypatch):
     # This exercises file copying only. These not_run observations cannot pass
     # the real verifier and do not represent Windows tests.
     source=tmp_path/'source'
@@ -138,6 +139,13 @@ def test_copy_preserves_results_and_only_referenced_evidence(tmp_path):
     manifest.write_text(json.dumps({'windows':{'path':report.name,'sha256':hashlib.sha256(report.read_bytes()).hexdigest()}}),encoding='utf-8')
     (source/'unreferenced-private-content.txt').write_text('not part of dossier',encoding='utf-8')
     destination=tmp_path/'copied'
+    original_fsync=release_tools.os.fsync
+    def writable_fsync(descriptor):
+        # Windows requires a writable descriptor for fsync. A zero-byte write
+        # enforces that constraint on Linux without changing the evidence.
+        os.write(descriptor,b'')
+        return original_fsync(descriptor)
+    monkeypatch.setattr(release_tools.os,'fsync',writable_fsync)
     release_tools._copy_dossier(source,destination)
     assert sorted(item.name for item in destination.iterdir())==['manifest.json','synthetic.txt','windows-report.json']
     assert (destination/'windows-report.json').read_bytes()==report.read_bytes()

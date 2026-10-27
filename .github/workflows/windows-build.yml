@@ -55,6 +55,13 @@ jobs:
       - name: Install pinned Rust MSVC toolchain
         working-directory: src-tauri
         run: rustup show active-toolchain
+      - name: Check Windows regressions before the full build
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe scripts/prepare_access_runtime.py
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar el lector Access.' }
+          .\.venv\Scripts\python.exe -m pytest --maxfail=1 --junitxml=reports/windows-preflight.xml tests/test_access_forensics.py::test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows tests/test_release_candidate.py::test_copy_preserves_results_and_only_referenced_evidence
+          if ($LASTEXITCODE -ne 0) { throw 'La regresión Windows sigue fallando; no se inicia el build completo.' }
       - name: Test and build selected installer
         shell: pwsh
         run: |

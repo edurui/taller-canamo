@@ -86,6 +86,7 @@ def test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows(tmp_p
         for path in (destination, destination / 'summary.json'):
             literal = str(path).replace("'", "''")
             command = (
+                "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"
                 "$acl=Get-Acl -LiteralPath '" + literal + "';"
                 "$sid=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value;"
                 "$rules=$acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]);"
@@ -95,9 +96,15 @@ def test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows(tmp_p
             )
             encoded = base64.b64encode(command.encode('utf-16le')).decode('ascii')
             powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+            # A pwsh -> Python -> Windows PowerShell chain otherwise inherits
+            # PS7 modules, which .NET Framework cannot load. Let WinPS build
+            # its own standard module path (Microsoft's documented remedy).
+            environment = {key: value for key, value in os.environ.items()
+                           if key.upper() != 'PSMODULEPATH'}
             acl = json.loads(subprocess.check_output(
-                [str(powershell), '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], text=True))
-            assert set(acl['allowed']) == {acl['sid']}
+                [str(powershell), '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
+                text=True, env=environment))
+            assert set(acl['allowed']) == {acl['sid']}, (path.name, acl)
             if path == destination:
                 assert acl['protected']
     else:

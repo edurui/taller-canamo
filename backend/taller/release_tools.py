@@ -70,7 +70,7 @@ def _copy_dossier(source,destination):
         target=destination/relative
         target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(path,target)
-        with target.open('rb') as stream:
+        with target.open('r+b') as stream:
             os.fsync(stream.fileno())
 
 
