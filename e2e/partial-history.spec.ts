@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 test("histórico incompleto conserva ausencias sin presentar cobros ni rectificativas", async ({ page, rpc }, testInfo) => {
   const bootstrap = await rpc<{ data_directory: string }>("bootstrap");
   const python = resolve(process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
-  execFileSync(python, ["-c", [
+  execFileSync(python, ["-X", "utf8", "-c", [
     "import sys;sys.path[:0]=['backend','tests']",
     "from taller.app import App",
     "from test_partial_history import partial_history",

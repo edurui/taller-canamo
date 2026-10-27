@@ -156,7 +156,7 @@ test("orden de líneas: teclado y arrastre conservan importes, borrador y orden 
         : ".venv/bin/python",
     ),
     [
-      "-c",
+      "-X", "utf8", "-c",
       'import sys,io;from pypdf import PdfReader;print("\\n".join(p.extract_text() for p in PdfReader(io.BytesIO(sys.stdin.buffer.read())).pages))',
     ],
     { input: Buffer.from(pdf.content, "base64") },

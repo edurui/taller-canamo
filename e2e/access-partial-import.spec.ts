@@ -24,7 +24,7 @@ test("Access parcial: grupos revisables, importación segura y reversión con or
   const directory = await mkdtemp(join(tmpdir(), "canamo-partial-e2e-"));
   const file = join(directory, "partial.zip");
   try {
-    execFileSync(python, ["-c", [
+    execFileSync(python, ["-X", "utf8", "-c", [
       "import sys;sys.path[:0]=['backend','tests']",
       "from pathlib import Path",
       "from test_access_partial import archive,package",
@@ -97,7 +97,7 @@ test("MDB nativo con contador interno obsoleto conserva filas y muestra diagnós
   const directory = await mkdtemp(join(tmpdir(), "canamo-stale-e2e-"));
   const file = join(directory, "stale.mdb");
   try {
-    execFileSync(python, ["-c", "import sys,subprocess;sys.path.insert(0,'backend');from taller.access import java_command;subprocess.run([*java_command(),'fixture',sys.argv[1],'mdb-stale-count'],check=True)", file], { cwd: resolve(".") });
+    execFileSync(python, ["-X", "utf8", "-c", "import sys,subprocess;sys.path.insert(0,'backend');from taller.access import java_command;subprocess.run([*java_command(),'fixture',sys.argv[1],'mdb-stale-count'],check=True)", file], { cwd: resolve(".") });
     await diagnose(page, file);
     const customers = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "Clientes", exact: true }) });
     await expect(customers).toContainText("Contador interno: 1. Se conservan todas las filas recorridas.");

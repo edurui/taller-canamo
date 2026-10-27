@@ -62,6 +62,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar el lector Access.' }
           .\.venv\Scripts\python.exe -m pytest --maxfail=1 --junitxml=reports/windows-preflight.xml tests/test_access_forensics.py::test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows tests/test_release_candidate.py::test_copy_preserves_results_and_only_referenced_evidence
           if ($LASTEXITCODE -ne 0) { throw 'La regresión Windows sigue fallando; no se inicia el build completo.' }
+      - name: Check browser regressions before the full suite
+        shell: pwsh
+        run: |
+          foreach ($canamoPrepareScript in @('scripts/prepare_assistant_models.py', 'scripts/prepare_licenses.py')) {
+            & .\.venv\Scripts\python.exe $canamoPrepareScript
+            if ($LASTEXITCODE -ne 0) { throw "Falló $canamoPrepareScript" }
+          }
+          npm run typecheck:e2e
+          if ($LASTEXITCODE -ne 0) { throw 'Falló typecheck E2E.' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Falló el build de interfaz.' }
+          npx playwright test --grep 'buscar matrícula conserva los kilómetros|Clientes accesible con tabla conservada: dark|cabecera visible al desplazar|orden de líneas: teclado|proveedor y catálogo|presupuesto → orden → factura conserva' --max-failures=1
+          if ($LASTEXITCODE -ne 0) { throw 'La regresión de navegador sigue fallando; no se inicia la batería completa.' }
+          Copy-Item reports/e2e/results.json reports/windows-e2e-preflight.json
+          $canamoBrowserPreflight = Get-Content reports/windows-e2e-preflight.json -Raw | ConvertFrom-Json
+          if ($canamoBrowserPreflight.stats.expected -ne 6 -or $canamoBrowserPreflight.stats.unexpected -ne 0 -or $canamoBrowserPreflight.stats.skipped -ne 0 -or $canamoBrowserPreflight.stats.flaky -ne 0) { throw 'La comprobación inicial no ejecutó los seis casos completos.' }
       - name: Test and build selected installer
         shell: pwsh
         run: |

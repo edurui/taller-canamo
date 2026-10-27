@@ -61,7 +61,7 @@ async function holdList(
 
 async function openCustomers(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.locator(".topbar")).toBeVisible();
   const menu = page.getByRole("button", { name: "Abrir menú", exact: true });
   if (await menu.isVisible()) await menu.click();
   await page.getByRole("button", { name: "Clientes", exact: true }).click();

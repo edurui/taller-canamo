@@ -84,6 +84,8 @@ test("proveedor y catálogo: búsqueda, archivo, entradas, salidas y recuento ac
   await page.getByLabel("Mostrar archivados").check();
   await expect(supplierRow).toContainText("Archivado");
   await rowAction(supplierRow, "Restaurar");
+  await expect(supplierRow).not.toContainText("Archivado");
+  await expect(supplierRow.getByRole("button", { name: /^Acciones de / })).toBeEnabled();
   await supplierRow.getByRole("button", { name: /^Acciones de / }).click();
   await expect(page.getByRole("menuitem", { name: "Archivar", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -338,7 +340,7 @@ test("presupuesto → orden → factura conserva líneas y un solo consumo; info
     execFileSync(
       python,
       [
-        "-c",
+        "-X", "utf8", "-c",
         "import io,json,sys,zipfile; z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())); print(z.read('data.json').decode('utf-8'))",
       ],
       { input: raw, encoding: "utf8" },

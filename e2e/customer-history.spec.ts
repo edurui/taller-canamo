@@ -67,7 +67,7 @@ test("buscar matrícula conserva los kilómetros al crear, emitir y reabrir la f
         : ".venv/bin/python",
     ),
     [
-      "-c",
+      "-X", "utf8", "-c",
       "import base64,io,sys; from pypdf import PdfReader; print('\\n'.join(p.extract_text() for p in PdfReader(io.BytesIO(base64.b64decode(sys.stdin.read()))).pages))",
     ],
     { input: pdf.content, encoding: "utf8" },

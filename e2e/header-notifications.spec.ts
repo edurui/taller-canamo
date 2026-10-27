@@ -8,9 +8,9 @@ test("cabecera visible al desplazar, búsqueda y salto accesibles en cuatro tama
   for (const width of [320, 390, 768, 1366]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Tu taller, a punto.");
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
     const header = page.locator(".topbar");
     const bounds = await header.boundingBox();
     expect(bounds!.y).toBeCloseTo(0, 1);

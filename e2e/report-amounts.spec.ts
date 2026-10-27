@@ -10,7 +10,7 @@ type Rpc = <T = Record<string, unknown>>(action: string, params?: Record<string,
 async function seed(rpc: Rpc): Promise<Record<string, string>> {
   const { data_directory } = await rpc<{ data_directory: string }>("bootstrap");
   const python = resolve(process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
-  return JSON.parse(execFileSync(python, ["-c", `
+  return JSON.parse(execFileSync(python, ["-X", "utf8", "-c", `
 import json,sys
 sys.path.insert(0,'backend')
 from taller.app import App

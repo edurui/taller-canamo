@@ -57,7 +57,7 @@ for number,issue_date,lines in cases:
  app.documents.get(d['id'])
 print(json.dumps(result))
 `;
-  return JSON.parse(execFileSync(python, ["-c", script, data_directory], { cwd: resolve("."), encoding: "utf8" }));
+  return JSON.parse(execFileSync(python, ["-X", "utf8", "-c", script, data_directory], { cwd: resolve("."), encoding: "utf8" }));
 }
 
 async function invoices(page: Page) {

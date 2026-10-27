@@ -13,7 +13,7 @@ for (const theme of ["light", "dark"]) {
     });
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(".topbar")).toBeVisible();
     const audit = async (step: string) => {
       const result = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])

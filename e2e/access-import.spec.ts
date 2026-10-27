@@ -22,7 +22,7 @@ test("Access real: diagnosticar, mapear, simular, importar, conciliar y revertir
     execFileSync(
       python,
       [
-        "-c",
+        "-X", "utf8", "-c",
         "import sys,subprocess;sys.path.insert(0,'backend');from taller.access import java_command;subprocess.run([*java_command(),'fixture',sys.argv[1],'accdb'],check=True)",
         file,
       ],

@@ -19,7 +19,7 @@ const amounts = [
 async function seed(rpc: Rpc): Promise<Seed> {
   const { data_directory } = await rpc<{ data_directory: string }>("bootstrap");
   const python = resolve(process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
-  return JSON.parse(execFileSync(python, ["-c", `
+  return JSON.parse(execFileSync(python, ["-X", "utf8", "-c", `
 import sys,json
 sys.path.insert(0,'backend')
 from taller.app import App

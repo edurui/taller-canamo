@@ -45,7 +45,7 @@ export const test = base.extend<Fixtures>({
     const start = async (port = "0") => {
       child = spawn(
         python,
-        ["-c", `
+        ["-X", "utf8", "-c", `
 import runpy
 import sys
 sys.path.insert(0, "backend")
