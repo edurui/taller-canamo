@@ -31,6 +31,7 @@ def test_license_inventory_preserves_nonwestern_metadata_with_cp1252_default(tmp
     put('node_modules/synthetic-license/package.json', json.dumps({
         'name': 'synthetic-license', 'version': '1.0.0',
         'license': 'MIT', 'description': 'Licencia sintética 中文 Ελληνικά',
+        'author': 'Autor sintético ā',  # UTF-8 contains 0x81, undefined in CP1252.
     }, ensure_ascii=False))
     notice = put('node_modules/synthetic-license/LICENSE', 'Synthetic notice © 中文')
     font_notice = put('backend/taller/fonts/LICENSE.txt', 'Synthetic font notice Ω')

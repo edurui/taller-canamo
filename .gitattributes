@@ -6,3 +6,10 @@
 *.png binary
 *.jpg binary
 *.pdf binary
+
+# Recursos publicados y fijados por SHA-256: conservar los bytes originales.
+/backend/taller/schemas/** -text
+/backend/taller/fonts/** -text
+/tools/legal/** -text
+/tools/access/licenses/** -text
+/tools/assistant/licenses/** -text
