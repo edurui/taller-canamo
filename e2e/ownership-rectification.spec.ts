@@ -285,9 +285,11 @@ test("histórico incompleto muestra datos desconocidos y exige desglose manual a
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Facturas", exact: true }).click();
-  await expect(
-    page.getByRole("row").filter({ hasText: "HIST-0007" }),
-  ).toContainText("Cliente no conservado en el original");
+  const historicalRow = page.getByRole("row").filter({ hasText: "HIST-0007" });
+  await expect(historicalRow.getByRole("button", { name: "Ficha actual distinta del original", exact: true })).toBeVisible();
+  await expect(historicalRow.getByText("Ficha actual", { exact: true })).toBeVisible();
+  expect(original.customer_name).toBeNull();
+  expect(original.current_customer_name).toBe("Ficha actual distinta del original");
   await page.getByRole("button", { name: "HIST-0007", exact: true }).click();
   await expect(page.getByLabel("Cantidad 1", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Cantidad 1", { exact: true })).toHaveAttribute(
@@ -301,7 +303,9 @@ test("histórico incompleto muestra datos desconocidos y exige desglose manual a
   );
   await expect(
     page.getByText(/Los datos del cliente no se conservan/),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(page.locator(".document-current-customer")).toContainText("Ficha actual del cliente");
+  await expect(page.getByRole("button", { name: "Ficha actual distinta del original", exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Registrar cobro", exact: true }),
   ).toHaveCount(0);

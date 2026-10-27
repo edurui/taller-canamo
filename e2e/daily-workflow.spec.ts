@@ -124,9 +124,10 @@ for (const withVehicle of [true, false]) {
       page.getByRole("button", { name: "Registrar cobro", exact: true }),
     ).toHaveCount(0);
     await page
-      .getByRole("button", { name: "Revertir", exact: true })
+      .getByRole("button", { name: /^Acciones de cobro del / })
       .first()
       .click();
+    await page.getByRole("menuitem", { name: "Revertir cobro", exact: true }).click();
     await page
       .getByRole("dialog")
       .getByRole("button", { name: "Revertir cobro", exact: true })

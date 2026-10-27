@@ -7,7 +7,7 @@ contract and retains its existing ranking and filtering behavior.
 import pytest
 
 
-LIST_FIELDS = {'id', 'name', 'city', 'phone', 'tax_id', 'legacy_code', 'plates'}
+LIST_FIELDS = {'id', 'name', 'city', 'phone', 'tax_id', 'legacy_code', 'plates', 'vehicles'}
 
 
 def customer(app, name, **fields):
@@ -31,7 +31,7 @@ def test_customer_list_returns_compact_rendering_and_import_link_contract(app):
     row = result['items'][0]
     assert set(row) == LIST_FIELDS
     assert row == {'id': saved['id'], 'name': saved['name'], 'city': saved['city'], 'phone': saved['phone'],
-                   'tax_id': saved['tax_id'], 'legacy_code': '0001', 'plates': None}
+                   'tax_id': saved['tax_id'], 'legacy_code': '0001', 'plates': None, 'vehicles': []}
     assert 'last_visit' not in row
     # A list response must never masquerade as the complete editable aggregate.
     complete = app.dispatch('customers.get', {'identifier': row['id']})
@@ -45,6 +45,16 @@ def test_empty_and_out_of_range_pages_keep_total_and_page_contract(app):
     assert app.contacts.list_customers(page=9) == {'items': [], 'total': 1, 'page': 9}
     assert identifiers(app.contacts.list_customers()) == [saved['id']]
     assert app.contacts.list_customers(query='No existe sintético') == {'items': [], 'total': 0, 'page': 0}
+
+
+def test_legacy_empty_plate_keeps_the_previous_aggregation_value(app):
+    owner = customer(app, 'Ficha sintética con dato antiguo incompleto')
+    saved = vehicle(app, owner, 'INCOMPLETE')
+    with app.db.transaction() as conn:
+        conn.execute("UPDATE vehicles SET plate='' WHERE id=?", (saved['id'],))
+    item = app.contacts.list_customers()['items'][0]
+    assert item['plates'] == ''
+    assert item['vehicles'] == [{'id': saved['id'], 'plate': ''}]
 
 
 def test_customer_pages_have_fifty_unique_customers_and_consistent_filtered_total(app):
@@ -96,13 +106,15 @@ def test_normalized_name_ties_retain_existing_insertion_order_across_pages(app):
 def test_no_vehicle_and_multiple_vehicles_never_drop_or_duplicate_customer(app):
     empty = customer(app, 'A sin vehículo sintético')
     multiple = customer(app, 'B varios vehículos sintético')
-    vehicle(app, multiple, '1122ABC')
-    vehicle(app, multiple, '0540-BZD')
+    first = vehicle(app, multiple, '1122ABC')
+    second = vehicle(app, multiple, '0540-BZD')
     result = app.contacts.list_customers()
     assert result['total'] == 2 and identifiers(result) == [empty['id'], multiple['id']]
     assert result['items'][0]['plates'] is None
+    assert result['items'][0]['vehicles'] == []
     # The previous owner-index scan aggregated in insertion order, not by plate.
     assert result['items'][1]['plates'] == '1122ABC, 0540-BZD'
+    assert result['items'][1]['vehicles'] == [{'id': first['id'], 'plate': '1122ABC'}, {'id': second['id'], 'plate': '0540-BZD'}]
     for query in ('0540-bzd', '0540 bzd', '0540BZD', '540'):
         match = app.contacts.list_customers(query=query)
         assert match['total'] == 1 and identifiers(match) == [multiple['id']]
@@ -172,12 +184,13 @@ def test_archived_customer_filter_is_exclusive_and_keeps_global_search_hidden(ap
 def test_archived_vehicle_is_omitted_from_display_but_keeps_existing_list_filter_semantics(app):
     owner = customer(app, 'Propietario de vehículos sintéticos')
     retired = vehicle(app, owner, '3333OLD')
-    vehicle(app, owner, '4444NEW')
+    current = vehicle(app, owner, '4444NEW')
     # Historical imports can contain archived vehicles; there is no archive-vehicle RPC.
     with app.db.transaction() as conn:
         conn.execute('UPDATE vehicles SET archived=1 WHERE id=?', (retired['id'],))
     row = app.contacts.list_customers()['items'][0]
     assert row['plates'] == '4444NEW'
+    assert row['vehicles'] == [{'id': current['id'], 'plate': '4444NEW'}]
     filtered = app.contacts.list_customers(query='3333OLD')
     assert filtered['total'] == 1 and identifiers(filtered) == [owner['id']]
     assert filtered['items'][0]['plates'] == '4444NEW'
@@ -264,7 +277,7 @@ def test_compact_list_matches_previous_query_results_for_mixed_synthetic_contact
                 (SELECT max(d.issue_date) FROM documents d WHERE d.customer_id=c.id AND d.kind='invoice') AS last_visit
                 FROM customers c WHERE ''' + condition + ' ORDER BY normalized(c.name) LIMIT 50 OFFSET ?',
                 (*params, max(0, int(page)) * 50))
-            return {'items': [{key: row[key] for key in LIST_FIELDS} for row in rows], 'total': total, 'page': page}
+            return {'items': [{key: row[key] for key in LIST_FIELDS - {'vehicles'}} for row in rows], 'total': total, 'page': page}
 
     queries = ('', '   ', 'ÁLVARO', 'alvaro   sintetico', 'poblacion', 'legacy-001', '555123456',
                '0540-bzd', '0540 bzd', '0540', '1122', '3333OLD', 'Nombre%literal',
@@ -273,6 +286,7 @@ def test_compact_list_matches_previous_query_results_for_mixed_synthetic_contact
         for archived_flag in (False, True):
             for page in (0, 1):
                 actual = app.contacts.list_customers(query=query, page=page, archived=archived_flag)
+                actual['items'] = [{key: value for key, value in row.items() if key != 'vehicles'} for row in actual['items']]
                 assert actual == previous_list(query, page, archived_flag), (query, page, archived_flag)
 
 
@@ -286,7 +300,7 @@ def test_list_reads_only_required_columns_and_batches_page_plates_with_owner_ind
     statements = []
     reads = []
     connect = app.db.connect
-    allowed_customer_columns = (LIST_FIELDS - {'plates'}) | {'archived', 'search_text', ''}
+    allowed_customer_columns = (LIST_FIELDS - {'plates', 'vehicles'}) | {'archived', 'search_text', ''}
 
     def authorize(action, table, column, database, trigger):
         if action == sqlite3.SQLITE_READ:
@@ -306,11 +320,14 @@ def test_list_reads_only_required_columns_and_batches_page_plates_with_owner_ind
     assert result['total'] == 52 and identifiers(result) == [saved[50]['id'], saved[51]['id']]
     assert all(set(row) == LIST_FIELDS for row in result['items'])
     assert [row['plates'] for row in result['items']] == ['9050IDX', '9051IDX']
-    batches = [statement for statement in statements if 'GROUP_CONCAT' in statement.upper()]
+    batches = [statement for statement in statements if statement.upper().startswith('SELECT CUSTOMER_ID,ID,PLATE FROM VEHICLES')]
     assert len(batches) == 1
     batch = batches[0]
     assert all(row['id'] in batch for row in result['items'])
     assert all(owner['id'] not in batch for owner in saved[:50])
+    assert len([statement for statement in statements if statement.lstrip().upper().startswith('SELECT')]) == 3
+    assert all([vehicle['plate'] for vehicle in row['vehicles']] == [row['plates']] for row in result['items'])
+    assert all(set(vehicle) == {'id', 'plate'} for row in result['items'] for vehicle in row['vehicles'])
     with app.db.read() as conn:
         plan = [row['detail'] for row in conn.execute('EXPLAIN QUERY PLAN ' + batch)]
     assert any('idx_vehicle_owner' in step for step in plan), plan

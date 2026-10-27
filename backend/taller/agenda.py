@@ -232,6 +232,8 @@ class Agenda:
         with self.db.transaction() as conn:
             self._relations(conn, normalized)
             existing = conn.execute('SELECT * FROM events WHERE id=?', (identifier,)).fetchone()
+            require(existing is not None or data.get('version') is None,
+                    'La cita ya no existe. Actualiza la agenda.', 'not_found')
             if existing:
                 require(existing['version'] == data.get('version'), 'La cita ha cambiado. Vuelve a abrirla.', 'conflict')
             if scope == 'occurrence':
@@ -362,23 +364,59 @@ class Agenda:
                 members = [{'id': row['id'], 'due_at': row['due_at']} for row in group]
                 conn.execute('UPDATE notifications SET delivery_group_ids=? WHERE id=?', (dumps(members), representative['id']))
                 representative['missed_count'] = len(group)
+                representative['delivery_members'] = members
+                representative['has_undelivered'] = any(row['delivered_at'] is None for row in group)
                 if len(group) > 1:
                     representative['message'] = str(len(group)) + ' avisos pendientes · ' + representative['message']
                 output.append(representative)
             return output
 
-    def mark(self, identifiers, action='read', minutes=15):
+    def mark(self, identifiers, action='read', minutes=15, expected_due_at=None, expected_members=None):
         require(action in ('read', 'delivered', 'snooze'), 'Acción de aviso no válida.')
         require(isinstance(identifiers, list) and len(identifiers) <= 100 and all(isinstance(x, str) for x in identifiers),
                 'Avisos no válidos.')
         require(type(minutes) is int and 1 <= minutes <= 10080, 'Posponer entre 1 minuto y una semana.')
+        require(expected_due_at is None or (
+            action == 'delivered' and isinstance(expected_due_at, dict)
+            and set(expected_due_at) == set(identifiers)
+            and all(isinstance(value, str) and len(value) <= 80 for value in expected_due_at.values())
+        ), 'La confirmación del aviso no es válida.')
+        if expected_members is not None:
+            require(action == 'delivered' and expected_due_at is not None
+                    and isinstance(expected_members, dict) and set(expected_members) == set(identifiers),
+                    'La confirmación del grupo no es válida.')
+            for identifier, members in expected_members.items():
+                # Recurrence is bounded to 732 occurrences, with at most five
+                # reminders each. Do not silently truncate a valid missed group.
+                require(isinstance(members, list) and 1 <= len(members) <= 732 * 5,
+                        'La confirmación del grupo no es válida.')
+                require(all(isinstance(member, dict) and set(member) == {'id', 'due_at'}
+                            and all(isinstance(value, str) and 0 < len(value) <= 80
+                                    for value in member.values()) for member in members),
+                        'La confirmación del grupo no es válida.')
+                require(len({member['id'] for member in members}) == len(members)
+                        and {'id': identifier, 'due_at': expected_due_at[identifier]} in members,
+                        'La confirmación del grupo no es válida.')
         updated, seen = 0, set()
         with self.db.transaction() as conn:
             for identifier in identifiers:
                 representative = conn.execute('SELECT * FROM notifications WHERE id=? AND cancelled_at IS NULL', (identifier,)).fetchone()
                 if not representative:
                     continue
-                members = json.loads(representative['delivery_group_ids']) or [{'id': identifier, 'due_at': representative['due_at']}]
+                if expected_due_at is not None and representative['due_at'] != expected_due_at[identifier]:
+                    # An OS acceptance for the old time cannot consume a reminder
+                    # rescheduled while that delivery was being acknowledged.
+                    continue
+                if expected_members is not None:
+                    # A concurrent list can replace delivery_group_ids. Confirm
+                    # only the exact snapshot the OS accepted, never its successor.
+                    members = expected_members[identifier]
+                    event_members = {row['id'] for row in conn.execute(
+                        'SELECT id FROM notifications WHERE event_id=?', (representative['event_id'],))}
+                    require(all(member['id'] in event_members for member in members),
+                            'La confirmación contiene avisos de otro evento.')
+                else:
+                    members = json.loads(representative['delivery_group_ids']) or [{'id': identifier, 'due_at': representative['due_at']}]
                 for member in members:
                     if member['id'] in seen:
                         continue

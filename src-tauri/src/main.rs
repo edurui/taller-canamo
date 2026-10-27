@@ -4,7 +4,10 @@ mod diagnostics;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 use taller_canamo::{
@@ -16,7 +19,7 @@ use taller_canamo::{
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
 use tauri_plugin_autostart::ManagerExt;
 
@@ -26,6 +29,9 @@ struct DesktopState {
     closing: AtomicBool,
     stopped: AtomicBool,
     exporting: AtomicBool,
+    agenda_notification: Mutex<Option<notifications::ActiveNotification>>,
+    test_notification: Mutex<Option<notifications::ActiveNotification>>,
+    notification_error: Mutex<Option<String>>,
 }
 
 struct ExportGuard<'a>(&'a AtomicBool);
@@ -80,17 +86,74 @@ fn set_startup(app: tauri::AppHandle, enabled: bool) -> Result<bool, String> {
 }
 
 #[tauri::command]
-async fn test_notification(app: tauri::AppHandle) -> Result<(), String> {
+async fn test_notification(app: tauri::AppHandle, sound: Option<bool>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        notifications::show(
-            &app.config().identifier,
+        let sound = match sound {
+            Some(sound) => sound,
+            None => {
+                let reply = app
+                    .state::<Backend>()
+                    .call("settings.get".into(), json!({}))?;
+                if reply["ok"] != true {
+                    return Err("No se ha podido leer la preferencia de sonido.".into());
+                }
+                reply["result"]["agenda"]["sound"] == true
+            }
+        };
+        present_notification(
+            &app,
             "Talleres El Cáñamo",
             "Aviso de prueba. Los recordatorios se conservan también dentro de la aplicación.",
+            sound,
             true,
         )
     })
     .await
     .map_err(|_| "No se ha podido solicitar el aviso".to_owned())?
+}
+
+#[tauri::command]
+fn notification_status(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    app.state::<DesktopState>()
+        .notification_error
+        .lock()
+        .map(|error| error.clone())
+        .map_err(|_| "No se puede consultar el estado de los avisos.".into())
+}
+
+fn present_notification(
+    app: &tauri::AppHandle,
+    title: &str,
+    body: &str,
+    sound: bool,
+    test: bool,
+) -> Result<(), String> {
+    let callback_app = app.clone();
+    let activate = Arc::new(move || {
+        let app = callback_app.clone();
+        let _ = callback_app.run_on_main_thread(move || {
+            show_window(&app);
+            let _ = app.emit("agenda-notification-open", notifications::agenda_target());
+        });
+    });
+    let active = notifications::show(
+        &app.config().identifier,
+        title,
+        body,
+        sound,
+        if test { "test" } else { "agenda" },
+        activate,
+    )?;
+    let state = app.state::<DesktopState>();
+    let retained = if test {
+        &state.test_notification
+    } else {
+        &state.agenda_notification
+    };
+    *retained
+        .lock()
+        .map_err(|_| "No se ha podido conservar la apertura del aviso.".to_owned())? = Some(active);
+    Ok(())
 }
 
 #[tauri::command]
@@ -232,61 +295,100 @@ fn request_exit(app: &tauri::AppHandle) {
 }
 
 fn start_reminders(app: tauri::AppHandle) {
-    std::thread::spawn(move || loop {
-        if app.state::<DesktopState>().stopped.load(Ordering::SeqCst) {
-            break;
-        }
-        if app.state::<DesktopState>().closing.load(Ordering::SeqCst) {
-            std::thread::sleep(Duration::from_secs(1));
-            continue;
-        }
-        let backend = app.state::<Backend>();
-        if !backend.is_running() {
-            // A failed shutdown can return to RUNNING after showing its error.
-            // Keep the poller alive across that transition.
-            std::thread::sleep(Duration::from_secs(1));
-            continue;
-        }
-        let _ = (|| -> Result<(), String> {
-            let config = backend.call("settings.get".into(), json!({}))?;
-            let agenda = &config["result"]["agenda"];
-            if agenda["desktop_notifications"] != true {
-                return Ok(());
+    std::thread::spawn(move || {
+        let mut ledger = notifications::DeliveryLedger::default();
+        loop {
+            if app.state::<DesktopState>().stopped.load(Ordering::SeqCst) {
+                break;
             }
-            let response = backend.call(
-                "notifications.list".into(),
-                json!({"only_undelivered": true}),
-            )?;
-            let Some(items) = response["result"]
-                .as_array()
-                .filter(|items| !items.is_empty())
-            else {
-                return Ok(());
-            };
-            let body = if items.len() == 1 {
-                items[0]["message"]
-                    .as_str()
-                    .unwrap_or("Tienes un aviso pendiente en la agenda.")
-                    .to_owned()
-            } else {
-                format!("Tienes {} avisos pendientes. Abre la aplicación para revisarlos o posponerlos.", items.len())
-            };
-            // OS acceptance does not prove visibility (e.g. Windows focus assist).
-            notifications::show(
-                &app.config().identifier,
-                "Talleres El Cáñamo · Agenda",
-                &body,
-                agenda["sound"] == true,
-            )?;
-            let ids: Vec<&Value> = items.iter().map(|item| &item["id"]).collect();
-            backend.call(
+            if app.state::<DesktopState>().closing.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_secs(1));
+                continue;
+            }
+            let backend = app.state::<Backend>();
+            if !backend.is_running() {
+                // A failed shutdown can return to RUNNING after showing its error.
+                // Keep the poller alive across that transition.
+                std::thread::sleep(Duration::from_secs(1));
+                continue;
+            }
+            let result = (|| -> Result<(), String> {
+                let config = backend.call("settings.get".into(), json!({}))?;
+                if config["ok"] != true {
+                    return Err("No se ha podido leer la configuración de avisos.".into());
+                }
+                let agenda = &config["result"]["agenda"];
+                if agenda["desktop_notifications"] != true {
+                    return Ok(());
+                }
+                let response = backend.call(
+                    "notifications.list".into(),
+                    json!({"only_undelivered": true}),
+                )?;
+                if response["ok"] != true {
+                    return Err("No se han podido consultar los avisos pendientes. Abre la agenda para revisarlos.".into());
+                }
+                let items = response["result"]
+                    .as_array()
+                    .ok_or("No se han podido leer los avisos pendientes.")?;
+                let unseen = ledger.unseen(items)?;
+                if items.is_empty() {
+                    return Ok(());
+                }
+                let body = if unseen.len() == 1 {
+                    unseen[0]["message"]
+                        .as_str()
+                        .unwrap_or("Tienes un aviso pendiente en la agenda.")
+                        .to_owned()
+                } else {
+                    format!("Tienes {} avisos pendientes. Abre la aplicación para revisarlos o posponerlos.", unseen.len())
+                };
+                // OS acceptance does not prove visibility (e.g. Windows focus assist).
+                if !unseen.is_empty() {
+                    present_notification(
+                        &app,
+                        "Talleres El Cáñamo · Agenda",
+                        &body,
+                        agenda["sound"] == true,
+                        false,
+                    )?;
+                    // Remember before ACK: a transport/backend failure must not play
+                    // the same accepted reminder again on every twenty-second poll.
+                    ledger.remember_accepted(&unseen)?;
+                }
+                let accepted = ledger.accepted_for(items)?;
+                let ids: Vec<&Value> = accepted.iter().map(|item| &item["id"]).collect();
+                let expected_due_at: serde_json::Map<String, Value> = accepted
+                    .iter()
+                    .map(|item| {
+                        (
+                            item["id"].as_str().unwrap().to_owned(),
+                            item["due_at"].clone(),
+                        )
+                    })
+                    .collect();
+                let expected_members: serde_json::Map<String, Value> = accepted
+                    .iter()
+                    .map(|item| {
+                        (
+                            item["id"].as_str().unwrap().to_owned(),
+                            item["delivery_members"].clone(),
+                        )
+                    })
+                    .collect();
+                let acknowledged = backend.call(
                 "notifications.mark".into(),
-                json!({"identifiers": ids, "action": "delivered"}),
-            )?;
-            Ok(())
-        })();
-        // Failure retains reminders for the next poll; never log personal data.
-        std::thread::sleep(Duration::from_secs(20));
+                json!({"identifiers": ids, "action": "delivered", "expected_due_at": expected_due_at, "expected_members": expected_members}),
+            ).map_err(|_| notifications::DELIVERY_ERROR.to_owned())?;
+                notifications::check_acknowledgement(&acknowledged)?;
+                Ok(())
+            })();
+            if let Ok(mut error) = app.state::<DesktopState>().notification_error.lock() {
+                *error = result.err();
+            }
+            // Failure retains reminders for the next poll; never log personal data.
+            std::thread::sleep(Duration::from_secs(20));
+        }
     });
 }
 
@@ -341,7 +443,7 @@ fn main() {
                 let _ = window.hide();
             }
         })
-        .invoke_handler(tauri::generate_handler![rpc, save_export, handle_pdf, open_external, test_notification, set_document_dirty, startup_status, set_startup])
+        .invoke_handler(tauri::generate_handler![rpc, save_export, handle_pdf, open_external, test_notification, notification_status, set_document_dirty, startup_status, set_startup])
         .build(tauri::generate_context!());
     match result {
         Ok(app) => app.run(|app, event| match event {

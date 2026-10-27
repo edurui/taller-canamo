@@ -15,6 +15,19 @@ type Fixtures = { backend: Backend; rpc: Rpc };
 
 // Each test owns a fresh, synthetic SQLite directory. No existing data is opened.
 export const test = base.extend<Fixtures>({
+  page: async ({ page }, use) => {
+    // Normal E2E never consult a public provider, even when an old test edits
+    // an address. Dedicated autocomplete tests install their own synthetic reply.
+    await page.route("**/api", async route => {
+      const payload = route.request().postDataJSON() as { action?: string };
+      if (payload?.action === "addresses.search") {
+        await route.fulfill({ json: { ok: true, result: { status: "unavailable", items: [] } } });
+      } else {
+        await route.fallback();
+      }
+    });
+    await use(page);
+  },
   backend: async ({}, use) => {
     const root = await mkdtemp(join(tmpdir(), "canamo-e2e-á "));
     const python = resolve(
@@ -32,7 +45,17 @@ export const test = base.extend<Fixtures>({
     const start = async (port = "0") => {
       child = spawn(
         python,
-        ["scripts/run_preview.py", "--no-open", "--port", port, "--data", root],
+        ["-c", `
+import runpy
+import sys
+sys.path.insert(0, "backend")
+from taller import addresses
+def offline_addresses(*args, **kwargs):
+    raise OSError("Synthetic offline address transport")
+addresses._http_get = offline_addresses
+sys.argv = ["scripts/run_preview.py", *sys.argv[1:]]
+runpy.run_path("scripts/run_preview.py", run_name="__main__")
+`, "--no-open", "--port", port, "--data", root],
         {
           cwd: resolve("."),
           stdio: ["ignore", "pipe", "pipe"],

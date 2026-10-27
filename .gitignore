@@ -19,6 +19,8 @@ __pycache__/
 .hypothesis/
 .tox/
 .nox/
+# Sesión temporal generada por SaxonC durante las pruebas.
+/:memory:.ses
 .coverage*
 coverage.xml
 htmlcov/

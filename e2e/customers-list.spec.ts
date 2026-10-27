@@ -119,10 +119,10 @@ test("Clientes conserva la tabla y descarta respuestas invertidas, incluso al vo
     );
     await expect(region.locator("tbody tr")).toHaveCount(2);
     await expect(
-      region.getByRole("button", { name: /Alfa sintética/ }),
+      region.locator("tbody td:first-child").getByRole("button", { name: /Alfa sintética/ }),
     ).toBeDisabled();
     await expect(
-      region.getByRole("button", { name: /Beta sintética/ }),
+      region.locator("tbody td:first-child").getByRole("button", { name: /Beta sintética/ }),
     ).toBeDisabled();
     await expect(
       page.getByText("Anteriores: 2", { exact: true }),
@@ -146,7 +146,7 @@ test("Clientes conserva la tabla y descarta respuestas invertidas, incluso al vo
     await expect(region).toHaveAttribute("aria-busy", "false");
     await expect(region.locator("tbody tr")).toHaveCount(1);
     await expect(
-      region.getByRole("button", { name: /Beta sintética/ }),
+      region.locator("tbody td:first-child").getByRole("button", { name: /Beta sintética/ }),
     ).toBeEnabled();
     await alfa.finish();
     await expect(region.locator("tbody tr")).toHaveCount(1);
@@ -170,17 +170,17 @@ test("Clientes conserva la tabla y descarta respuestas invertidas, incluso al vo
       await sameBeta.ready;
       await expect(region).toHaveAttribute("aria-busy", "true");
       await expect(
-        region.getByRole("button", { name: /Beta sintética/ }),
+        region.locator("tbody td:first-child").getByRole("button", { name: /Beta sintética/ }),
       ).toBeDisabled();
       await sameBeta.finish();
       await oldClear.finish();
       await expect(region).toHaveAttribute("aria-busy", "false");
       await expect(page.getByRole("alert")).toHaveCount(0);
       await expect(
-        region.getByRole("button", { name: /Beta sintética/ }),
+        region.locator("tbody td:first-child").getByRole("button", { name: /Beta sintética/ }),
       ).toBeEnabled();
       await expect(region.locator("tbody tr")).toHaveCount(1);
-      await region.getByRole("button", { name: /Beta sintética/ }).click();
+      await region.locator("tbody td:first-child").getByRole("button", { name: /Beta sintética/ }).click();
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(
         "Beta sintética",
       );
@@ -295,7 +295,7 @@ test("Clientes muestra fallos iniciales y de recarga, y reintenta sin habilitar 
     ).toHaveCount(0);
     await page.getByRole("button", { name: "Reintentar", exact: true }).click();
     await expect(
-      region.getByRole("button", { name: /Reintento sintético/ }),
+      region.locator("tbody td:first-child").getByRole("button", { name: /Reintento sintético/ }),
     ).toBeEnabled();
   } finally {
     initial.release();
@@ -316,7 +316,7 @@ test("Clientes muestra fallos iniciales y de recarga, y reintenta sin habilitar 
       "Fallo de recarga sintético",
     );
     await expect(
-      region.getByRole("button", { name: /Reintento sintético/ }),
+      region.locator("tbody td:first-child").getByRole("button", { name: /Reintento sintético/ }),
     ).toBeDisabled();
     await expect(
       page.getByText("Anteriores: 1", { exact: true }),
@@ -334,11 +334,11 @@ test("Clientes muestra fallos iniciales y de recarga, y reintenta sin habilitar 
       await expect(page.getByRole("alert")).toHaveCount(0);
       await expect(region).toHaveAttribute("aria-busy", "true");
       await expect(
-        region.getByRole("button", { name: /Reintento sintético/ }),
+        region.locator("tbody td:first-child").getByRole("button", { name: /Reintento sintético/ }),
       ).toBeDisabled();
       await retry.finish();
       await expect(
-        region.getByRole("button", { name: /Reintento sintético/ }),
+        region.locator("tbody td:first-child").getByRole("button", { name: /Reintento sintético/ }),
       ).toBeEnabled();
       await expect(region).toHaveAttribute("aria-busy", "false");
     } finally {
@@ -368,7 +368,7 @@ for (const [theme, width] of [
     await openCustomers(page);
     const region = page.getByRole("region", { name: "Listado de clientes" });
     await expect(
-      region.getByRole("button", { name: /Cliente visual sintético/ }),
+      region.locator("tbody td:first-child").getByRole("button", { name: /Cliente visual sintético/ }),
     ).toBeEnabled();
     await audit(page, info, "clientes-" + theme);
     const tableBefore = await region.getByRole("table").boundingBox();
@@ -393,7 +393,7 @@ for (const [theme, width] of [
       await audit(page, info, "clientes-pendientes-" + theme);
       await pending.finish();
       await expect(
-        region.getByRole("button", { name: /Cliente visual sintético/ }),
+        region.locator("tbody td:first-child").getByRole("button", { name: /Cliente visual sintético/ }),
       ).toBeEnabled();
     } finally {
       pending.release();

@@ -1,4 +1,5 @@
 import { Presence } from "./overlays.js";
+import { EntityRow, RowActions, SortHeader, useListSort } from "./list-controls.js";
 import { Select, Textarea } from "./controls.js";
 import * as React from "react";
 import {
@@ -31,6 +32,16 @@ import { FiscalPanel } from "./fiscal.js";
 import { B2BPanel } from "./b2b.js";
 import { ImportPanel } from "./imports.js";
 import { AssistanceStatus } from "./assistant.js";
+const backupSortValues = {
+  name: (row: Row) => row.name,
+  created_at: (row: Row) => row.created_at,
+  bytes: (row: Row) => Number(row.bytes),
+};
+const seriesSortValues = {
+  label: (row: Row) => row.label,
+  year: (row: Row) => row.year || null,
+  next_number: (row: Row) => Number(row.next_number),
+};
 const tabs = [
   ["company", "Taller y logo", "home"],
   ["billing", "Facturaci\u00f3n", "invoice"],
@@ -232,6 +243,8 @@ function BackupsPanel({ config, refresh, notify }: Row) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [backups] = useLoad<Row[]>("backup.list", {}, [], tick);
+  const [selectedBackup, setSelectedBackup] = useState<Row | null>(null);
+  const { sort, toggle, rows: backupRows } = useListSort(backups.slice(0, 8), backupSortValues);
   const [recovery] = useLoad<Row>("backup.recovery_status", {}, {}, tick);
   const [pendingUploads] = useLoad<Row[]>("backup.upload_list", {}, [], tick);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -657,27 +670,29 @@ function BackupsPanel({ config, refresh, notify }: Row) {
       <section className="panel">
         <div className="section-head">
           <h3>&Uacute;ltimas copias locales</h3>
-          <span className="subtle">{backups.length}</span>
+          <span className="subtle">{backupRows.length} de {backups.length} copias</span>
         </div>
         {backups.length ? (
           <div className="table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th>Archivo</th>
-                  <th>Fecha</th>
-                  <th className="right">Tama&ntilde;o</th>
+                  <SortHeader label="Archivo" field="name" sort={sort} onSort={toggle} />
+                  <SortHeader label="Fecha" field="created_at" sort={sort} onSort={toggle} />
+                  <SortHeader label="Tamaño" field="bytes" className="right" sort={sort} onSort={toggle} />
+                  <th><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
-                {backups.slice(0, 8).map((b) => (
-                  <tr key={b.name}>
+                {backupRows.map((b) => (
+                  <EntityRow key={b.name} onOpen={() => setSelectedBackup(b)}>
                     <td>
-                      <code>{b.name}</code>
+                      <button type="button" className="entity-reference" onClick={() => setSelectedBackup(b)}><code>{b.name}</code></button>
                     </td>
                     <td>{dateText(b.created_at)}</td>
                     <td className="right">{Math.ceil(b.bytes / 1024)} KB</td>
-                  </tr>
+                    <td><RowActions label={b.name} items={[{ label: "Ver detalle", onSelect: () => setSelectedBackup(b) }]} /></td>
+                  </EntityRow>
                 ))}
               </tbody>
             </table>
@@ -690,6 +705,17 @@ function BackupsPanel({ config, refresh, notify }: Row) {
           />
         )}
       </section>
+      <Presence>{selectedBackup && (
+        <Modal title="Detalle de la copia local" onClose={() => setSelectedBackup(null)}>
+          <dl className="details-list">
+            <dt>Archivo</dt><dd style={{ overflowWrap: "anywhere" }}>{selectedBackup.name}</dd>
+            <dt>Fecha</dt><dd>{new Date(selectedBackup.created_at).toLocaleString("es-ES", { timeZone: "Europe/Madrid" })}</dd>
+            <dt>Tamaño</dt><dd>{Number(selectedBackup.bytes).toLocaleString("es-ES")} bytes</dd>
+          </dl>
+          <p className="subtle">Para restaurar, selecciona el archivo en «Restaurar una copia o recibir un traslado» y revisa su contenido antes de confirmar.</p>
+          <Button onClick={() => setSelectedBackup(null)}>Cerrar detalle</Button>
+        </Modal>
+      )}</Presence>
     </>
   );
 }
@@ -700,6 +726,7 @@ export function SettingsPage({
   refresh,
   notify,
   initialTab = "company",
+  navigate,
 }: Row) {
   const [tab, setTab] = useState(initialTab);
   const content = useRef<HTMLDivElement | null>(null);
@@ -740,11 +767,11 @@ export function SettingsPage({
           {tab === "backup" ? (
             <BackupsPanel config={config} refresh={refresh} notify={notify} />
           ) : tab === "import" ? (
-            <ImportPanel refresh={refresh} notify={notify} />
+            <ImportPanel refresh={refresh} notify={notify} navigate={navigate} />
           ) : tab === "fiscal" ? (
-            <FiscalPanel config={config} refresh={refresh} notify={notify} />
+            <FiscalPanel config={config} refresh={refresh} notify={notify} navigate={navigate} />
           ) : tab === "b2b" ? (
-            <B2BPanel />
+            <B2BPanel navigate={navigate} />
           ) : (
             <GeneralSettings
               key={tab}
@@ -773,8 +800,10 @@ function GeneralSettings({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [editSeries, setEditSeries] = useState<Row | null>(null);
+  const { sort: seriesSort, toggle: sortSeries, rows: seriesRows } = useListSort<Row>(series, seriesSortValues);
   const [startup, setStartup] = useState<boolean | null>(null);
   const [startupBusy, setStartupBusy] = useState(false);
+  const [notificationBusy, setNotificationBusy] = useState(false);
   const [licenses, setLicenses] = useState<Row | null>(null);
   const savedFont = useRef(config.appearance.font_size);
   savedFont.current = config.appearance.font_size;
@@ -806,6 +835,14 @@ function GeneralSettings({
       .invoke<boolean>("startup_status")
       .then((enabled) => {
         if (active) setStartup(enabled);
+      })
+      .catch((error: unknown) => {
+        if (active) setError(String(error));
+      });
+    window.__TAURI__.core
+      .invoke<string | null>("notification_status")
+      .then((error) => {
+        if (active && error) setError(error);
       })
       .catch((error: unknown) => {
         if (active) setError(String(error));
@@ -948,17 +985,17 @@ function GeneralSettings({
               <table>
                 <thead>
                   <tr>
-                    <th>Serie</th>
-                    <th>A&ntilde;o</th>
-                    <th>Pr&oacute;ximo n&uacute;mero</th>
-                    <th />
+                    <SortHeader label="Serie" field="label" sort={seriesSort} onSort={sortSeries} />
+                    <SortHeader label="Año" field="year" sort={seriesSort} onSort={sortSeries} />
+                    <SortHeader label="Próximo número" field="next_number" sort={seriesSort} onSort={sortSeries} />
+                    <th><span className="sr-only">Acciones</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {series.map((s: Row) => (
-                    <tr key={s.id}>
+                  {seriesRows.map((s: Row) => (
+                    <EntityRow key={s.id} onOpen={() => setEditSeries(s)}>
                       <td>
-                        <strong>{s.label}</strong>
+                        <button type="button" className="entity-reference" onClick={() => setEditSeries(s)}><strong>{s.label}</strong></button>
                         <small className="block subtle">
                           {s.kind === "rectification"
                             ? "Rectificativa"
@@ -980,15 +1017,9 @@ function GeneralSettings({
                         </code>
                       </td>
                       <td>
-                        <Button
-                          tone="ghost"
-                          icon="edit"
-                          onClick={() => setEditSeries(s)}
-                        >
-                          Editar
-                        </Button>
+                        <RowActions label={s.label} items={[{ label: "Editar serie", onSelect: () => setEditSeries(s) }]} />
                       </td>
-                    </tr>
+                    </EntityRow>
                   ))}
                 </tbody>
               </table>
@@ -1218,36 +1249,46 @@ function GeneralSettings({
               </Select>
             </Field>
           </div>
-          <Toggle checked={v.sound} onChange={(x) => set("sound", x)}>
+          <Toggle checked={v.sound} onChange={(x) => set("sound", x)}
+            hint="Un único sonido del sistema. Se respeta el silencio y No molestar de Windows.">
             Sonido de aviso
           </Toggle>
           <Toggle
             checked={v.desktop_notifications}
             onChange={(x) => set("desktop_notifications", x)}
-            hint="Windows o el navegador pueden pedir permiso para mostrarlas."
+            hint="Windows controla si aparecen y si suenan. En navegador debes conceder permiso."
           >
             Notificaciones del sistema
           </Toggle>
           <Button
             icon="bell"
+            busy={notificationBusy}
             onClick={async () => {
+              if (notificationBusy) return;
+              setNotificationBusy(true);
+              setError("");
               try {
                 if (window.__TAURI__) {
-                  await window.__TAURI__.core.invoke("test_notification");
-                  notify("Aviso de prueba solicitado a Windows");
+                  await window.__TAURI__.core.invoke("test_notification", { sound: Boolean(v.sound) });
+                  notify("Aviso solicitado al sistema. Su visibilidad y sonido dependen de sus ajustes.");
                 } else if ("Notification" in window) {
                   const permission = await Notification.requestPermission();
                   if (permission === "granted")
                     new Notification("Talleres El Ca\u00f1amo", {
                       body: "Tus avisos est\u00e1n preparados.",
+                      silent: !v.sound,
                     });
                   else
                     notify(
                       "El navegador no ha concedido permiso. Los avisos siguen dentro de la app.",
                     );
+                } else {
+                  setError("Este navegador no admite avisos del sistema. Los recordatorios siguen dentro de la aplicación.");
                 }
               } catch (e: unknown) {
                 setError(e instanceof Error ? e.message : String(e));
+              } finally {
+                setNotificationBusy(false);
               }
             }}
           >
@@ -1258,6 +1299,10 @@ function GeneralSettings({
             cerrada no hay alertas. En el programa de Windows, cerrar la ventana
             la oculta en la bandeja; &laquo;Salir&raquo; detiene el programa.
             Los avisos pendientes reaparecen al volver a abrir.
+            Los recordatorios se comprueban cada 20 segundos; no son una alarma
+            de precisión.
+            La prueba utiliza la opción de sonido que ves aquí. Guarda para
+            aplicarla a los recordatorios.
           </Notice>
           {native() && startup !== null && (
             <Toggle
@@ -1334,6 +1379,11 @@ function GeneralSettings({
             copias periódicas en una unidad externa y comprueba su restauración.
           </p>
           <h3>Licencias y componentes</h3>
+          <p>
+            Direcciones: CartoCiudad (IGN/CNIG) · CC BY 4.0. Las sugerencias
+            necesitan Internet y consultan únicamente el texto de dirección.
+            Puedes escribir y guardar cualquier dirección manualmente, sin conexión.
+          </p>
           <p>
             Consulta los avisos, las versiones y las fuentes de los componentes
             del programa.

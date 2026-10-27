@@ -2,8 +2,13 @@ import { chooseOption } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import type { Download, Page, TestInfo } from "@playwright/test";
+import type { Download, Locator, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "./fixtures";
+
+async function rowAction(row: Locator, label: string) {
+  await row.getByRole("button", { name: /^Acciones de / }).click();
+  await row.page().getByRole("menuitem", { name: label, exact: true }).click();
+}
 
 async function bytes(download: Download) {
   const stream = await download.createReadStream();
@@ -74,18 +79,15 @@ test("proveedor y catálogo: búsqueda, archivo, entradas, salidas y recuento ac
     .getByRole("row")
     .filter({ hasText: "Recámbios Sintéticos" });
   await expect(supplierRow).toContainText("600000005");
-  await supplierRow
-    .getByRole("button", { name: "Archivar", exact: true })
-    .click();
+  await rowAction(supplierRow, "Archivar");
   await expect(supplierRow).toHaveCount(0);
   await page.getByLabel("Mostrar archivados").check();
   await expect(supplierRow).toContainText("Archivado");
-  await supplierRow
-    .getByRole("button", { name: "Restaurar", exact: true })
-    .click();
-  await expect(
-    supplierRow.getByRole("button", { name: "Archivar", exact: true }),
-  ).toBeVisible();
+  await rowAction(supplierRow, "Restaurar");
+  await supplierRow.getByRole("button", { name: /^Acciones de / }).click();
+  await expect(page.getByRole("menuitem", { name: "Archivar", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await audit(page, info, "proveedores-dark-large");
   await page
     .getByRole("button", { name: "Artículos y stock", exact: true })
@@ -116,7 +118,7 @@ test("proveedor y catálogo: búsqueda, archivo, entradas, salidas y recuento ac
     ["return", "1", "Devolución sintética"],
     ["adjust", "7,5", "Recuento físico sintético"],
   ]) {
-    await row.getByRole("button", { name: "Existencias", exact: true }).click();
+    await rowAction(row, "Existencias");
     const stock = page.getByRole("dialog", {
       name: "Existencias · Filtro sintético de almacén",
     });
@@ -128,14 +130,14 @@ test("proveedor y catálogo: búsqueda, archivo, entradas, salidas y recuento ac
           : "Unidades del movimiento",
       )
       .fill(amount);
-    await stock.getByLabel("Motivo").fill(reason);
+    await stock.getByRole("textbox", { name: "Motivo", exact: true }).fill(reason);
     await stock
       .getByRole("button", { name: "Registrar movimiento" })
       .dblclick();
     await expect(stock).toBeHidden();
   }
   await expect(row).toContainText("7.5");
-  await row.getByRole("button", { name: "Archivar", exact: true }).click();
+  await rowAction(row, "Archivar");
   await expect(page.getByText(/existencias.*cero/)).toBeVisible();
   const products = await rpc<{ id: string; stock: string }[]>("products.list");
   expect(Number(products[0].stock)).toBe(7.5);
@@ -299,7 +301,7 @@ test("presupuesto → orden → factura conserva líneas y un solo consumo; info
     .getByRole("button", { name: "Todo el historial", exact: true })
     .click();
   await expect(
-    page.locator(".stat-card").filter({ hasText: "Facturación del período" }),
+    page.locator(".stat-card").filter({ hasText: "Importe de facturas del período" }),
   ).toContainText("24,20");
   await expect(
     page.locator(".stat-card").filter({ hasText: "Cobros netos del período" }),

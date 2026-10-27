@@ -1,6 +1,8 @@
+import { EntityRow, RowActions, SortHeader, useListSort, useListData } from "./list-controls.js";
 import { Presence } from "./overlays.js";
 import { Select, Textarea } from "./controls.js";
 import * as React from "react";
+import { EntityReference, type EntityNavigate } from "./entity-navigation.js";
 import {
   Row,
   api,
@@ -13,6 +15,7 @@ import {
   Field,
   Notice,
   Modal,
+  Confirm,
   Empty,
   Badge,
   dateText,
@@ -118,7 +121,7 @@ function CorrectionForm({
   );
 }
 
-export function FiscalPanel({ config, refresh, notify }: Row) {
+export function FiscalPanel({ config, refresh, notify, navigate }: Row) {
   const [v, setV] = useState<Row>({ ...config.fiscal }),
     [file, setFile] = useState<File | null>(null),
     [password, setPassword] = useState(""),
@@ -127,7 +130,27 @@ export function FiscalPanel({ config, refresh, notify }: Row) {
     [tick, setTick] = useState(0),
     [detail, setDetail] = useState<Row | null>(null);
   const [correcting, setCorrecting] = useState(false);
-  const [records] = useLoad<Row[]>("fiscal.list", {}, [], tick);
+  const [savedFiscal, setSavedFiscal] = useState<Row>({ ...config.fiscal });
+  const [pendingNavigation, setPendingNavigation] = useState<{
+    page: string;
+    params?: Record<string, unknown>;
+  } | null>(null);
+  const dirty = Boolean(file || password) || [
+    "mode", "producer_name", "producer_tax_id", "system_id", "declaration_text",
+  ].some(key => v[key] !== savedFiscal[key]);
+  const navigateFromFiscal: EntityNavigate = (page, params) => {
+    if (busy) return;
+    if (dirty) setPendingNavigation({ page, params });
+    else navigate(page, params);
+  };
+  const ordering = useListSort<Row>();
+  const [records, recordsLoading, recordsError] = useListData<Row[]>("fiscal.list", {
+    sort_by: ordering.sort?.key || "", sort_direction: ordering.sort?.direction || "asc",
+  }, [], tick);
+  const openRecord = (record: Row) => {
+    if (busy || recordsLoading || recordsError) return;
+    return run(async () => setDetail({ ...record, ...(await api("fiscal.details", { record_id: record.id })) }));
+  };
   const [readiness, readinessLoading, readinessError] = useLoad<Row | null>(
     "fiscal.readiness",
     {},
@@ -269,6 +292,7 @@ export function FiscalPanel({ config, refresh, notify }: Row) {
             run(async () => {
               const { certificate_info, installation_id, ...values } = v;
               await api("settings.save", { section: "fiscal", values });
+              setSavedFiscal(v);
               notify("Configuraci\u00f3n fiscal guardada");
             })
           }
@@ -419,22 +443,28 @@ export function FiscalPanel({ config, refresh, notify }: Row) {
             Actualizar
           </Button>
         </div>
+        {recordsError && <Notice tone="error">{recordsError}</Notice>}
+        {recordsLoading && <p className="padded subtle" role="status">Actualizando registros…</p>}
         {records.length ? (
           <div className="table-scroll">
-            <table>
+            <table aria-label="Registros fiscales" aria-busy={recordsLoading}>
               <thead>
                 <tr>
-                  <th>Documento</th>
-                  <th>Tipo</th>
-                  <th>Entorno</th>
-                  <th>Resultado</th>
-                  <th />
+                  <SortHeader label="Documento" field="full_number" sort={ordering.sort} onSort={ordering.toggle} />
+                  <SortHeader label="Tipo" field="kind" sort={ordering.sort} onSort={ordering.toggle} />
+                  <SortHeader label="Entorno" field="environment" sort={ordering.sort} onSort={ordering.toggle} />
+                  <SortHeader label="Resultado" field="status" sort={ordering.sort} onSort={ordering.toggle} />
+                  <th scope="col"><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
                 {records.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.full_number || r.document_id?.slice(0, 8)}</td>
+                  <EntityRow key={r.id} disabled={busy || recordsLoading || !!recordsError} onOpen={() => openRecord(r)}>
+                    <td>
+                      <EntityReference entity="document" id={r.document_id} navigate={navigateFromFiscal} disabled={busy || recordsLoading || !!recordsError}>
+                        {r.full_number || "Consultar factura"}
+                      </EntityReference>
+                    </td>
                     <td>{r.kind}</td>
                     <td>
                       {r.environment === "local_test"
@@ -447,24 +477,12 @@ export function FiscalPanel({ config, refresh, notify }: Row) {
                       <Badge value={r.status} />
                     </td>
                     <td>
-                      <Button
-                        tone="ghost"
-                        busy={busy}
-                        onClick={() =>
-                          run(async () =>
-                            setDetail({
-                              ...r,
-                              ...(await api("fiscal.details", {
-                                record_id: r.id,
-                              })),
-                            }),
-                          )
-                        }
-                      >
-                        Detalle
-                      </Button>
+                      <RowActions label={r.full_number || "registro fiscal"} disabled={busy || recordsLoading || !!recordsError} items={[
+                        { label: "Detalle", onSelect: () => { openRecord(r); } },
+                        ...(r.document_id ? [{ label: "Ver factura", onSelect: () => navigateFromFiscal("editor", { id: r.document_id, kind: "invoice" }) }] : []),
+                      ]} />
                     </td>
-                  </tr>
+                  </EntityRow>
                 ))}
               </tbody>
             </table>
@@ -484,6 +502,12 @@ export function FiscalPanel({ config, refresh, notify }: Row) {
           wide
         >
           <dl className="details-list">
+            <dt>Documento</dt>
+            <dd>
+              <EntityReference entity="document" id={detail.document_id} navigate={navigateFromFiscal} disabled={busy || correcting}>
+                {detail.full_number || "Consultar factura"}
+              </EntityReference>
+            </dd>
             <dt>Estado</dt>
             <dd>
               <Badge value={detail.status} />
@@ -610,6 +634,16 @@ export function FiscalPanel({ config, refresh, notify }: Row) {
             setTick((t) => t + 1);
             notify("Subsanación conservada; consulta su estado en el registro");
           }}
+        />
+      )}</Presence>
+      <Presence>{pendingNavigation && (
+        <Confirm
+          title="Cambios fiscales sin guardar"
+          text="Los cambios de configuración y los datos del certificado seleccionados aún no se han guardado. Puedes volver para conservarlos o salir al documento."
+          confirm="Salir sin guardar"
+          danger
+          onClose={() => setPendingNavigation(null)}
+          onConfirm={() => navigate(pendingNavigation.page, pendingNavigation.params)}
         />
       )}</Presence>
     </>

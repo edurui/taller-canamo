@@ -1,6 +1,9 @@
+import { EntityRow, RowActions, SortHeader, useListSort, useListData } from "./list-controls.js";
 import { Presence } from "./overlays.js";
 import { Select, Textarea, TextInput, Autocomplete } from "./controls.js";
 import * as React from "react";
+import { EntityReference } from "./entity-navigation.js";
+import { HistoricalReviewBadge, HistoricalReviewPanel, HistoricalTotal } from "./historical-review.js";
 import {
   Row,
   api,
@@ -75,11 +78,20 @@ function addDateDays(date: string, days: number): string {
 export function DocumentsPage({ kind = "invoice", navigate }: Row) {
   const [query, setQuery] = useState(""),
     [status, setStatus] = useState(""),
+    [reviewState, setReviewState] = useState(""),
     [page, setPage] = useState(0);
-  const [data, loading, error] = useLoad<Row>(
+  const ordering = useListSort<Row>();
+  const [refresh, setRefresh] = useState(0);
+  const [deleteDraft, setDeleteDraft] = useState<Row | null>(null);
+  const [preview, setPreview] = useState<Row | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const sortColumn = (key: string) => { ordering.toggle(key); setPage(0); };
+  const [data, loading, error] = useListData<Row>(
     "documents.list",
-    { kind, query, status, page },
+    { kind, query, status, page, sort_by: ordering.sort?.key || "", sort_direction: ordering.sort?.direction || "asc", ...(kind === "invoice" ? { review_state: reviewState } : {}) },
     { items: [], total: 0 },
+    refresh,
   );
   const filters =
     kind === "invoice"
@@ -146,6 +158,7 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
+              if (e.target.value !== "historical") setReviewState("");
               setPage(0);
             }}
           >
@@ -155,56 +168,74 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
               </option>
             ))}
           </Select>
+          {kind === "invoice" && <Select
+            aria-label="Revisión del histórico"
+            value={reviewState}
+            onChange={(event) => {
+              setReviewState(event.target.value);
+              setPage(0);
+              if (event.target.value) setStatus("historical");
+            }}
+          >
+            <option value="">Todas las revisiones</option>
+            <option value="pending_review">Pendiente de revisión</option>
+            <option value="estimated">Estimada</option>
+            <option value="verified">Contrastada con original</option>
+          </Select>}
           <span className="subtle">{data.total} documentos</span>
         </div>
-        {error && <Notice tone="error">{error}</Notice>}
-        {loading ? (
+        {(error || actionError) && <Notice tone="error">{error || actionError}</Notice>}
+        {loading && data.items.length > 0 && <p className="padded subtle" role="status">Actualizando… Se muestran resultados anteriores.</p>}
+        {loading && !data.items.length ? (
           <Loading />
         ) : data.items.length ? (
           <div className="table-scroll">
-            <table>
+            <table aria-busy={loading} aria-label={loading || error ? "Resultados anteriores de documentos" : nouns[kind][1]}>
               <thead>
                 <tr>
-                  <th>N&uacute;mero / fecha</th>
-                  <th>Cliente</th>
-                  <th>Matr&iacute;cula</th>
-                  <th>Estado</th>
-                  <th className="right">Total</th>
-                  {kind === "invoice" && <th className="right">Pendiente</th>}
-                  <th />
+                  <SortHeader label="Número" field="full_number" secondary={{ label: "Fecha", field: "issue_date" }} sort={ordering.sort} onSort={sortColumn} />
+                  <SortHeader label="Cliente" field="customer_name" sort={ordering.sort} onSort={sortColumn} />
+                  <SortHeader label="Matrícula" field="plate" sort={ordering.sort} onSort={sortColumn} />
+                  <SortHeader label="Estado" field="status" sort={ordering.sort} onSort={sortColumn} />
+                  <SortHeader label="Total" field="total_cents" sort={ordering.sort} onSort={sortColumn} className="right" />
+                  {kind === "invoice" && <SortHeader label="Pendiente" field="pending_cents" sort={ordering.sort} onSort={sortColumn} className="right" />}
+                  <th scope="col"><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((d: Row) => (
-                  <tr
-                    key={d.id}
-                    className="clickable"
-                    onClick={() => navigate("editor", { id: d.id, kind })}
-                  >
+                  <EntityRow key={d.id} disabled={loading || !!error || actionBusy}
+                    onOpen={() => navigate("editor", { id: d.id, kind })}>
                     <td>
-                      <button
-                        className="text-button"
-                        onClick={() => navigate("editor", { id: d.id, kind })}
-                      >
+                      <EntityReference entity="document" id={d.id} kind={kind} navigate={navigate} disabled={loading || !!error || actionBusy}>
                         <strong>
                           {d.full_number || "Borrador sin n\u00famero"}
                         </strong>
-                      </button>
+                      </EntityReference>
                       <small className="block subtle">
                         {dateText(d.issue_date)}
                       </small>
                     </td>
                     <td>
-                      {d.customer_name ||
-                        "Cliente no conservado en el original"}
+                      <EntityReference entity="customer" id={d.customer_id} navigate={navigate} disabled={loading || !!error || actionBusy}>
+                        {d.customer_name?.trim() || d.current_customer_name || "Cliente no disponible"}
+                      </EntityReference>
+                      {!d.customer_name?.trim() && d.current_customer_name && (
+                        <small className="block subtle">Ficha actual</small>
+                      )}
                     </td>
                     <td>
-                      <span className="plate-text">{d.plate || "\u2014"}</span>
+                      <EntityReference entity="vehicle" id={d.vehicle_id} navigate={navigate} disabled={loading || !!error || actionBusy} className="plate-text">
+                        {d.plate || (d.vehicle_id ? "Vehículo sin matrícula conservada" : "—")}
+                      </EntityReference>
                     </td>
                     <td>
-                      <Badge value={d.status} />
+                      <div className="historical-document-badges">
+                        <Badge value={d.status} />
+                        {d.historical_review && <HistoricalReviewBadge review={d.historical_review} />}
+                      </div>
                     </td>
-                    <td className="right amount">{money(d.total_cents)}</td>
+                    <td className="right amount"><HistoricalTotal total={d.total_cents} review={d.historical_review} /></td>
                     {kind === "invoice" && (
                       <td className="right subtle">
                         {d.status === "issued" || d.status === "historical"
@@ -215,9 +246,19 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
                       </td>
                     )}
                     <td>
-                      <Icon name="right" size={16} />
+                      <RowActions label={d.full_number || "borrador"} disabled={loading || !!error || actionBusy} items={[
+                        { label: d.status === "draft" ? "Editar borrador" : "Abrir documento", onSelect: () => navigate("editor", { id: d.id, kind }) },
+                        ...(d.status !== "draft" ? [{ label: "Ver PDF", onSelect: async () => {
+                          setActionBusy(true); setActionError("");
+                          try { setPreview(await api("documents.pdf", { identifier: d.id })); }
+                          catch (failure: any) { setActionError(failure.message); }
+                          finally { setActionBusy(false); }
+                        } }] : [{ label: "Eliminar borrador", danger: true, onSelect: () => setDeleteDraft(d) }]),
+                        ...(d.customer_id ? [{ label: "Ver cliente", onSelect: () => navigate("customer", { id: d.customer_id }) }] : []),
+                        ...(d.vehicle_id ? [{ label: "Ver vehículo", onSelect: () => navigate("vehicle", { id: d.vehicle_id }) }] : []),
+                      ]} />
                     </td>
-                  </tr>
+                  </EntityRow>
                 ))}
               </tbody>
             </table>
@@ -246,6 +287,13 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
         )}
         <Pager total={data.total} page={page} onChange={setPage} />
       </section>
+      <Presence>{preview && <PdfPreview data={preview} onClose={() => setPreview(null)} />}</Presence>
+      <Presence>{deleteDraft && <Confirm title="Eliminar borrador" danger confirm="Eliminar borrador"
+        text="Solo se borrará este borrador sin número. Las facturas emitidas no se pueden borrar."
+        onClose={() => setDeleteDraft(null)} onConfirm={async () => {
+          await api("documents.delete", { identifier: deleteDraft.id });
+          setDeleteDraft(null); setPage(0); setRefresh(value => value + 1);
+        }} />}</Presence>
     </>
   );
 }
@@ -854,6 +902,13 @@ export function DocumentEditor({
   const [draggedLine, setDraggedLine] = useState<string | null>(null);
   const [dragTarget, setDragTarget] = useState<string | null>(null);
   const [orderMessage, setOrderMessage] = useState("");
+  const [paymentDetail, setPaymentDetail] = useState<Row | null>(null);
+  const paymentNote = (row: Row) => row.method === "opening_adjustment" ? JSON.parse(row.notes).evidence : row.notes;
+  const paymentMethod = (row: Row) => methods[row.method] || (row.method === "opening_adjustment" ? "Ajuste documental" : row.method);
+  const paymentOrder = useListSort<Row>(doc?.payments || [], {
+    paid_on: row => row.paid_on, method: paymentMethod, notes: paymentNote,
+    amount_cents: row => row.amount_cents,
+  });
   const [products] = useLoad<Row[]>("products.list", {}, []);
   const [concepts] = useLoad<Row[]>("documents.concepts", {}, []);
   const serial = useRef(0),
@@ -1158,12 +1213,14 @@ export function DocumentEditor({
       </PageHead>
       {error && <Notice tone="error">{error}</Notice>}
       {historical && (doc?.amounts_state !== "known" || !doc?.issue_date) && (
+        <div className="historical-incomplete-notice">
         <Notice>
           Histórico incompleto. Los datos ausentes figuran como «No consta».
           Los importes originales sin clasificación fiscal no acreditan la base,
           el IVA ni el total de la factura.
           {doc?.date_state === "conflict" && " El origen conserva fechas diferentes; no se ha elegido una por defecto."}
         </Notice>
+        </div>
       )}
       {doc &&
         !isDraft &&
@@ -1171,7 +1228,7 @@ export function DocumentEditor({
         (kind === "invoice" ||
           kind === "quote" ||
           ["ready", "delivered"].includes(doc.status)) && (
-          <div className="row-actions">
+          <div className="row-actions document-message-actions">
             <MessageButton
               identifier={doc.id}
               purpose={
@@ -1232,32 +1289,46 @@ export function DocumentEditor({
                 editar los trabajos y las notas.
               </p>
             )}
-            {displayedCustomer?.name ? (
+            {displayedCustomer?.name?.trim() ? (
               <div className="selected-customer">
                 <div>
-                  <strong>{displayedCustomer.name}</strong>
+                  <strong>
+                    <EntityReference entity="customer" id={value.customer_id} navigate={navigate} disabled={busy}>
+                      {displayedCustomer.name}
+                    </EntityReference>
+                  </strong>
                   <span>
                     {displayedCustomer.tax_id} &middot;{" "}
                     {displayedCustomer.phone || "Sin tel\u00e9fono"}
                   </span>
                   <small>{displayedCustomer.address}</small>
                 </div>
-                <Button
-                  tone="ghost"
-                  icon="users"
-                  onClick={() =>
-                    navigate("customer", { id: value.customer_id })
-                  }
-                >
-                  Ver ficha
-                </Button>
+                {value.customer_id && (
+                  <Button
+                    tone="ghost"
+                    icon="users"
+                    disabled={busy}
+                    onClick={() => navigate("customer", { id: value.customer_id })}
+                  >
+                    Ver ficha
+                  </Button>
+                )}
               </div>
             ) : (
-              <p className="subtle">
-                {editable
-                  ? "Selecciona un cliente para empezar. No es necesario crear una orden."
-                  : "Los datos del cliente no se conservan en el documento original. La ficha actual se consulta por separado."}
-              </p>
+              <div className="subtle document-current-customer">
+                {!editable && value.customer_id && doc?.current_customer_name ? (
+                  <div className="document-current-customer-reference">
+                  <small>Ficha actual del cliente</small>
+                  <EntityReference entity="customer" id={value.customer_id} navigate={navigate} disabled={busy}>
+                    {doc.current_customer_name}
+                  </EntityReference>
+                  </div>
+                ) : (
+                  <p>{editable
+                    ? "Selecciona un cliente para empezar. No es necesario crear una orden."
+                    : "Cliente no disponible"}</p>
+                )}
+              </div>
             )}
             <div className="vehicle-fields">
               <Field label="Veh&iacute;culo (opcional)">
@@ -1305,6 +1376,13 @@ export function DocumentEditor({
                 </div>
               ) : null}
             </div>
+            {value.vehicle_id && (
+              <p>
+                <EntityReference entity="vehicle" id={value.vehicle_id} navigate={navigate} disabled={busy}>
+                  Ver vehículo: {displayedVehicles.find((vehicle: Row) => vehicle.id === value.vehicle_id)?.plate || "matrícula no conservada"}
+                </EntityReference>
+              </p>
+            )}
           </section>
           <section className="panel">
             <div className="section-head">
@@ -1440,6 +1518,11 @@ export function DocumentEditor({
                           }
                         }}
                       />
+                      {line.product_id && (
+                        <EntityReference entity="product" id={line.product_id} navigate={navigate} disabled={busy}>
+                          Consultar artículo vinculado
+                        </EntityReference>
+                      )}
                     </Field>
                   </div>
                   {historical && line.amount_raw != null && (
@@ -1771,17 +1854,17 @@ export function DocumentEditor({
                   <table>
                     <thead>
                       <tr>
-                        <th>Fecha</th>
-                        <th>Forma</th>
-                        <th>Nota</th>
-                        <th className="right">Importe</th>
-                        <th />
+                        <SortHeader label="Fecha" field="paid_on" sort={paymentOrder.sort} onSort={paymentOrder.toggle} />
+                        <SortHeader label="Forma" field="method" sort={paymentOrder.sort} onSort={paymentOrder.toggle} />
+                        <SortHeader label="Nota" field="notes" sort={paymentOrder.sort} onSort={paymentOrder.toggle} />
+                        <SortHeader label="Importe" field="amount_cents" sort={paymentOrder.sort} onSort={paymentOrder.toggle} className="right" />
+                        <th scope="col"><span className="sr-only">Acciones</span></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {doc!.payments.map((p: Row) => (
-                        <tr key={p.id}>
-                          <td>{dateText(p.paid_on)}</td>
+                      {paymentOrder.rows.map((p: Row) => (
+                        <EntityRow key={p.id} onOpen={() => setPaymentDetail(p)}>
+                          <td><button type="button" className="entity-reference" onClick={() => setPaymentDetail(p)}>{dateText(p.paid_on)}</button></td>
                           <td>
                             {methods[p.method] ||
                               (p.method === "opening_adjustment"
@@ -1795,20 +1878,13 @@ export function DocumentEditor({
                           </td>
                           <td className="right">{money(p.amount_cents)}</td>
                           <td>
-                            {p.method !== "opening_adjustment" &&
-                              !p.reversal_of &&
-                              !doc!.payments.some(
-                                (x: Row) => x.reversal_of === p.id,
-                              ) && (
-                                <Button
-                                  tone="ghost"
-                                  onClick={() => setConfirm("reverse:" + p.id)}
-                                >
-                                  Revertir
-                                </Button>
-                              )}
+                            <RowActions label={`cobro del ${dateText(p.paid_on)}`} disabled={busy} items={[
+                              { label: "Ver cobro", onSelect: () => setPaymentDetail(p) },
+                              ...(p.method !== "opening_adjustment" && !p.reversal_of && !doc!.payments.some((x: Row) => x.reversal_of === p.id)
+                                ? [{ label: "Revertir cobro", danger: true, onSelect: () => setConfirm("reverse:" + p.id) }] : []),
+                            ]} />
                           </td>
-                        </tr>
+                        </EntityRow>
                       ))}
                     </tbody>
                   </table>
@@ -1822,8 +1898,14 @@ export function DocumentEditor({
           )}
         </div>
         <aside className="editor-side">
+          {doc?.historical_review && <HistoricalReviewPanel
+            identifier={doc.id}
+            review={doc.historical_review}
+            disabled={busy || doc.status === "import_reverted"}
+            onChanged={(review) => setDoc((currentDoc) => currentDoc ? { ...currentDoc, historical_review: review } : currentDoc)}
+          />}
           <section className="panel padded">
-            <h2>Resumen</h2>
+            <h2>{doc?.historical_review ? "Importes originales" : "Resumen"}</h2>
             <div className="summary-line">
               <span>Base imponible</span>
               <span>{money(totals.base_cents)}</span>
@@ -2043,10 +2125,21 @@ export function DocumentEditor({
                 </Button>
               )}
               {Boolean(doc!.active_rectifications?.length) && (
-                <p className="small subtle">
-                  Antes de anular, revisa las rectificativas emitidas y elimina
-                  los borradores rectificativos vinculados.
-                </p>
+                <div className="small subtle">
+                  <p>
+                    Antes de anular, revisa las rectificativas emitidas y elimina
+                    los borradores rectificativos vinculados.
+                  </p>
+                  <ul>
+                    {doc!.active_rectifications.map((correction: Row) => (
+                      <li key={correction.id}>
+                        <EntityReference entity="document" id={correction.id} navigate={navigate}>
+                          {correction.full_number || "Borrador de rectificativa"}
+                        </EntityReference>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </section>
           )}
@@ -2165,6 +2258,16 @@ export function DocumentEditor({
       </Presence>
       <Presence>
         {pdf && <PdfPreview data={pdf} onClose={() => setPdf(null)} />}
+      </Presence>
+      <Presence>
+        {paymentDetail && <Modal title="Detalle del cobro" onClose={() => setPaymentDetail(null)}>
+          <dl>
+            <dt>Fecha</dt><dd>{dateText(paymentDetail.paid_on)}</dd>
+            <dt>Forma</dt><dd>{paymentMethod(paymentDetail)}</dd>
+            <dt>Importe</dt><dd>{money(paymentDetail.amount_cents)}</dd>
+            <dt>Nota / evidencia</dt><dd>{paymentNote(paymentDetail) || "No consta"}</dd>
+          </dl>
+        </Modal>}
       </Presence>
       <Presence>
         {paymentState && doc && (

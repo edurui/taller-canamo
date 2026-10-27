@@ -24,6 +24,7 @@ from .db import dumps, uid
 from .errors import AppError, require
 from .money import amount, canonical_tax_rate
 from .validation import TZ, now, valid_tax_id
+from .sorting import order_by, text_order, label_order, STATUS_LABELS
 
 BASE = 'https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/'
 SF, LR, RESPONSE = BASE+'SuministroInformacion.xsd', BASE+'SuministroLR.xsd', BASE+'RespuestaSuministro.xsd'
@@ -510,9 +511,15 @@ class Fiscal:
         with self.db.read() as conn:
             return self._details(conn,record_id)
 
-    def records(self):
+    def records(self,sort_by='',sort_direction='asc'):
+        ordering = order_by(sort_by, sort_direction,
+            {'full_number': text_order('d.full_number'), 'kind': text_order('r.kind'),
+             'environment': label_order('r.environment', {'local_test': 'Local',
+                 'production': 'AEAT producción', 'aeat_test': 'AEAT pruebas'}),
+             'status': label_order('o.status', STATUS_LABELS), 'created_at': "nullif(r.created_at,'')"},
+            default='r.seq DESC', tie='r.seq ASC')
         with self.db.read() as conn:
-            return [dict(r) for r in conn.execute('SELECT r.seq,r.id,r.document_id,r.kind,r.environment,r.hash,r.created_at,o.status,o.attempts,o.last_error,o.csv,d.full_number FROM fiscal_records r JOIN fiscal_outbox o ON o.record_id=r.id JOIN documents d ON d.id=r.document_id ORDER BY r.seq DESC LIMIT 300')]
+            return [dict(r) for r in conn.execute('SELECT r.seq,r.id,r.document_id,r.kind,r.environment,r.hash,r.created_at,o.status,o.attempts,o.last_error,o.csv,d.full_number FROM fiscal_records r JOIN fiscal_outbox o ON o.record_id=r.id JOIN documents d ON d.id=r.document_id ORDER BY '+ordering+' LIMIT 300')]
 
     def download_specs(self):
         # Static official schemas are public. This request never loads or sends a

@@ -2,8 +2,16 @@ import re
 from .db import uid, dumps
 from .errors import AppError, require
 from .validation import normalized, plate, clean_text, now, iso_date, valid_tax_id
+from .sorting import order_by, text_order
 
 CUSTOMER_FIELDS = ['legacy_code','name','tax_id','address','postal_code','city','province','country','phone','phone2','email','notes']
+_CUSTOMER_SORT = {key: text_order('c.' + key) for key in ('name', 'city', 'phone', 'tax_id', 'legacy_code')}
+_CUSTOMER_SORT['plates'] = text_order('vehicle_names.plates')
+_VEHICLE_SORT = {key: text_order(value) for key, value in {
+    'plate': 'v.plate', 'customer_name': 'c.name', 'phone': 'c.phone',
+    'description': "coalesce(nullif(trim(coalesce(v.make,'')||' '||coalesce(v.model,'')),''),nullif(trim(v.kind),''))",
+}.items()}
+_VEHICLE_SORT['km'] = 'v.km'
 
 
 def sql_like(text):
@@ -96,7 +104,9 @@ class Contacts:
                 c.name,v.plate,c.id,v.id LIMIT ?''',params)
             return [dict(r) for r in rows]
 
-    def list_customers(self, query='', page=0, archived=False):
+    def list_customers(self, query='', page=0, archived=False, sort_by='', sort_direction='asc'):
+        ordering = order_by(sort_by, sort_direction, _CUSTOMER_SORT,
+                            default='normalized(c.name)', tie='c.id ASC')
         query = normalized(query)[:100]
         params = [int(bool(archived))]
         condition = 'c.archived=?'
@@ -110,22 +120,29 @@ class Contacts:
             offset = max(0,int(page))*50
             if offset >= count:
                 return {'items': [], 'total': count, 'page': page}
+            # Only the requested global plate sort aggregates all owners. Normal
+            # pages retain their existing batch lookup of vehicles for 50 rows.
+            vehicle_join = ''' LEFT JOIN (SELECT customer_id,group_concat(plate, ', ') AS plates
+                FROM vehicles WHERE archived=0 GROUP BY customer_id) vehicle_names
+                ON vehicle_names.customer_id=c.id''' if sort_by == 'plates' else ''
             items = [dict(row) for row in conn.execute('''SELECT c.id,c.name,c.city,c.phone,c.tax_id,c.legacy_code
-                FROM customers c WHERE '''+condition+' ORDER BY normalized(c.name) LIMIT 50 OFFSET ?',
+                FROM customers c'''+vehicle_join+' WHERE '+condition+' ORDER BY '+ordering+' LIMIT 50 OFFSET ?',
                 (*params,offset))]
-            # Resolve plates only for the displayed page, using idx_vehicle_owner.
+            # Resolve vehicle references only for the displayed page, using idx_vehicle_owner.
             # Filtering by one plate still displays every active plate of its owner.
             # legacy_code is also needed by the import assistant's identity picker;
             # editing a customer uses the separate, complete customers.get contract.
-            plates = {}
+            vehicles = {}
             if items:
                 placeholders = ','.join('?' for _ in items)
-                plates = {row['customer_id']: row['plates'] for row in conn.execute(
-                    "SELECT customer_id,group_concat(plate, ', ') AS plates FROM vehicles "
-                    'WHERE customer_id IN ('+placeholders+') AND archived=0 GROUP BY customer_id',
-                    [item['id'] for item in items])}
+                for row in conn.execute(
+                    'SELECT customer_id,id,plate FROM vehicles '
+                    'WHERE customer_id IN ('+placeholders+') AND archived=0',
+                    [item['id'] for item in items]):
+                    vehicles.setdefault(row['customer_id'], []).append({'id': row['id'], 'plate': row['plate']})
             for item in items:
-                item['plates'] = plates.get(item['id'])
+                item['vehicles'] = vehicles.get(item['id'], [])
+                item['plates'] = ', '.join(vehicle['plate'] for vehicle in item['vehicles']) if item['vehicles'] else None
             return {'items':items,'total':count,'page':page}
 
     def save_vehicle(self, data):
@@ -153,11 +170,13 @@ class Contacts:
             self.db.audit(conn,'vehicle.save',identifier,{'plate':normalized_plate,'km':km})
         return {'id':identifier}
 
-    def list_vehicles(self,query=''):
+    def list_vehicles(self,query='',sort_by='',sort_direction='asc'):
+        ordering = order_by(sort_by, sort_direction, _VEHICLE_SORT,
+                            default='v.updated_at DESC', tie='v.id ASC')
         with self.db.read() as conn:
             q = '%'+sql_like(normalized(query))+'%'
             cp = '%'+sql_like(plate(query))+'%'
-            rows = conn.execute("SELECT v.*,c.name AS customer_name,c.phone FROM vehicles v JOIN customers c ON c.id=v.customer_id WHERE v.archived=0 AND (v.plate_normalized LIKE ? ESCAPE '\\' OR normalized(v.make||' '||v.model||' '||c.name) LIKE ? ESCAPE '\\') ORDER BY v.updated_at DESC LIMIT 300",(cp,q))
+            rows = conn.execute("SELECT v.*,c.name AS customer_name,c.phone FROM vehicles v JOIN customers c ON c.id=v.customer_id WHERE v.archived=0 AND (v.plate_normalized LIKE ? ESCAPE '\\' OR normalized(v.make||' '||v.model||' '||c.name||' '||coalesce(v.kind,'')) LIKE ? ESCAPE '\\') ORDER BY "+ordering+' LIMIT 300',(cp,q))
             return [dict(r) for r in rows]
 
     def vehicle(self, identifier):
@@ -167,15 +186,17 @@ class Contacts:
             return {**dict(row), 'owners':[dict(owner) for owner in conn.execute(
                 'SELECT o.*,c.name AS customer_name FROM vehicle_owners o JOIN customers c ON c.id=o.customer_id WHERE o.vehicle_id=? ORDER BY o.from_date,o.rowid',(identifier,))]}
 
-    def vehicles_page(self, query='', page=0):
+    def vehicles_page(self, query='', page=0, sort_by='', sort_direction='asc'):
+        ordering = order_by(sort_by, sort_direction, _VEHICLE_SORT,
+                            default='v.plate,v.id', tie='v.id ASC')
         require(isinstance(page,int) and not isinstance(page,bool) and page>=0, 'Página no válida.')
         if query and not plate(query):
             return {'items':[], 'total':0, 'page':page}
         with self.db.read() as conn:
             params = ('%'+sql_like(plate(query))+'%', '%'+sql_like(normalized(query))+'%')
-            source = " FROM vehicles v JOIN customers c ON c.id=v.customer_id WHERE v.archived=0 AND (v.plate_normalized LIKE ? ESCAPE '\\' OR normalized(v.make||' '||v.model||' '||c.name) LIKE ? ESCAPE '\\')"
+            source = " FROM vehicles v JOIN customers c ON c.id=v.customer_id WHERE v.archived=0 AND (v.plate_normalized LIKE ? ESCAPE '\\' OR normalized(v.make||' '||v.model||' '||c.name||' '||coalesce(v.kind,'')) LIKE ? ESCAPE '\\')"
             count = conn.execute('SELECT count(*)'+source, params).fetchone()[0]
-            rows = conn.execute('SELECT v.*,c.name AS customer_name,c.phone'+source+' ORDER BY v.plate,v.id LIMIT 50 OFFSET ?',(*params,page*50))
+            rows = conn.execute('SELECT v.*,c.name AS customer_name,c.phone'+source+' ORDER BY '+ordering+' LIMIT 50 OFFSET ?',(*params,page*50))
             return {'items':[dict(row) for row in rows], 'total':count, 'page':page}
 
     def transfer_vehicle(self, identifier, customer_id, reason, expected_version=None):

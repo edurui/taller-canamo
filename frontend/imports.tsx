@@ -1,6 +1,8 @@
 import { Presence } from "./overlays.js";
+import { SortHeader, useListSort } from "./list-controls.js";
 import { Select } from "./controls.js";
 import { useEffect, useRef, useState } from "react";
+import { EntityReference, type EntityNavigate } from "./entity-navigation.js";
 import {
   api,
   Button,
@@ -51,6 +53,18 @@ type Table = {
   primary_key?: string[];
   columns: { name: string; type: string }[];
 };
+const diagnosticSortValues = {
+  name: (row: Table) => row.name,
+  rows: (row: Table) => row.rows,
+  reading: (row: Table) => row.linked ? "Vínculo bloqueado" : "Local",
+};
+type ReconciliationMetric = { key: string; label: string; source: number | null; destination: number | null };
+const reconciliationSortValues = {
+  label: (row: ReconciliationMetric) => row.label,
+  source: (row: ReconciliationMetric) => row.source,
+  destination: (row: ReconciliationMetric) => row.destination,
+};
+const reconciliationLabels: Record<string, string> = { invoices: "Facturas", lines: "Líneas", base_cents: "Base", tax_cents: "Cuota IVA", total_cents: "Total" };
 type Incident = {
   id: number;
   level: string;
@@ -108,6 +122,7 @@ type Reconciliation = {
   items: {
     source_key: string;
     full_number: string;
+    target_id?: string | null;
     differences: Record<string, number>;
     excluded: boolean;
   }[];
@@ -123,6 +138,7 @@ type RecordPreview = {
 type Props = {
   refresh: () => Promise<unknown> | void;
   notify: (message: string) => void;
+  navigate: EntityNavigate;
 };
 const labels: Record<string, string> = {
   customers: "Clientes",
@@ -822,7 +838,7 @@ function ResolveIncident({
   );
 }
 
-export function ImportPanel({ refresh, notify }: Props) {
+export function ImportPanel({ refresh, notify, navigate }: Props) {
   const [sources, setSources] = useState<Source[]>([]),
     [sourceId, setSourceId] = useState(""),
     [sourceName, setSourceName] = useState("Access del taller");
@@ -852,6 +868,12 @@ export function ImportPanel({ refresh, notify }: Props) {
       null,
     ),
     [reason, setReason] = useState("");
+  const { sort: diagnosticSort, toggle: sortDiagnostic, rows: diagnosticRows } = useListSort(review?.diagnostic.tables || [], diagnosticSortValues);
+  const { sort: reconciliationSort, toggle: sortReconciliation, rows: reconciliationRows } = useListSort(
+    Object.entries(reconciliationLabels).map(([key, label]) => ({ key, label,
+      source: reconciliation?.totals["source_" + key] ?? null,
+      destination: reconciliation?.totals["destination_" + key] ?? null,
+    })), reconciliationSortValues);
   const stop = useRef(false),
     mounted = useRef(true);
   useEffect(() => {
@@ -1256,13 +1278,13 @@ export function ImportPanel({ refresh, notify }: Props) {
               <table>
                 <thead>
                   <tr>
-                    <th>Tabla</th>
-                    <th>Filas</th>
-                    <th>Lectura</th>
+                    <SortHeader label="Tabla" field="name" sort={diagnosticSort} onSort={sortDiagnostic} />
+                    <SortHeader label="Filas" field="rows" sort={diagnosticSort} onSort={sortDiagnostic} />
+                    <SortHeader label="Lectura" field="reading" sort={diagnosticSort} onSort={sortDiagnostic} />
                   </tr>
                 </thead>
                 <tbody>
-                  {review.diagnostic.tables.map((table) => (
+                  {diagnosticRows.map((table) => (
                     <tr key={table.name}>
                       <td>{table.name}</td>
                       <td>{table.rows ?? "No leída"}{table.row_count_mismatch && <small style={{ display: "block" }}>
@@ -1510,31 +1532,15 @@ export function ImportPanel({ refresh, notify }: Props) {
                 <table>
                   <thead>
                     <tr>
-                      <th>Dato</th>
-                      <th>Origen incluido</th>
-                      <th>Destino activo</th>
+                      <SortHeader label="Dato" field="label" sort={reconciliationSort} onSort={sortReconciliation} />
+                      <SortHeader label="Origen incluido" field="source" sort={reconciliationSort} onSort={sortReconciliation} />
+                      <SortHeader label="Destino activo" field="destination" sort={reconciliationSort} onSort={sortReconciliation} />
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      "invoices",
-                      "lines",
-                      "base_cents",
-                      "tax_cents",
-                      "total_cents",
-                    ].map((key) => (
+                    {reconciliationRows.map(({ key, label }) => (
                       <tr key={key}>
-                        <th>
-                          {
-                            {
-                              invoices: "Facturas",
-                              lines: "Líneas",
-                              base_cents: "Base",
-                              tax_cents: "Cuota IVA",
-                              total_cents: "Total",
-                            }[key]
-                          }
-                        </th>
+                        <th scope="row">{label}</th>
                         <td>
                           {key.endsWith("cents")
                             ? reconciliation.totals["source_" + key] === null
@@ -1569,7 +1575,10 @@ export function ImportPanel({ refresh, notify }: Props) {
                 <ul>
                   {reconciliation.items.map((item) => (
                     <li key={item.source_key}>
-                      {item.source_key} · {item.full_number} ·{" "}
+                      {item.source_key} ·{" "}
+                      <EntityReference entity="document" id={item.target_id} navigate={navigate} disabled={busy}>
+                        {item.full_number || "Factura sin número conservado"}
+                      </EntityReference> ·{" "}
                       {item.excluded
                         ? "Excluido"
                         : Object.values(item.differences).some(Boolean)

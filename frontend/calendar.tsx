@@ -1,4 +1,5 @@
 import { Presence } from "./overlays.js";
+import { EntityReference, type EntityNavigate } from "./entity-navigation.js";
 import { Select, Textarea, TextInput } from "./controls.js";
 import * as React from "react";
 import {
@@ -6,7 +7,6 @@ import {
   api,
   useState,
   useEffect,
-  useLoad,
   Button,
   Icon,
   Field,
@@ -42,8 +42,9 @@ const addDays = (d: Date, n: number) => {
 const startDay = (d: Date) =>
   new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 const startWeek = (d: Date) => addDays(startDay(d), -((d.getUTCDay() + 6) % 7));
+export const WORKSHOP_TIME_ZONE = "Europe/Madrid";
 const formatter = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: "Europe/Madrid",
+  timeZone: WORKSHOP_TIME_ZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
@@ -55,6 +56,8 @@ const formatter = new Intl.DateTimeFormat("sv-SE", {
 const wallText = (instant: string) =>
   formatter.format(new Date(instant)).replace(" ", "T");
 export function wallDate(instant: string) {
+  // A UTC carrier for Madrid wall-clock arithmetic, not an actual UTC instant.
+  // Format real instants with madridTime; locale defaults would shift this twice.
   return wallCarrier(wallText(instant));
 }
 export function madridCandidates(wall: string): string[] {
@@ -93,13 +96,13 @@ export function madridISO(wall: string, fold?: number) {
   return choices[choices.length === 2 ? fold! : 0];
 }
 const dayISO = (d: Date) => madridISO(localDate(d));
-const time = (d: Date) =>
-  d.toLocaleTimeString("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  });
-function instantLabel(instant: string) {
+const timeFormatter = new Intl.DateTimeFormat("es-ES", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: WORKSHOP_TIME_ZONE,
+});
+export function madridTime(instant: string) {
   const wall = wallText(instant),
     choices = madridCandidates(wall);
   const index = choices.findIndex(
@@ -107,7 +110,7 @@ function instantLabel(instant: string) {
       new Date(candidate).getTime() === new Date(instant).getTime(),
   );
   return (
-    time(wallDate(instant)) +
+    timeFormatter.format(new Date(instant)) +
     (choices.length === 2 ? (index === 0 ? " (primera)" : " (segunda)") : "")
   );
 }
@@ -144,7 +147,7 @@ function isMulti(event: Row) {
     event.all_day || localDate(start) !== localDate(new Date(end.getTime() - 1))
   );
 }
-function EventForm({ event, config, onClose, onSaved }: Row) {
+function EventForm({ event, config, navigate, onClose, onSaved }: Row) {
   const recurring = !!event.id && event.recurrence?.freq !== "none";
   const start = event.id
     ? wallDate(event.occurrence_start || event.start)
@@ -169,16 +172,14 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
       recurrence: { freq: "none", dst_policy: "skip" },
       reminders: [config.agenda.reminder_minutes],
       ...source,
-      start: source.proposed_start || localDateTime(first),
-      end:
-        source.proposed_end ||
-        localDateTime(source.all_day ? addDays(finish, -1) : finish),
+      start: localDateTime(first),
+      end: localDateTime(source.all_day ? addDays(finish, -1) : finish),
     };
     for (const name of ["start", "end"]) {
       const instant = source["occurrence_" + name] || source[name];
       const choices = madridCandidates(value[name]);
       value[name + "_fold"] =
-        !source["proposed_" + name] && choices.length === 2
+        choices.length === 2
           ? choices.findIndex(
               (candidate) =>
                 new Date(candidate).getTime() === new Date(instant).getTime(),
@@ -188,6 +189,11 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
     return value;
   }
   const [v, setV] = useState<Row>(() => formValues(event));
+  const initialValues = React.useRef(JSON.stringify(v));
+  const [pendingReference, setPendingReference] = useState<{
+    page: string;
+    params?: Record<string, unknown>;
+  } | null>(null);
   const [scope, setScope] = useState(recurring ? "occurrence" : "series"),
     [series, setSeries] = useState<Row | null>(null),
     [resetExceptions, setResetExceptions] = useState(false),
@@ -196,6 +202,15 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
     [remove, setRemove] = useState(false),
     [who, setWho] = useState(event.customer_name || ""),
     [custom, setCustom] = useState("");
+  const openReference: EntityNavigate = (page, params) => {
+    if (busy) return;
+    const changed =
+      JSON.stringify(v) !== initialValues.current ||
+      scope !== (recurring ? "occurrence" : "series") ||
+      resetExceptions || custom.trim();
+    if (changed) setPendingReference({ page, params });
+    else navigate(page, params);
+  };
   useEffect(() => {
     if (!recurring) return;
     let active = true;
@@ -334,11 +349,6 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
             >
               Restablecer repetición
             </Button>
-          </Notice>
-        )}
-        {event.proposed_start && (
-          <Notice>
-            Revisa las fechas propuestas y guarda para confirmar el movimiento.
           </Notice>
         )}
         <Input
@@ -603,13 +613,24 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
             onSelect={(c) => {
               set("customer_id", c.customer_id);
               set("vehicle_id", c.vehicle_id || "");
+              set("customer_name", c.name);
+              set("plate", c.plate || "");
               setWho(c.name + (c.plate ? " \u00b7 " + c.plate : ""));
             }}
           />
           {who && (
             <div className="linked-item">
               <Icon name="users" />
-              <span>{who}</span>
+              <span>
+                <EntityReference entity="customer" id={v.customer_id} navigate={openReference} disabled={busy}>
+                  {v.customer_name || who}
+                </EntityReference>
+                {v.vehicle_id && (
+                  <> · <EntityReference entity="vehicle" id={v.vehicle_id} navigate={openReference} disabled={busy}>
+                    {v.plate || "Ver vehículo"}
+                  </EntityReference></>
+                )}
+              </span>
               <Button
                 tone="ghost icon-only"
                 icon="x"
@@ -663,6 +684,16 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
           </Button>
         </div>
       </form>
+      <Presence>{pendingReference && (
+        <Confirm
+          title="Evento sin guardar"
+          text="Los cambios del evento aún no se han guardado. Puedes volver para conservarlos o salir a la ficha."
+          confirm="Salir sin guardar"
+          danger
+          onClose={() => setPendingReference(null)}
+          onConfirm={() => navigate(pendingReference.page, pendingReference.params)}
+        />
+      )}</Presence>
       <Presence>{remove && (
         <Confirm
           title="Eliminar evento"
@@ -691,7 +722,6 @@ function EventForm({ event, config, onClose, onSaved }: Row) {
   );
 }
 function EventPill({ event, onClick, compact = false }: Row) {
-  const start = wallDate(event.occurrence_start);
   return (
     <button
       className={
@@ -706,7 +736,7 @@ function EventPill({ event, onClick, compact = false }: Row) {
       <i />
       <span>
         {!event.all_day && !isMulti(event) && (
-          <b>{instantLabel(event.occurrence_start)} </b>
+          <b>{madridTime(event.occurrence_start)} </b>
         )}
         {event.cancelled ? "Cancelada · " : ""}
         {event.title}
@@ -723,6 +753,12 @@ type CalendarViewProps = {
   onEvent: (event: Row) => void;
   onDay: (day: Date) => void;
 };
+type RescheduleEvent = (
+  event: Row,
+  startLocal: string,
+  endLocal: string,
+  mode: "move" | "resize",
+) => void;
 function MonthView({
   focus,
   events,
@@ -747,19 +783,24 @@ function MonthView({
           return (
             <div
               key={i}
+              data-date={localDate(day)}
               className={
                 "month-cell " +
                 (day.getUTCMonth() !== focus.getUTCMonth() ? "outside " : "") +
                 (today ? "today" : "")
               }
             >
+              <div className="month-cell-content">
               <div className="cell-top">
                 <button
-                  aria-label={"Ver d\u00eda " + localDate(day)}
+                  aria-label={"Ver día " + localDate(day) + ", " + dayEvents.length + (dayEvents.length === 1 ? " evento" : " eventos")}
                   className="day-number"
                   onClick={() => onMore(day)}
                 >
-                  {day.getUTCDate()}
+                  <span className="month-day-value">{day.getUTCDate()}</span>
+                  {dayEvents.length > 0 && (
+                    <span className="month-day-count" aria-hidden="true">{dayEvents.length}</span>
+                  )}
                 </button>
                 <button
                   className="add-day"
@@ -771,25 +812,31 @@ function MonthView({
               </div>
               <div className="cell-events">
                 {dayEvents.slice(0, 3).map((e: Row) => (
+                  <div className="month-event-preview" key={e.occurrence_id}>
                   <EventPill
-                    key={e.occurrence_id}
                     event={e}
                     compact
                     onClick={() => onEvent(e)}
                   />
+                  </div>
                 ))}
-                {dayEvents.length > 3 && (
-                  <button className="more-events" onClick={() => onMore(day)}>
-                    +{dayEvents.length - 3} m&aacute;s
-                  </button>
-                )}
               </div>
+              {dayEvents.length > 0 && (
+                <button
+                  className="more-events"
+                  aria-label={(dayEvents.length === 1 ? "Ver el evento" : "Ver los " + dayEvents.length + " eventos") + " del " + localDate(day)}
+                  onClick={() => onMore(day)}
+                >
+                  {dayEvents.length} {dayEvents.length === 1 ? "evento" : "eventos"}
+                </button>
+              )}
               <button
                 tabIndex={-1}
                 aria-label={"Nuevo evento " + localDate(day)}
                 className="cell-empty-area"
                 onClick={() => onDay(day)}
               />
+              </div>
             </div>
           );
         })}
@@ -803,12 +850,16 @@ function TimeEvent({
   dayIndex,
   dayCount,
   onEvent,
+  onReschedule,
+  busy,
 }: {
   event: Row;
   first: number;
   dayIndex: number;
   dayCount: number;
   onEvent: (event: Row) => void;
+  onReschedule: RescheduleEvent;
+  busy: boolean;
 }) {
   const element = React.useRef<HTMLDivElement>(null);
   const drag = React.useRef<{
@@ -820,6 +871,7 @@ function TimeEvent({
     minutes: number;
     changed: boolean;
     height: string;
+    pointerId: number;
   } | null>(null);
   const ignoreClick = React.useRef(false);
   const start = wallDate(event.occurrence_start),
@@ -834,7 +886,8 @@ function TimeEvent({
     e: React.PointerEvent<HTMLButtonElement>,
     mode: "move" | "resize",
   ) {
-    if (e.button !== 0 || !element.current) return;
+    if (e.button !== 0 || !e.isPrimary || !element.current || busy || event.cancelled || drag.current)
+      return;
     const width = element.current.parentElement!.getBoundingClientRect().width;
     drag.current = {
       x: e.clientX,
@@ -845,14 +898,16 @@ function TimeEvent({
       minutes: 0,
       changed: false,
       height: element.current.style.height,
+      pointerId: e.pointerId,
     };
     ignoreClick.current = false;
+    e.currentTarget.focus({ preventScroll: true });
     e.currentTarget.setPointerCapture(e.pointerId);
   }
   function move(e: React.PointerEvent<HTMLButtonElement>) {
     const current = drag.current,
       node = element.current;
-    if (!current || !node) return;
+    if (!current || !node || e.pointerId !== current.pointerId) return;
     const dy = e.clientY - current.y;
     const dx = e.clientX - current.x;
     if (Math.abs(dy) + Math.abs(dx) < 5 && !current.changed) return;
@@ -873,14 +928,14 @@ function TimeEvent({
       const startMinute = start.getUTCHours() * 60 + start.getUTCMinutes();
       current.minutes = Math.max(
         -startMinute,
-        Math.min(1425 - startMinute, current.minutes),
+        Math.min(Math.max(1425, startMinute) - startMinute, current.minutes),
       );
       node.style.transform = `translate(${current.dx * current.width}px, ${(current.minutes / 60) * 64}px)`;
     }
     node.style.zIndex = "8";
     node.style.opacity = "0.8";
   }
-  function finish(e: React.PointerEvent<HTMLButtonElement>, cancelled = false) {
+  function finish(e: { currentTarget: HTMLButtonElement }, cancelled = false) {
     const current = drag.current,
       node = element.current;
     if (!current || !node) return;
@@ -889,40 +944,45 @@ function TimeEvent({
     node.style.zIndex = "";
     node.style.opacity = "";
     node.style.height = current.height;
-    if (e.currentTarget.hasPointerCapture(e.pointerId))
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    ignoreClick.current = current.changed;
+    if (e.currentTarget.hasPointerCapture(current.pointerId))
+      e.currentTarget.releasePointerCapture(current.pointerId);
+    ignoreClick.current = cancelled || current.changed;
     if (cancelled || !current.changed || (!current.dx && !current.minutes))
       return;
     const delta = current.dx * 86400000 + current.minutes * 60000;
     const proposedStart = localDateTime(
       new Date(start.getTime() + (current.mode === "move" ? delta : 0)),
     );
-    const choices = madridCandidates(proposedStart);
-    const proposedEnd =
-      current.mode === "move" && choices.length === 1
-        ? localDateTime(
-            wallDate(
-              new Date(
-                new Date(choices[0]).getTime() + duration * 60000,
-              ).toISOString(),
-            ),
-          )
-        : localDateTime(new Date(end.getTime() + delta));
-    onEvent({
-      ...event,
-      proposed_start: proposedStart,
-      proposed_end: proposedEnd,
-    });
+    onReschedule(
+      event,
+      proposedStart,
+      localDateTime(new Date(end.getTime() + delta)),
+      current.mode,
+    );
   }
   const handlers = (mode: "move" | "resize") => ({
     onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => begin(e, mode),
     onPointerMove: move,
-    onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => finish(e),
-    onPointerCancel: (e: React.PointerEvent<HTMLButtonElement>) =>
-      finish(e, true),
-    onClick: () => {
-      if (!ignoreClick.current) onEvent(event);
+    onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (drag.current?.pointerId !== e.pointerId) return;
+      move(e);
+      finish(e);
+    },
+    onPointerCancel: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (drag.current?.pointerId === e.pointerId) finish(e, true);
+    },
+    onLostPointerCapture: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (drag.current?.pointerId === e.pointerId) finish(e, true);
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === "Escape" && drag.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        finish(e, true);
+      }
+    },
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!busy && (e.detail === 0 || !ignoreClick.current)) onEvent(event);
       ignoreClick.current = false;
     },
   });
@@ -946,6 +1006,7 @@ function TimeEvent({
       <button
         type="button"
         className="time-event-main"
+        disabled={busy}
         aria-label={"Editar o mover " + event.title}
         aria-describedby="calendar-drag-help"
         {...handlers("move")}
@@ -955,19 +1016,20 @@ function TimeEvent({
           {event.title}
         </strong>
         <span>
-          {instantLabel(event.occurrence_start)} –{" "}
-          {instantLabel(event.occurrence_end)}
+          {madridTime(event.occurrence_start)} –{" "}
+          {madridTime(event.occurrence_end)}
         </span>
         {duration > 55 && event.plate && <small>{event.plate}</small>}
       </button>
       <button
         type="button"
         className="event-resize-handle"
+        disabled={busy}
         aria-label={"Cambiar duración de " + event.title}
         aria-describedby="calendar-drag-help"
         {...handlers("resize")}
       >
-        <span aria-hidden="true">↕</span>
+        <span aria-hidden="true" />
       </button>
     </div>
   );
@@ -980,7 +1042,14 @@ function TimeView({
   onEvent,
   onDay,
   config,
-}: CalendarViewProps & { view: string; config: Row }) {
+  onReschedule,
+  busy,
+}: CalendarViewProps & {
+  view: string;
+  config: Row;
+  onReschedule: RescheduleEvent;
+  busy: boolean;
+}) {
   const range = calendarRange(focus, view),
     dates = Array.from({ length: view === "day" ? 1 : 7 }, (_, i) =>
       addDays(range.start, i),
@@ -1147,6 +1216,8 @@ function TimeView({
                 )}
                 dayCount={dates.length}
                 onEvent={onEvent}
+                onReschedule={onReschedule}
+                busy={busy}
               />
             ))}
           </div>
@@ -1155,7 +1226,7 @@ function TimeView({
     </div>
   );
 }
-export function CalendarPage({ config, notify }: Row) {
+export function CalendarPage({ config, notify, navigate }: Row) {
   const [focus, setFocus] = useState(() =>
       startDay(wallDate(new Date().toISOString())),
     ),
@@ -1167,16 +1238,90 @@ export function CalendarPage({ config, notify }: Row) {
     [exporting, setExporting] = useState(false),
     [error, setError] = useState("");
   const range = calendarRange(focus, view);
-  const [data, loading, loadError] = useLoad<Row[]>(
-    "agenda.list",
-    {
-      start: dayISO(range.start),
-      end: dayISO(range.end),
+  const [data, setData] = useState<Row[]>([]),
+    [loading, setLoading] = useState(true),
+    [loadError, setLoadError] = useState(""),
+    [saving, setSaving] = useState(false);
+  const saveInFlight = React.useRef(false);
+  const mounted = React.useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const rangeStart = dayISO(range.start),
+    rangeEnd = dayISO(range.end);
+  // Local state allows an immediate preview and rollback without changing useLoad elsewhere.
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    setLoadError("");
+    api<Row[]>("agenda.list", {
+      start: rangeStart,
+      end: rangeEnd,
       include_cancelled: showCancelled,
-    },
-    [],
-    tick,
-  );
+    })
+      .then(rows => {
+        if (live) setData(rows);
+      })
+      .catch((err: Error) => {
+        if (live) setLoadError(err.message);
+      })
+      .finally(() => {
+        if (live) {
+          setLoading(false);
+          if (!saveInFlight.current) setSaving(false);
+        }
+      });
+    return () => { live = false; };
+  }, [rangeStart, rangeEnd, showCancelled, tick]);
+  const interactionBusy = loading || saving || Boolean(loadError);
+  const openEvent = (event: Row) => {
+    if (!interactionBusy && !saveInFlight.current) setEdit(event);
+  };
+  const reschedule: RescheduleEvent = async (event, startLocal, endLocal, mode) => {
+    if (interactionBusy || saveInFlight.current || event.cancelled) return;
+    setError("");
+    let start: string, end: string;
+    try {
+      start = mode === "resize" ? event.occurrence_start : madridISO(startLocal);
+      const duration = new Date(event.occurrence_end).getTime() - new Date(event.occurrence_start).getTime();
+      end = mode === "move"
+        ? new Date(new Date(start).getTime() + duration).toISOString()
+        : madridISO(endLocal);
+    } catch (err: any) {
+      setError(err.message + " Abre la cita para ajustar la hora.");
+      return;
+    }
+    saveInFlight.current = true;
+    setSaving(true);
+    setData(rows => rows.map(row =>
+      row.occurrence_id === event.occurrence_id
+        ? { ...row, start, end, occurrence_start: start, occurrence_end: end }
+        : row,
+    ));
+    const recurring = event.recurrence?.freq && event.recurrence.freq !== "none";
+    try {
+      await api("agenda.save", {
+        data: { ...event, start, end, scope: recurring ? "occurrence" : "series" },
+      });
+      notify(recurring ? "Esta repetición se ha actualizado" : "Agenda actualizada");
+    } catch (err: any) {
+      const message = "No se ha podido cambiar la cita. " + err.message;
+      if (mounted.current) {
+        setData(rows => rows.map(row =>
+          row.occurrence_id === event.occurrence_id ? event : row,
+        ));
+        setError(message);
+      } else notify(message, "error");
+    } finally {
+      saveInFlight.current = false;
+      // Keep controls locked until the authoritative version/occurrence keys arrive.
+      if (mounted.current) {
+        setLoading(true);
+        setTick(t => t + 1);
+      }
+    }
+  };
   const events = filter ? data.filter((e) => e.kind === filter) : data;
   const title =
     view === "month"
@@ -1239,6 +1384,7 @@ export function CalendarPage({ config, notify }: Row) {
         <Button
           tone="primary"
           icon="plus"
+          disabled={saving}
           onClick={() => setEdit({ date: new Date(focus) })}
         >
           Nuevo evento
@@ -1324,21 +1470,25 @@ export function CalendarPage({ config, notify }: Row) {
             ))}
           </Select>
         </div>
-        {(error || loadError) && (
-          <Notice tone="error">{error || loadError}</Notice>
+        {error && <Notice tone="error">{error}</Notice>}
+        {loadError && (
+          <Notice tone="error">
+            {loadError}
+            <Button onClick={() => setTick(t => t + 1)}>Reintentar carga</Button>
+          </Notice>
         )}
-        {loading && (
+        {(loading || saving) && (
           <div className="calendar-loading" role="status">
-            Actualizando agenda...
+            {saving ? "Guardando cambio…" : "Actualizando agenda..."}
           </div>
         )}
-        <div className="calendar-content">
+        <div className="calendar-content" aria-busy={loading || saving}>
           {view === "month" ? (
             <MonthView
               focus={focus}
               events={events}
-              onEvent={setEdit}
-              onDay={(d) => setEdit({ date: new Date(d) })}
+              onEvent={openEvent}
+              onDay={(d) => openEvent({ date: new Date(d) })}
               onMore={(d) => {
                 setFocus(d);
                 setView("day");
@@ -1349,9 +1499,11 @@ export function CalendarPage({ config, notify }: Row) {
               focus={focus}
               view={view}
               events={events}
-              onEvent={setEdit}
-              onDay={(d) => setEdit({ date: new Date(d) })}
+              onEvent={openEvent}
+              onDay={(d) => openEvent({ date: new Date(d) })}
               config={config}
+              onReschedule={reschedule}
+              busy={interactionBusy}
             />
           )}
         </div>
@@ -1359,7 +1511,8 @@ export function CalendarPage({ config, notify }: Row) {
       <p className="small subtle" id="calendar-drag-help">
         En semana y día, arrastra una cita para moverla o su borde inferior para
         cambiar la duración, en pasos de 15 minutos. También puedes abrirla y
-        editar Comienza y Termina con el teclado. Guarda para confirmar.
+        editar Comienza y Termina con el teclado. Al soltar se guarda el cambio;
+        en citas recurrentes se modifica sólo esa repetición. Escape cancela el arrastre.
       </p>
       <div className="calendar-bottom">
         <div className="legend">
@@ -1391,7 +1544,7 @@ export function CalendarPage({ config, notify }: Row) {
               <EventPill
                 event={e}
                 key={e.occurrence_id}
-                onClick={() => setEdit(e)}
+                onClick={() => openEvent(e)}
               />
             ))
           ) : (
@@ -1403,6 +1556,7 @@ export function CalendarPage({ config, notify }: Row) {
         <EventForm
           event={edit}
           config={config}
+          navigate={navigate}
           onClose={() => setEdit(null)}
           onSaved={() => {
             setEdit(null);

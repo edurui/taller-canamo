@@ -35,6 +35,30 @@ python scripts/run_preview.py --data /tmp/canamo-demo
 La distribución al taller es Tauri con servicio empaquetado y datos persistentes del usuario.
 No abrir index.html directamente: la interfaz necesita el servicio y token de sesión.
 
+### Abrir el ensayo local ya importado (Linux)
+
+En este equipo está preparada una copia persistente con los datos importados. Para abrirla:
+
+```bash
+npm run start
+```
+
+Compila la interfaz actual, usa Python de `.venv` sin activarlo a mano y abre el navegador
+en `http://127.0.0.1:8765`. Mantener la terminal abierta; `Ctrl+C` detiene el servicio.
+Los cambios se guardan en `${XDG_DATA_HOME:-$HOME/.local/share}/taller-canamo-preview/data`,
+fuera de Git. El comando reutiliza esa base, no vuelve a importar ni borra datos.
+Esta copia se ha preparado localmente; no forma parte del repositorio ni de un clon nuevo.
+El ensayo original se conserva aparte, sin modificar.
+Si la base conserva el esquema anterior, el primer arranque la migra con copia previa.
+
+## Direcciones de clientes
+
+Alta/edición de clientes incorpora sugerencias opcionales de direcciones españolas:
+**CartoCiudad (IGN/CNIG) · CC BY 4.0**. Escribir al menos tres caracteres en Dirección
+consulta el proveedor por Internet; elegir una sugerencia completa los campos disponibles.
+Siempre se puede escribir, corregir y guardar manualmente, también sin conexión.
+No hay API key ni coste por llamada configurado. [Uso, privacidad y límites](docs/DIRECCIONES.md).
+
 ## Verificación reproducible
 
 ```bash

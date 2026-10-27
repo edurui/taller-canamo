@@ -19,9 +19,11 @@ from .errors import require
 from .validation import iso_date, now, today
 from .backups import Backups, CHUNK_BYTES, MAX_BYTES, MAX_FILES, _valid_name
 from .certificates import private_directory
+from .historical_reviews import synchronize_defaults
 
 EXPORT_TABLES = (
     'customers', 'vehicles', 'vehicle_owners', 'series', 'documents', 'payments',
+    'historical_review_versions', 'historical_review_current', 'historical_review_pending',
     'document_payment_baselines', 'suppliers', 'products', 'stock_movements', 'events',
     'event_exceptions', 'notifications', 'fiscal_records', 'fiscal_outbox', 'fiscal_attempts',
     'fiscal_channels', 'fiscal_reconciliations', 'fiscal_wire_evidence', 'imports',
@@ -34,6 +36,49 @@ CSV_TABLES = {'customers': 'customers', 'vehicles': 'vehicles', 'invoices': 'doc
 LINE_FIELDS = ['document_id', 'kind', 'status', 'number', 'issue_date', 'customer_id', 'customer_name',
                'vehicle_id', 'plate', 'position', 'product_id', 'description', 'quantity', 'unit_price',
                'discount', 'tax_rate', 'base_cents', 'tax_cents', 'total_cents', 'original_line_json']
+OVERVIEW_FIELDS = ['count', 'amount_count', 'unknown_count', 'total_cents',
+                   'original_count', 'original_cents', 'verified_count', 'verified_cents',
+                   'estimated_count', 'estimated_cents']
+
+
+def _billing_overview(conn, clause, params):
+    """Consultation totals retain each amount's origin and never infer a balance.
+
+    The current projection has one row per invoice. A preserved original total,
+    including zero or a credit, always takes precedence over any review. SQL
+    aggregates months once; only those small aggregates are combined in Python.
+    """
+    # Keep classification materialized: otherwise SQLite inlines the JSON/CASE
+    # expression into every aggregate (over four times slower on 30,000 rows).
+    rows = [dict(row) for row in conn.execute('''WITH amounts AS MATERIALIZED (
+        SELECT substr(d.issue_date,1,7) AS month, d.total_cents AS original_cents,
+            json_extract(h.payload,'$.total_cents') AS reviewed_cents,
+            CASE WHEN d.total_cents IS NOT NULL THEN 'original'
+                 WHEN d.status='historical' AND h.state IN ('estimated','verified')
+                      AND json_extract(h.payload,'$.base_cents') IS NOT NULL
+                      AND json_extract(h.payload,'$.tax_cents') IS NOT NULL
+                      AND json_extract(h.payload,'$.total_cents') IS NOT NULL
+                 THEN h.state END AS source
+        FROM documents d LEFT JOIN historical_review_current h ON h.document_id=d.id
+        WHERE ''' + clause + '''
+    ), selected AS (
+        SELECT month,source,CASE WHEN source='original' THEN original_cents
+            WHEN source IN ('estimated','verified') THEN reviewed_cents END AS amount
+        FROM amounts
+    )
+    SELECT month,count(*) AS count,count(amount) AS amount_count,
+        count(*)-count(amount) AS unknown_count,sum(amount) AS total_cents,
+        sum(CASE WHEN source='original' THEN 1 ELSE 0 END) AS original_count,
+        sum(CASE WHEN source='original' THEN amount ELSE 0 END) AS original_cents,
+        sum(CASE WHEN source='verified' THEN 1 ELSE 0 END) AS verified_count,
+        sum(CASE WHEN source='verified' THEN amount ELSE 0 END) AS verified_cents,
+        sum(CASE WHEN source='estimated' THEN 1 ELSE 0 END) AS estimated_count,
+        sum(CASE WHEN source='estimated' THEN amount ELSE 0 END) AS estimated_cents
+    FROM selected GROUP BY month ORDER BY month DESC''', params)]
+    totals = {key: sum(row[key] for row in rows) for key in OVERVIEW_FIELDS if key != 'total_cents'}
+    totals['total_cents'] = (None if totals['count'] and not totals['amount_count'] else
+                            sum(row['total_cents'] for row in rows if row['total_cents'] is not None))
+    return {key: totals[key] for key in OVERVIEW_FIELDS}, rows
 
 
 def _range(start='', end=''):
@@ -117,8 +162,10 @@ class Reporting:
     def summary(self, start='', end=''):
         first, last = _range(start, end)
         with self.db.read() as conn:
+            synchronize_defaults(conn)
             conn.execute('BEGIN')
             clause = "d.kind='invoice' AND d.status IN ('issued','historical') AND d.issue_date BETWEEN ? AND ?"
+            overview, overview_months = _billing_overview(conn, clause, (first, last))
             financial_clause = clause + ' AND ' + AMOUNTS_KNOWN_SQL
             incomplete = conn.execute('SELECT count(*) FROM documents d WHERE '+clause+' AND NOT '+AMOUNTS_KNOWN_SQL, (first,last)).fetchone()[0]
             undated = conn.execute("SELECT count(*) FROM documents WHERE kind='invoice' AND status='historical' AND issue_date IS NULL").fetchone()[0]
@@ -167,10 +214,13 @@ class Reporting:
                          'pending_cents': debts['receivable_cents'], 'refund_due_cents': debts['refund_due_cents'],
                          'unknown_payment_documents': unknown, 'low_stock': len(low)}
         return {'period': {'start': start, 'end': end}, 'as_of': today(), 'months': months, 'billing': totals,
+                'billing_overview': overview, 'overview_months': overview_months,
                 'cash': collected, 'cash_months': cash, 'opening_adjustments': adjustments, 'opening_balances': opening,
                 'receivables': {**debts, 'unknown_documents': unknown}, 'work': work, 'low_stock': low, 'dashboard': dashboard,
                 'notice': 'Resumen operativo, no contabilidad ni declaración tributaria. Los documentos de prueba se identifican. '
-                          'La facturación suma solo documentos con base, IVA y total conocidos; los históricos sin fecha no se asignan a ningún período. '
+                          'El resumen de consulta distingue importes originales, contrastados con el original y estimados; '
+                          'las facturas sin importe disponible se cuentan aparte. La facturación de originales conserva solo '
+                          'documentos con base, IVA y total conocidos. Los históricos sin fecha no se asignan a ningún período. '
                           'Cobros por fecha de pago; saldos y trabajos muestran el estado actual de los documentos del período. '
                           'Los mínimos corresponden a las existencias actuales.'}
 
@@ -193,17 +243,18 @@ class Reporting:
         if kind == 'portable':
             return self.portable()
         first, last = _range(start, end)
-        require(kind in CSV_TABLES or kind in ('document_lines', 'billing', 'cash', 'low_stock', 'work'), 'Exportación no admitida.')
+        require(kind in CSV_TABLES or kind in ('document_lines', 'billing', 'billing_overview', 'cash', 'low_stock', 'work'), 'Exportación no admitida.')
         name = kind+'-'+today()+'.csv'
-        if kind in ('billing', 'cash', 'low_stock', 'work'):
+        if kind in ('billing', 'billing_overview', 'cash', 'low_stock', 'work'):
             data = self.summary(start, end)
-            key = {'billing':'months', 'cash':'cash_months'}.get(kind, kind)
+            key = {'billing':'months', 'billing_overview':'overview_months', 'cash':'cash_months'}.get(kind, kind)
             rows = data[key]
             defaults = {'billing':['month','count','base_cents','tax_cents','total_cents'],
+                        'billing_overview':['month', *OVERVIEW_FIELDS],
                         'cash':['month','method','count','received_cents','returned_cents','net_cents','reversals'],
                         'low_stock':['id','sku','name','stock','min_stock','supplier_name','supplier_phone','units_to_minimum'],
                         'work':['kind','status','count','total_cents']}
-            fields = list(rows[0]) if rows else defaults[kind]
+            fields = defaults[kind] if kind == 'billing_overview' or not rows else list(rows[0])
             return self._make_export(lambda output:_csv_write(output, rows, fields), name, 'text/csv')
         with self.db.lock, self.db.read() as conn:
             conn.execute('BEGIN')
@@ -353,6 +404,8 @@ rutas privadas de configuración. No se envía a servicios externos.
 
 data.json conserva todas las filas, identificadores, snapshots y payloads originales,
 incluidas históricas revertidas, auditoría, series, fiscalidad, cobros y ajustes.
+Las tablas historical_review_* conservan estimaciones, revisiones y su cola pendiente
+por separado; sus importes no sustituyen los originales de documents.
 Las columnas JSON de SQLite siguen como cadenas originales. Los BLOB se representan
 como {$binary:{encoding:"base64",sha256:...,data:...}} para recuperar sus bytes exactos.
 schema.json describe columnas, claves primarias y relaciones. Los importes *_cents

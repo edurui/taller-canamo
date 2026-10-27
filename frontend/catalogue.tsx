@@ -1,6 +1,8 @@
 import { Presence } from "./overlays.js";
 import { Select, Textarea, TextInput } from "./controls.js";
 import * as React from "react";
+import { EntityReference } from "./entity-navigation.js";
+import { EntityRow, RowActions, SortHeader, useListSort, useListData } from "./list-controls.js";
 import {
   Row,
   api,
@@ -15,13 +17,29 @@ import {
   Toggle,
   Notice,
   Modal,
+  Confirm,
   Empty,
   PageHead,
   Loading,
   dateText,
   normalize,
 } from "./core.js";
+const productSortValues = {
+  name: (row: Row) => row.name,
+  sku: (row: Row) => row.sku,
+  unit_price: (row: Row) => Number(row.unit_price),
+  stock: (row: Row) => row.track_stock ? Number(row.stock) : null,
+  type: (row: Row) => row.track_stock ? "Material" : "Servicio",
+  supplier: (row: Row) => row.supplier_name,
+};
+const supplierSortValues = {
+  name: (row: Row) => row.name,
+  tax_id: (row: Row) => row.tax_id,
+  phone: (row: Row) => row.phone,
+  email: (row: Row) => row.email,
+};
 function ProductForm({ product, suppliers, onClose, onSaved }: Row) {
+  const [showSupplier, setShowSupplier] = useState(false);
   const [v, setV] = useState<Row>({
       id: uuid(),
       name: "",
@@ -38,6 +56,7 @@ function ProductForm({ product, suppliers, onClose, onSaved }: Row) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const set = (k: string, x: any) => setV((o) => ({ ...o, [k]: x }));
+  const supplier = suppliers.find((item: Row) => item.id === v.supplier_id);
   return (
     <Modal
       title={
@@ -85,6 +104,11 @@ function ProductForm({ product, suppliers, onClose, onSaved }: Row) {
                 </option>
               ))}
             </Select>
+            {supplier && (
+              <button type="button" className="entity-reference" disabled={busy} onClick={() => setShowSupplier(true)}>
+                Consultar {supplier.name}
+              </button>
+            )}
           </Field>
           <Input
             label="Precio de venta sin IVA"
@@ -145,22 +169,58 @@ function ProductForm({ product, suppliers, onClose, onSaved }: Row) {
           </Button>
         </div>
       </form>
+      <Presence>{showSupplier && supplier && (
+        <Modal title={supplier.name} onClose={() => setShowSupplier(false)}>
+          {supplier.archived ? <Notice>Proveedor archivado. Su ficha se conserva.</Notice> : null}
+          <dl className="details-list">
+            <dt>NIF / CIF</dt><dd>{supplier.tax_id || "No consta"}</dd>
+            <dt>Teléfono</dt><dd>{supplier.phone || "No consta"}</dd>
+            <dt>Correo</dt><dd>{supplier.email || "No consta"}</dd>
+            <dt>Dirección</dt><dd>{supplier.address || "No consta"}</dd>
+            <dt>Notas</dt><dd>{supplier.notes || "Sin notas"}</dd>
+          </dl>
+          <Button onClick={() => setShowSupplier(false)}>Volver al artículo</Button>
+        </Modal>
+      )}</Presence>
     </Modal>
   );
 }
-function StockForm({ product, onClose, onSaved }: Row) {
+function StockForm({ product, onClose, onSaved, navigate }: Row) {
   const [operation, setOperation] = useState("entry"),
     [page, setPage] = useState(0),
     [quantity, setQuantity] = useState(""),
     [reason, setReason] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [pendingDocument, setPendingDocument] = useState<string | null>(null);
   const key = useRef(uuid());
-  const [movements] = useLoad<Row[]>(
+  const [selectedMovement, setSelectedMovement] = useState<Row | null>(null);
+  const { sort, toggle } = useListSort();
+  const sortBy = (field: string) => { toggle(field); setPage(0); };
+  const [movements, movementsLoading, movementsError, movementsStale] = useListData<Row[]>(
     "products.movements",
-    { product_id: product.id, page },
+    { product_id: product.id, page, sort_by: sort?.key || "", sort_direction: sort?.direction || "asc" },
     [],
   );
+  function requestDocument(identifier: string) {
+    setSelectedMovement(null);
+    if (quantity.trim() || reason.trim()) setPendingDocument(identifier);
+    else void openDocument(identifier);
+  }
+  async function openDocument(identifier: string) {
+    setBusy(true);
+    setError("");
+    try {
+      // A movement stores the document ID, but not its kind. Resolve it only
+      // when requested, without guessing its route or loading every row.
+      const document = await api("documents.get", { identifier });
+      navigate("editor", { id: document.id, kind: document.kind });
+    } catch (failure: unknown) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Modal
       title={"Existencias \u00b7 " + product.name}
@@ -254,23 +314,44 @@ function StockForm({ product, onClose, onSaved }: Row) {
         </div>
       </form>
       <h3>Historial de movimientos</h3>
-      {movements.length ? (
+      {movementsError && <Notice tone="error">{movementsError}</Notice>}
+      {movementsStale && movements.length > 0 && <p className="subtle" role="status">{movementsLoading ? "Actualizando movimientos…" : "Resultados anteriores de movimientos."}</p>}
+      {movementsLoading && !movements.length ? <Loading /> : movements.length ? (
         <div className="table-scroll">
-          <table>
+          <table aria-busy={movementsLoading}>
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Motivo</th>
-                <th className="right">Unidades</th>
+                <SortHeader label="Fecha" field="created_at" sort={sort} onSort={sortBy} />
+                <SortHeader label="Motivo" field="reason" sort={sort} onSort={sortBy} />
+                <SortHeader label="Unidades" field="quantity" className="right" sort={sort} onSort={sortBy} />
+                <th><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody>
               {movements.map((m) => (
-                <tr key={m.id}>
+                <EntityRow key={m.id} onOpen={() => setSelectedMovement(m)} disabled={busy || movementsStale}>
                   <td>{dateText(m.created_at)}</td>
-                  <td>{m.reason}</td>
+                  <td>
+                    <button type="button" className="entity-reference" disabled={busy || movementsStale} onClick={() => setSelectedMovement(m)}>{m.reason}</button>
+                    {m.document_id && (
+                      <p>
+                        <button
+                          type="button"
+                          className="entity-reference"
+                          disabled={busy || movementsStale}
+                          onClick={() => requestDocument(m.document_id)}
+                        >
+                          Consultar documento del movimiento
+                        </button>
+                      </p>
+                    )}
+                  </td>
                   <td className="right amount">{m.quantity}</td>
-                </tr>
+                  <td><RowActions label={`movimiento ${m.reason}`} disabled={busy || movementsStale} items={[
+                    { label: "Ver movimiento", onSelect: () => setSelectedMovement(m) },
+                    ...(m.document_id ? [{ label: "Consultar documento", onSelect: () => requestDocument(m.document_id) }] : []),
+                  ]} /></td>
+                </EntityRow>
               ))}
             </tbody>
           </table>
@@ -281,29 +362,59 @@ function StockForm({ product, onClose, onSaved }: Row) {
         </p>
       )}
       <div className="actions">
-        <Button disabled={page === 0} onClick={() => setPage(page - 1)}>
-          Más recientes
+        <Button disabled={page === 0 || movementsStale} onClick={() => setPage(page - 1)}>
+          {sort ? "Anterior" : "Más recientes"}
         </Button>
         <span>Página {page + 1}</span>
         <Button
-          disabled={movements.length < 200}
+          disabled={movements.length < 200 || movementsStale}
           onClick={() => setPage(page + 1)}
         >
-          Más antiguos
+          {sort ? "Siguiente" : "Más antiguos"}
         </Button>
       </div>
+      <Presence>{selectedMovement && (
+        <Modal title="Detalle del movimiento" onClose={() => setSelectedMovement(null)}>
+          <dl className="details-list">
+            <dt>Artículo</dt><dd>{product.name}</dd>
+            <dt>Referencia</dt><dd>{product.sku || "Sin referencia"}</dd>
+            <dt>Fecha</dt><dd>{new Date(selectedMovement.created_at).toLocaleString("es-ES", { timeZone: "Europe/Madrid" })}</dd>
+            <dt>Motivo</dt><dd>{selectedMovement.reason}</dd>
+            <dt>Unidades</dt><dd>{selectedMovement.quantity}</dd>
+          </dl>
+          <div className="actions">
+            <Button onClick={() => setSelectedMovement(null)}>Volver al almacén</Button>
+            {selectedMovement.document_id && <Button onClick={() => requestDocument(selectedMovement.document_id)}>Consultar documento</Button>}
+          </div>
+        </Modal>
+      )}</Presence>
+      <Presence>{pendingDocument && (
+        <Confirm
+          title="Movimiento sin registrar"
+          text="La cantidad y el motivo que has escrito aún no se han registrado. Puedes volver para conservarlos o salir al documento."
+          confirm="Salir sin registrar"
+          danger
+          onClose={() => setPendingDocument(null)}
+          onConfirm={() => {
+            const identifier = pendingDocument;
+            setPendingDocument(null);
+            void openDocument(identifier);
+          }}
+        />
+      )}</Presence>
     </Modal>
   );
 }
-export function CataloguePage({ notify }: Row) {
+export function CataloguePage({ notify, navigate, id }: Row) {
   const [tick, setTick] = useState(0),
     [query, setQuery] = useState(""),
     [low, setLow] = useState(false),
-    [archived, setArchived] = useState(false),
+    [archived, setArchived] = useState(Boolean(id)),
+    [initialClosed, setInitialClosed] = useState(false),
     [actionError, setActionError] = useState(""),
     [edit, setEdit] = useState<Row | null>(null),
     [move, setMove] = useState<Row | null>(null);
-  const [products, loading, error] = useLoad<Row[]>(
+  const [products, loading, error, stale] = useListData<Row[]>(
     "products.list",
     { include_archived: archived },
     [],
@@ -314,11 +425,23 @@ export function CataloguePage({ notify }: Row) {
     { include_archived: true },
     [],
   );
-  const rows = products.filter(
+  const { sort, toggle, rows: sortedProducts } = useListSort(products, productSortValues);
+  const rows = sortedProducts.filter(
     (p) =>
       (!low || p.low_stock) &&
       normalize(p.name + " " + (p.sku || "")).includes(normalize(query)),
   );
+  const selectedProduct = edit || (!stale && !initialClosed && id ? products.find(product => product.id === id) : null);
+  const closeProduct = () => { setEdit(null); setInitialClosed(true); };
+  async function archiveProduct(product: Row) {
+    setActionError("");
+    try {
+      await api("products.archive", { identifier: product.id, archived: !product.archived });
+      setTick(value => value + 1);
+    } catch (failure: any) {
+      setActionError(failure.message);
+    }
+  }
   return (
     <>
       <PageHead
@@ -331,6 +454,9 @@ export function CataloguePage({ notify }: Row) {
         </Button>
       </PageHead>
       <section className="panel">
+        {id && !initialClosed && !loading && !error && !selectedProduct && (
+          <Notice tone="error">No se encuentra el artículo vinculado.</Notice>
+        )}
         <div className="list-toolbar">
           <div className="filter-input">
             <Icon name="search" />
@@ -360,27 +486,29 @@ export function CataloguePage({ notify }: Row) {
           <span className="subtle">{rows.length} art&iacute;culos</span>
         </div>
         {(error || actionError) && (
-          <Notice tone="error">{error || actionError}</Notice>
+          <Notice tone="error">{error || actionError}{error && <Button onClick={() => setTick(value => value + 1)}>Reintentar</Button>}</Notice>
         )}
-        {loading ? (
+        {stale && rows.length > 0 && <p className="padded subtle" role="status">{loading ? "Actualizando artículos…" : "Resultados anteriores de artículos."}</p>}
+        {loading && !rows.length ? (
           <Loading />
         ) : rows.length ? (
           <div className="table-scroll">
-            <table>
+            <table aria-busy={loading}>
               <thead>
                 <tr>
-                  <th>Art&iacute;culo / referencia</th>
-                  <th className="right">Precio sin IVA</th>
-                  <th className="right">Existencias</th>
-                  <th>Tipo</th>
-                  <th />
+                  <SortHeader label="Artículo" field="name" secondary={{ field: "sku", label: "Referencia" }} sort={sort} onSort={toggle} />
+                  <SortHeader label="Precio sin IVA" field="unit_price" className="right" sort={sort} onSort={toggle} />
+                  <SortHeader label="Existencias" field="stock" className="right" sort={sort} onSort={toggle} />
+                  <SortHeader label="Tipo" field="type" sort={sort} onSort={toggle} />
+                  <SortHeader label="Proveedor" field="supplier" sort={sort} onSort={toggle} />
+                  <th><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((p) => (
-                  <tr key={p.id}>
+                  <EntityRow key={p.id} disabled={stale} onOpen={() => setEdit(p)}>
                     <td>
-                      <strong>{p.name}</strong>
+                      <button type="button" disabled={stale} className="entity-reference" onClick={() => setEdit(p)}><strong>{p.name}</strong></button>
                       {p.archived ? (
                         <small className="block subtle">Archivado</small>
                       ) : null}
@@ -399,43 +527,15 @@ export function CataloguePage({ notify }: Row) {
                       )}
                     </td>
                     <td>{p.track_stock ? "Material" : "Servicio"}</td>
+                    <td><EntityReference entity="supplier" id={p.supplier_id} disabled={stale} navigate={navigate}>{p.supplier_name || "—"}</EntityReference></td>
                     <td>
-                      <div className="actions nowrap">
-                        {p.track_stock && !p.archived ? (
-                          <Button
-                            tone="ghost"
-                            icon="box"
-                            onClick={() => setMove(p)}
-                          >
-                            Existencias
-                          </Button>
-                        ) : null}
-                        <Button
-                          tone="ghost icon-only"
-                          icon="edit"
-                          aria-label={"Editar " + p.name}
-                          onClick={() => setEdit(p)}
-                        />
-                        <Button
-                          tone="ghost"
-                          onClick={async () => {
-                            setActionError("");
-                            try {
-                              await api("products.archive", {
-                                identifier: p.id,
-                                archived: !p.archived,
-                              });
-                              setTick((t) => t + 1);
-                            } catch (err: any) {
-                              setActionError(err.message);
-                            }
-                          }}
-                        >
-                          {p.archived ? "Restaurar" : "Archivar"}
-                        </Button>
-                      </div>
+                      <RowActions label={p.name} disabled={stale} items={[
+                        { label: "Editar artículo", onSelect: () => setEdit(p) },
+                        ...(p.track_stock && !p.archived ? [{ label: "Existencias", onSelect: () => setMove(p) }] : []),
+                        { label: p.archived ? "Restaurar" : "Archivar", onSelect: () => void archiveProduct(p) },
+                      ]} />
                     </td>
-                  </tr>
+                  </EntityRow>
                 ))}
               </tbody>
             </table>
@@ -448,13 +548,13 @@ export function CataloguePage({ notify }: Row) {
           />
         )}
       </section>
-      <Presence>{edit && (
+      <Presence>{selectedProduct && (
         <ProductForm
-          product={edit.id ? edit : null}
+          product={selectedProduct.id ? selectedProduct : null}
           suppliers={suppliers}
-          onClose={() => setEdit(null)}
+          onClose={closeProduct}
           onSaved={() => {
-            setEdit(null);
+            closeProduct();
             setTick((t) => t + 1);
             notify("Art\u00edculo guardado");
           }}
@@ -463,6 +563,7 @@ export function CataloguePage({ notify }: Row) {
       <Presence>{move && (
         <StockForm
           product={move}
+          navigate={navigate}
           onClose={() => setMove(null)}
           onSaved={() => {
             setMove(null);
@@ -542,23 +643,36 @@ function SupplierForm({ supplier, onClose, onSaved }: Row) {
     </Modal>
   );
 }
-export function SuppliersPage({ notify }: Row) {
+export function SuppliersPage({ notify, id }: Row) {
   const [tick, setTick] = useState(0),
     [edit, setEdit] = useState<Row | null>(null),
     [query, setQuery] = useState(""),
-    [archived, setArchived] = useState(false),
+    [archived, setArchived] = useState(Boolean(id)),
+    [initialClosed, setInitialClosed] = useState(false),
     [actionError, setActionError] = useState("");
-  const [data, loading, error] = useLoad<Row[]>(
+  const [data, loading, error, stale] = useListData<Row[]>(
     "suppliers.list",
     { include_archived: archived },
     [],
     tick,
   );
-  const rows = data.filter((row) =>
+  const { sort, toggle, rows: sortedSuppliers } = useListSort(data, supplierSortValues);
+  const rows = sortedSuppliers.filter((row) =>
     normalize(row.name + " " + row.tax_id + " " + row.phone).includes(
       normalize(query),
     ),
   );
+  const selectedSupplier = edit || (!stale && !initialClosed && id ? data.find(supplier => supplier.id === id) : null);
+  const closeSupplier = () => { setEdit(null); setInitialClosed(true); };
+  async function archiveSupplier(supplier: Row) {
+    setActionError("");
+    try {
+      await api("suppliers.archive", { identifier: supplier.id, archived: !supplier.archived });
+      setTick(value => value + 1);
+    } catch (failure: any) {
+      setActionError(failure.message);
+    }
+  }
   return (
     <>
       <PageHead
@@ -571,6 +685,9 @@ export function SuppliersPage({ notify }: Row) {
         </Button>
       </PageHead>
       <section className="panel">
+        {id && !initialClosed && !loading && !error && !selectedSupplier && (
+          <Notice tone="error">No se encuentra el proveedor vinculado.</Notice>
+        )}
         <div className="list-toolbar">
           <Input
             label="Buscar proveedores"
@@ -587,26 +704,27 @@ export function SuppliersPage({ notify }: Row) {
           </label>
         </div>
         {(error || actionError) && (
-          <Notice tone="error">{error || actionError}</Notice>
+          <Notice tone="error">{error || actionError}{error && <Button onClick={() => setTick(value => value + 1)}>Reintentar</Button>}</Notice>
         )}
-        {loading ? (
+        {stale && rows.length > 0 && <p className="padded subtle" role="status">{loading ? "Actualizando proveedores…" : "Resultados anteriores de proveedores."}</p>}
+        {loading && !rows.length ? (
           <Loading />
         ) : rows.length ? (
           <div className="table-scroll">
-            <table>
+            <table aria-busy={loading}>
               <thead>
                 <tr>
-                  <th>Proveedor</th>
-                  <th>Tel&eacute;fono</th>
-                  <th>Correo</th>
-                  <th />
+                  <SortHeader label="Proveedor" field="name" secondary={{ field: "tax_id", label: "NIF / CIF" }} sort={sort} onSort={toggle} />
+                  <SortHeader label="Teléfono" field="phone" sort={sort} onSort={toggle} />
+                  <SortHeader label="Correo" field="email" sort={sort} onSort={toggle} />
+                  <th><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((s) => (
-                  <tr key={s.id}>
+                  <EntityRow key={s.id} disabled={stale} onOpen={() => setEdit(s)}>
                     <td>
-                      <strong>{s.name}</strong>
+                      <button type="button" disabled={stale} className="entity-reference" onClick={() => setEdit(s)}><strong>{s.name}</strong></button>
                       {s.archived ? (
                         <small className="block subtle">Archivado</small>
                       ) : null}
@@ -615,32 +733,12 @@ export function SuppliersPage({ notify }: Row) {
                     <td>{s.phone || "\u2014"}</td>
                     <td>{s.email || "\u2014"}</td>
                     <td>
-                      <Button
-                        icon="edit"
-                        tone="ghost"
-                        onClick={() => setEdit(s)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        tone="ghost"
-                        onClick={async () => {
-                          setActionError("");
-                          try {
-                            await api("suppliers.archive", {
-                              identifier: s.id,
-                              archived: !s.archived,
-                            });
-                            setTick((t) => t + 1);
-                          } catch (err: any) {
-                            setActionError(err.message);
-                          }
-                        }}
-                      >
-                        {s.archived ? "Restaurar" : "Archivar"}
-                      </Button>
+                      <RowActions label={s.name} disabled={stale} items={[
+                        { label: "Editar proveedor", onSelect: () => setEdit(s) },
+                        { label: s.archived ? "Restaurar" : "Archivar", onSelect: () => void archiveSupplier(s) },
+                      ]} />
                     </td>
-                  </tr>
+                  </EntityRow>
                 ))}
               </tbody>
             </table>
@@ -653,12 +751,12 @@ export function SuppliersPage({ notify }: Row) {
           />
         )}
       </section>
-      <Presence>{edit && (
+      <Presence>{selectedSupplier && (
         <SupplierForm
-          supplier={edit.id ? edit : null}
-          onClose={() => setEdit(null)}
+          supplier={selectedSupplier.id ? selectedSupplier : null}
+          onClose={closeSupplier}
           onSaved={() => {
-            setEdit(null);
+            closeSupplier();
             setTick((t) => t + 1);
             notify("Proveedor guardado");
           }}

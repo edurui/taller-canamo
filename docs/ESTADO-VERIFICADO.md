@@ -1,4 +1,20 @@
-# Estado verificado · 7 de octubre de 2026
+# Estado verificado · 27 de octubre de 2026
+
+## Lote para publicar en main · 27/10/2026
+
+Agrupadas las mejoras del 7 y 8 de octubre para el commit/push solicitado por el
+usuario. Las menciones «sin commit/push» siguientes corresponden a esas revisiones.
+Ahora han pasado 809 pytest, ambos typechecks, pip check, el build inicial y 23
+pruebas Rust. La repetición Python resolvió cinco errores causados por el bloqueo
+de puertos del sandbox. A petición del usuario se detuvieron las comprobaciones
+adicionales durante el segundo build; no se completó una nueva batería E2E.
+Las 164 E2E del 08/10 siguen siendo evidencia anterior. Informe:
+`reports/PUBLICACION-2026-10-27.md`.
+
+Copia persistente comprobada en lectura inmutable: 1.595 clientes, 1.290 vehículos
+y 5.133 facturas históricas; integridad/FK correctas. `npm run start` la reutiliza
+y migra v8 a v9 con copia previa, sin reimportar Access. No se arrancó el servicio
+sobre esa copia durante esta revisión. Windows/aceptación fiscal siguen pendientes.
 
 **Migración del Access real implementada y ensayada localmente con conservación explícita
 de datos desconocidos y conflictos.** Versión 0.9.1 de desarrollo: no apta todavía para
@@ -6,6 +22,228 @@ emitir facturas operativas. Quedan conflictos históricos que requieren evidenci
 y las comprobaciones externas, sin atribuirles resultados locales. La revisión previa
 de interfaz está documentada en
 `reports/MEJORAS-INTERFAZ-2026-09-29.md`; la entrega del 23/09 es evidencia histórica.
+
+## Listados ordenables y acciones por entidad · 08/10/2026
+
+Las 21 tablas de datos permiten ordenar cada columna y recuperar su orden original.
+Los listados paginados ordenan en SQLite antes de LIMIT/OFFSET; los conjuntos completos
+se ordenan localmente. Las 15 tablas de entidades abren fichas por celda y ofrecen
+menú de acciones, conservando enlaces interiores, teclado, confirmaciones y guardas.
+Los seis resúmenes agrupados se ordenan sin inventar fichas ni acciones individuales.
+Se descartan respuestas obsoletas y se bloquean filas antiguas durante carga/error.
+Archivo/borrado de la última fila devuelve a una página válida. Sin nueva migración,
+índice ni dependencia; sólo datos sintéticos, sin modificar bases reales.
+
+Verificado: **809 pytest (66,99 s) y 164 E2E completas (289,217 s)**, cero fallos,
+omitidos o reintentos finales. Typechecks, build, pip check y diff check correctos.
+80 casos Python y 24 E2E nuevos; Axe y capturas de menús/tablas claro/oscuro en
+1366/390 px, más regresión de navegación/Clientes a 320 px y texto grande.
+1.869 archivos de ejecución idénticos por SHA-256; evidencia final guardada antes
+de eliminar la copia E2E. Informe, rendimiento sintético y fallos intermedios:
+`reports/LISTADOS-2026-10-08.md`. La interrupción por permisos de solo lectura se
+resolvió repitiendo la batería completa; no se contó como ejecución correcta.
+
+Consultas predeterminadas sin regresión material medida; ordenación explícita p95
+6–31 ms en el escenario habitual y hasta 198 ms con 30.000 históricos. Son medidas
+locales, no umbrales CI. Reiniciar `npm run start` para cargar frontend y backend.
+Sin commit/push. Windows/Tauri/WebView2 real sigue pendiente de ensayo externo.
+
+## Importes de facturas e Informes · 08/10/2026
+
+Inicio, historial del cliente, facturas del vehículo y búsqueda de trabajos muestran
+el mismo importe que Facturas: original prioritario, revisión etiquetada o «No consta».
+Resumen suma los importes disponibles una vez por factura y separa originales,
+contrastados y estimados por mes, con CSV equivalente. Desconocidos y sin fecha se
+avisan aparte. El desglose fiscal original sigue accesible; las revisiones no crean
+cobros ni deudas ni sobrescriben documentos. Sin nueva migración/índice/dependencia.
+
+Corregidos presentación móvil, acceso por teclado a las tablas y ocultación de cifras
+anteriores si falla un cambio de período, con reintento. Agregado SQL medido con
+5.000/30.000 facturas sintéticas: informe completo p95 **27,064/270,251 ms**; los
+listados no incorporan llamadas adicionales. Detalle, contrato, planes, mediciones y
+fallos intermedios: `reports/IMPORTES-INFORMES-2026-10-08.md`.
+
+Verificado: **729 pytest (58,35 s), 10 nuevas E2E dirigidas y 140 E2E completas
+(192,601 s)**, sin fallos, omitidas ni reintentos finales. Pip check, typechecks/build
+y diff check correctos; 17 nuevos casos Python, ocho auditorías Axe y revisión visual
+claro/oscuro, 1366/390 px. Sólo sintéticos, fuentes/dist idénticos por SHA-256.
+No se abrieron datos reales ni se ejecutó Windows/WebView2. Reiniciar `npm run start`
+para cargar el backend y frontend nuevos; sin reimportación, commit ni push.
+Esta sección amplía el resumen de consulta respecto a la evidencia histórica de
+estimaciones siguiente; conserva intacto el cálculo fiscal original.
+
+## Facturas: nombre del cliente vinculado · 08/10/2026
+
+Si el histórico no conserva nombre original, el listado y el detalle muestran el
+nombre enlazado de la ficha actual, sin el aviso que parecía indicar que faltaba cliente.
+Mismo criterio en Inicio y facturas de un vehículo. Buscar encuentra ese nombre; si
+existe nombre original, se conserva su prioridad. Sin rellenar snapshots ni modificar
+facturas, PDF o datos reales. Se aprovecha el JOIN existente, sin peticiones por fila
+ni migración adicional.
+
+Verificado: **712 pytest (73,56 s), 21 E2E dirigidas y 130 E2E finales (199,204 s)**,
+typechecks/build y diff check correctos. Cero fallos, omitidas o reintentos finales.
+Cuatro casos Python nuevos y un E2E; ocho auditorías Axe y revisión visual en ambos
+temas a 1366/390 px. Sólo datos sintéticos, copia E2E aislada idéntica por hashes.
+Informe y expectativa antigua corregida: `reports/FACTURAS-CLIENTE-2026-10-08.md`.
+Reiniciar `npm run start` para cargar también el campo nuevo del backend. Sin commit/push;
+no se ejecutó Windows/WebView2. Las evidencias anteriores se conservan a continuación.
+
+## Facturas históricas: estimación y revisión · 08/10/2026
+
+Estimaciones separadas de originales: 16/18/21 % según los períodos generales;
+importes calculados con decimales exactos y redondeo explícito, siempre identificados
+como orientativos. Sin líneas/importes, con fechas inciertas o contradicciones quedan
+pendientes, sin ceros ni sumas parciales. Ajustar exige motivo; contrastar con original
+exige confirmación y evidencia. Historial inalterable, restablecimiento con motivo,
+control de versiones y protección de formularios. Los originales, PDF, pagos, informes
+y fiscalidad conservan su comportamiento; las estimaciones no habilitan cobros/rectificación.
+
+Migración v9 transaccional, copia previa, proyección indexada y cola técnica. Probados
+upgrade desde v8, base nueva, fallo atómico, restauración, simulaciones antiguas,
+sustitución/reversión encadenada y portable completo. Tres correcciones visuales del
+detalle: aviso centrado con su icono, espacio después de Preparar mensaje y nombre
+actual enlazado con separación antes del vehículo, sin falsificar un snapshot ausente.
+
+Verificación final: **708 pytest (158,22 s) y 129 E2E (234,219 s)** correctas, sin fallos,
+omitidas ni reintentos finales. 77 nuevas pruebas Python y 11 E2E; ocho auditorías Axe
+y ocho capturas revisadas en claro/oscuro, 1366/390 px. Pip check, typechecks/build y
+diff check correctos. Sólo bases sintéticas; E2E en copia aislada idéntica por hashes.
+Con 5.000 históricos la lista tiene p95 de 12,926 ms y el filtro de pendientes 3,916 ms.
+Fallos intermedios corregidos y evidencia: `reports/HISTORICOS-REVISION-2026-10-08.md`.
+No se modificaron bases reales, ni se ejecutó Windows/WebView2 o reconstruyó instalador.
+Sin commit/push. Reiniciar `npm run start` para cargar el backend y migrar con copia previa.
+Uso y límites: `docs/IMPORTACION-ACCESS.md`. Se conservan verificaciones anteriores.
+
+## Agenda: guardado directo al arrastrar · 08/10/2026
+
+Soltar una cita al moverla o alargarla guarda directamente, sin abrir el editor;
+el clic y Enter conservan la edición manual. Escape y cancelación del puntero revierten
+el gesto. Vista previa inmediata, una sola escritura, errores visibles y bloqueo hasta
+recuperar las versiones; recarga fallida con reintento. En series sólo cambia la repetición
+seleccionada. Se conservan duración real, campos, excepciones y validación Europe/Madrid.
+Una cita borrada desde otra ventana no puede recrearse mediante una actualización antigua.
+
+Verificación final: **631 pytest (87,09 s), 26 E2E dirigidas y 118 E2E completas
+(243,002 s)** correctas, sin fallos, omitidas ni reintentos en la ejecución final.
+Doce nuevas regresiones E2E y tres Python. Pip check, typechecks/build y diff check correctos.
+Sólo bases sintéticas. La primera batería completa tuvo un fallo de arranque por
+recompilación simultánea de dist; la final se ejecutó sobre copia aislada idéntica por
+hashes. No se modificaron fixtures para evitar el fallo. Windows/WebView2 pendiente.
+Detalle: `reports/AGENDA-DRAG-2026-10-08.md`. Sin commit/push; reiniciar `npm run start`
+para cargar también la protección backend. Se conservan los cambios anteriores.
+
+## Agenda: control de duración · 08/10/2026
+
+Corregida la franja opaca que tapaba la parte inferior del evento al pasar el cursor
+o enfocar el control de duración. Fondo transparente y agarre discreto; hora legible,
+zonas de interacción accesibles para mover/alargar incluso las citas cortas y foco visible.
+Se conserva la lógica de arrastre, fechas, confirmación y guardado.
+
+Verificado con datos sintéticos: **14 pruebas de Agenda y 106 E2E completas correctas
+(165,824 s)**, sin fallos, omitidas ni reintentos. Dos regresiones nuevas con ocho
+auditorías Axe WCAG 2.2 AA y ocho capturas revisadas en Día/Semana, claro/oscuro,
+1366/390 px. Typechecks/build y diff check correctos. Sin cambios Python/SQLite;
+no se repitió pytest ni se ejecutó Windows/WebView2. Informe e incidencias intermedias:
+`reports/AGENDA-RESIZE-2026-10-08.md`. Cambios anteriores conservados, sin commit/push.
+
+## Sidebar: transición y espacio · 07/10/2026
+
+«Más herramientas» abre/cierra con transición CSS de 200 ms, admite inversión rápida
+y respeta movimiento reducido. Logo y pie permanecen fijos; las opciones ocultas quedan
+fuera del foco. A 768/900 px con letra normal/grande no hay scroll ni opciones cortadas,
+en ambos temas. En ventanas más bajas sólo se desplaza el menú; móvil probado a 320/390 px
+con Escape, cierre por fondo y recuperación de foco.
+
+Verificación final: **104 E2E correctas (148,542 s)**, sin fallos, omitidas ni reintentos;
+ocho nuevas, con 13 auditorías Axe y 13 capturas revisadas. Ambos typechecks, build y
+`git diff --check` correctos. Sólo datos sintéticos; sin cambios backend, dependencias
+o SQLite. No se repitió pytest ni se ejecutó Windows/WebView2 en esta revisión.
+Detalle, medidas e incidencias corregidas: `reports/SIDEBAR-2026-10-07.md`.
+Cambios previos conservados; sin commit ni push.
+
+## Direcciones españolas opcionales · 07/10/2026
+
+Alta/edición de clientes con CartoCiudad oficial, sin dependencia nueva ni migración.
+Debounce 300 ms, mínimo tres caracteres y país ES; completar dirección/CP/población/
+provincia conserva los valores manuales cuando faltan campos. Sin consulta al abrir
+edición, con teclado accesible y descarte de respuestas obsoletas. Guardado manual
+disponible también sin Internet. Solo sale el texto de dirección; contexto local para
+ranking nacional, caché limitada en memoria y atribución en formulario/Acerca de/licencias.
+
+El escritorio usa trabajos cortos start/result/cancel para no bloquear su canal JSONL
+con la espera de red; el proveedor tampoco retiene SQLite. Verificado guardar mientras
+la consulta permanece pendiente. Sin cambios en listados ni funcionalidad ajena.
+
+Verificación final: **628 pytest (95,52 s) y 96 E2E (149,156 s)**, sin fallos/omitidas/
+reintentos; pip check, typechecks y build correctos. Añadidas 81 pruebas Python y 28 E2E,
+incluidas 16 auditorías Axe y capturas en cuatro anchos y ambos temas. Solo datos sintéticos.
+Consulta manual pública al IGN correcta; ninguna prueba normal depende de Internet.
+No se ha ejecutado Windows/WebView2 ni reconstruido el instalador o sidecar de esta función.
+Detalle, fallos intermedios corregidos y warnings: `reports/DIRECCIONES-2026-10-07.md`.
+Guía de uso y privacidad: `docs/DIRECCIONES.md`. Cambios locales, sin commit ni push.
+
+## Agenda, navegación y cabecera · 07/10/2026
+
+Mes mantiene cuadrados exactos en 320/390/768/1366 px y acceso a todos sus eventos.
+Inicio y Agenda presentan la misma hora Europe/Madrid: corregida la doble conversión
+que mostraba 21:00 para una cita de 19:00. Cabecera sticky y compensación del menú
+de Configuración; salto al contenido accesible con teclado.
+
+Referencias por ID entre clientes, vehículos, documentos, artículos y proveedores,
+también en Inicio, Agenda, histórico, registros fiscales/B2B, conciliación y stock.
+Se conservan snapshots y archivados, sin inferir vínculos ausentes. Confirmación
+de cambios pendientes en editor, evento, movimiento y configuración fiscal.
+`customers.list` añade únicamente los IDs/matrículas usados para navegar; conserva
+la consulta por lote y `plates`. Sin índices nuevos, migraciones ni cambio en búsqueda global.
+
+Avisos Windows con sonido normal/silencio del sistema y clic hacia Agenda mientras
+la aplicación vive o está en bandeja. Registro de entrega con snapshot exacto y
+reintentos sin sonido duplicado; errores visibles. Prueba de sonido respeta preferencia.
+Tipos y clippy del escritorio completo para Windows correctos; **no se han ejecutado
+ni escuchado notificaciones en Windows real**. Instalador y prueba física pendientes.
+
+Verificación final de estas fuentes: **547 pytest correctas (51,22 s), 68 E2E correctas**,
+sin fallos/reintentos, pip check, ambos typechecks y build correctos; cinco pruebas Rust
+y check/clippy Windows. Nuevas medidas/Axe/capturas en cuatro anchos y claro/oscuro.
+Doce comprobaciones sobre copia privada del ensayo; nueve tablas de dominio intactas.
+Los 26 archivos del original permanecen idénticos. Medianas reales Clientes:
+apertura **3,881 ms**, página 10 **4,793 ms**, filtros de nombre/matrícula **1,418/1,343 ms**;
+p95 máximo **5,031 ms**. Sintético 15.000/30.000/60.000: p95 máximo **51,512 ms**.
+
+Detalle: `reports/USABILIDAD-AGENDA-NAVEGACION-2026-10-07.md`, inventario de navegación
+y ensayo nativo enlazados desde él. Cambios locales sobre `6be3445`, sin commit ni push;
+reiniciar la previsualización con `npm run start` para cargar también el backend nuevo.
+
+## Vehículos: presentación y búsqueda · 07/10/2026
+
+La ficha separa sus paneles 24 px y presenta marca/modelo o la descripción original
+conservada en `kind`, también en listado y tarjetas de cliente. Los motivos automáticos
+muestran «Alta desde importación» sin UUID; los motivos manuales y la auditoría interna
+se conservan íntegros. Búsqueda de vehículos ampliada a `kind` manteniendo las coincidencias
+anteriores y contador real del listado. Sin reimportación, migración ni cambios en datos.
+
+Verificado: 532 pytest (51,55 s), 22 dirigidas, typechecks/build y cuatro E2E nuevos;
+13 auditorías Axe sin violaciones a 1024/320 px y claro/oscuro, con medidas de separación
+y revisión de capturas. Ocho comprobaciones sobre copia privada del ensayo real.
+Rendimiento p95: ficha 0,595 ms, listado 2,103 ms, página 10 2,960 ms; filtros hasta
+10,342 ms y Clientes 4,504 ms. El original permanece intacto. Batería de navegador
+completa final: **50 E2E correctas, 86,416 s**, sin reintentos. Contraste reforzado
+en el buscador y auditoría de interfaz sincronizada con el fin real de animaciones,
+sin modificar las reglas de accesibilidad. Evidencia en
+`reports/VEHICULOS-PRESENTACION-2026-10-07.md`.
+Estos cambios quedan locales sobre `6be3445`, conservando el arranque npm anterior;
+para revisarlos, reiniciar el servidor con `npm run start` y recargar el navegador.
+
+## Arranque local con npm · 07/10/2026
+
+Añadido `npm run start`: ejecuta typecheck/build, usa `.venv/bin/python` y abre la web
+local con la copia persistente `${XDG_DATA_HOME:-$HOME/.local/share}/taller-canamo-preview/data`.
+Preparada desde el ensayo completo: 1.595 clientes, 1.290 vehículos y 5.133 históricos.
+La ruta temporal anterior estaba vacía y ya no se utiliza para arrancar. Verificado el
+comando, servicio HTTP, RPC autenticado y páginas 0/10; integridad/FK correctas y origen
+sin cambios. Detalle en `reports/ARRANQUE-LOCAL-2026-10-07.md`. La optimización de Clientes
+ya está en `6be3445`; esta modificación de arranque permanece local, sin commit ni push.
 
 ## Clientes · 07/10/2026
 

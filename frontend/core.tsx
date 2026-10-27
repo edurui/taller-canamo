@@ -363,8 +363,7 @@ export function Button({
     </button>
   );
 }
-export function Badge({ value, children }: Row) {
-  const labels: Row = {
+export const badgeLabels: Row = {
     draft: "Borrador",
     issued: "Emitida",
     historical: "Hist\u00f3rica",
@@ -389,9 +388,10 @@ export function Badge({ value, children }: Row) {
     invalid_local: "Error de validación local",
     superseded: "Sustituido por subsanación",
   };
+export function Badge({ value, children }: Row) {
   return (
     <span className={"badge status-" + value}>
-      {children || labels[value] || value}
+      {children || badgeLabels[value] || value}
     </span>
   );
 }

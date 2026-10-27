@@ -1,6 +1,8 @@
 import { Presence } from "./overlays.js";
 import { Textarea, TextInput } from "./controls.js";
 import * as React from "react";
+import { HistoricalTotal } from "./historical-review.js";
+import { EntityRow, RowActions, SortHeader, useListSort, useListData, nextSort, type ListSort } from "./list-controls.js";
 import {
   Row,
   api,
@@ -18,11 +20,12 @@ import {
   Loading,
   Avatar,
   Pager,
-  money,
   dateText,
   CustomerSearch,
 } from "./core.js";
 import { TextAssistance, ReadImageButton, HistorySearch } from "./assistant.js";
+import { EntityReference } from "./entity-navigation.js";
+import { AddressAutocomplete } from "./address-autocomplete.js";
 
 export function CustomerForm({
   customer,
@@ -112,7 +115,19 @@ export function CustomerForm({
             hint: "Necesario para emitir una factura completa.",
           })}
           {input("email", "Correo electr\u00f3nico", { type: "email" })}
-          <div className="span-2">{input("address", "Direcci\u00f3n")}</div>
+          <div className="span-2">
+            <AddressAutocomplete
+              value={{
+                address: value.address || "",
+                postal_code: value.postal_code || "",
+                city: value.city || "",
+                province: value.province || "",
+                country: value.country || "",
+              }}
+              onChange={patch => setValue(old => ({ ...old, ...patch }))}
+              disabled={busy}
+            />
+          </div>
           {input("postal_code", "C\u00f3digo postal", {
             maxLength: String(value.country).toUpperCase() === "ES" ? 5 : 20,
             inputMode:
@@ -155,6 +170,17 @@ export function CustomerForm({
         </div>
       </form>
     </Modal>
+  );
+}
+function vehicleDescription(vehicle: {
+  make?: string | null;
+  model?: string | null;
+  kind?: string | null;
+}) {
+  return (
+    [vehicle.make?.trim(), vehicle.model?.trim()].filter(Boolean).join(" ") ||
+    vehicle.kind?.trim() ||
+    "Vehículo sin descripción"
   );
 }
 export function VehicleForm({
@@ -304,6 +330,7 @@ type CustomerListItem = {
   tax_id: string;
   legacy_code: string | null;
   plates: string | null;
+  vehicles: { id: string; plate: string }[];
 };
 
 export function CustomersPage({ navigate, notify }: Row) {
@@ -312,15 +339,20 @@ export function CustomersPage({ navigate, notify }: Row) {
     page: 0,
     archived: false,
     revision: 0,
+    sort: null as ListSort,
   });
   const [form, setForm] = useState(false);
+  const [editCustomer, setEditCustomer] = useState<Row | undefined>(undefined);
+  const [archiveCustomer, setArchiveCustomer] = useState<CustomerListItem | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [openingEdit, setOpeningEdit] = useState(false);
   const [result, setResult] = useState<{
     revision: number;
     data: { items: CustomerListItem[]; total: number } | null;
     page: number;
     error: string;
   }>({ revision: -1, data: null, page: 0, error: "" });
-  const { query, page, archived, revision } = request;
+  const { query, page, archived, revision, sort } = request;
   const updateRequest = (change: Partial<Omit<typeof request, "revision">>) =>
     setRequest((previous) => ({
       ...previous,
@@ -333,6 +365,8 @@ export function CustomersPage({ navigate, notify }: Row) {
       query,
       page,
       archived,
+      sort_by: sort?.key || "",
+      sort_direction: sort?.direction || "asc",
     })
       .then((data) => {
         if (current) setResult({ revision, data, page, error: "" });
@@ -348,13 +382,32 @@ export function CustomersPage({ navigate, notify }: Row) {
     return () => {
       current = false;
     };
-  }, [query, page, archived, revision]);
+  }, [query, page, archived, revision, sort?.key, sort?.direction]);
   // Invalidate in the filter's render, including A → B → A before B completes.
   // The last successful table stays mounted, but cannot open obsolete matches.
   const loading = result.revision !== revision;
   const error = loading ? "" : result.error;
   const stale = loading || Boolean(error);
   const data = result.data;
+  function sortBy(key: string) {
+    updateRequest({ page: 0, sort: nextSort(sort, key) });
+  }
+  async function openEdit(customer: CustomerListItem) {
+    setOpeningEdit(true);
+    setActionError("");
+    try {
+      setEditCustomer(await api<Row>("customers.get", { identifier: customer.id }));
+      setForm(true);
+    } catch (failure: any) {
+      setActionError(failure.message);
+    } finally {
+      setOpeningEdit(false);
+    }
+  }
+  function newCustomer() {
+    setEditCustomer(undefined);
+    setForm(true);
+  }
   const count = `${data?.total ?? 0} ${data?.total === 1 ? "cliente" : "clientes"}`;
   const status = loading ? (
     data ? (
@@ -380,7 +433,7 @@ export function CustomersPage({ navigate, notify }: Row) {
         title="Clientes"
         subtitle="Las personas que conf&iacute;an en tu taller."
       >
-        <Button tone="primary" icon="plus" onClick={() => setForm(true)}>
+        <Button tone="primary" icon="plus" onClick={newCustomer} disabled={openingEdit}>
           Nuevo cliente
         </Button>
       </PageHead>
@@ -425,6 +478,7 @@ export function CustomersPage({ navigate, notify }: Row) {
             {status}
           </span>
         </div>
+        {actionError && <Notice tone="error">{actionError}</Notice>}
         {error && (
           <Notice tone="error">
             No se pudo cargar la lista. {error}{" "}
@@ -443,22 +497,16 @@ export function CustomersPage({ navigate, notify }: Row) {
               >
                 <thead>
                   <tr>
-                    <th>Cliente</th>
-                    <th>Tel&eacute;fono</th>
-                    <th>Veh&iacute;culos</th>
-                    <th>NIF / CIF</th>
-                    <th />
+                    <SortHeader label="Cliente" field="name" sort={sort} onSort={sortBy} secondary={{ field: "city", label: "Población" }} />
+                    <SortHeader label="Teléfono" field="phone" sort={sort} onSort={sortBy} />
+                    <SortHeader label="Vehículos" field="plates" sort={sort} onSort={sortBy} />
+                    <SortHeader label="NIF / CIF" field="tax_id" sort={sort} onSort={sortBy} />
+                    <th><span className="sr-only">Acciones</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.items.map((c) => (
-                    <tr
-                      key={c.id}
-                      className={stale ? undefined : "clickable"}
-                      onClick={() => {
-                        if (!stale) navigate("customer", { id: c.id });
-                      }}
-                    >
+                    <EntityRow key={c.id} disabled={stale} onOpen={() => navigate("customer", { id: c.id })}>
                       <td>
                         <button
                           className="row-link"
@@ -476,12 +524,32 @@ export function CustomersPage({ navigate, notify }: Row) {
                         </button>
                       </td>
                       <td className="nowrap">{c.phone || "\u2014"}</td>
-                      <td>{c.plates || "Sin veh\u00edculo"}</td>
+                      <td>
+                        {c.vehicles.length
+                          ? c.vehicles.map((vehicle, index) => (
+                              <React.Fragment key={vehicle.id}>
+                                {index > 0 && ", "}
+                                <EntityReference
+                                  entity="vehicle"
+                                  id={vehicle.id}
+                                  navigate={navigate}
+                                  disabled={stale}
+                                >
+                                  {vehicle.plate}
+                                </EntityReference>
+                              </React.Fragment>
+                            ))
+                          : "Sin vehículo"}
+                      </td>
                       <td className="subtle">{c.tax_id || "Pendiente"}</td>
                       <td>
-                        <Icon name="right" size={16} />
+                        <RowActions label={c.name} disabled={stale || openingEdit} items={[
+                          { label: "Ver ficha", onSelect: () => navigate("customer", { id: c.id }), disabled: stale },
+                          { label: "Editar cliente", onSelect: () => void openEdit(c), disabled: stale || openingEdit },
+                          { label: archived ? "Recuperar cliente" : "Archivar cliente", onSelect: () => setArchiveCustomer(c), disabled: stale },
+                        ]} />
                       </td>
-                    </tr>
+                    </EntityRow>
                   ))}
                 </tbody>
               </table>
@@ -500,7 +568,7 @@ export function CustomersPage({ navigate, notify }: Row) {
                   : "A\u00f1ade tu primer cliente. Despu\u00e9s podr\u00e1s importar los de Access."
               }
             >
-              <Button tone="primary" icon="plus" onClick={() => setForm(true)}>
+              <Button tone="primary" icon="plus" onClick={newCustomer} disabled={openingEdit}>
                 A&ntilde;adir cliente
               </Button>
             </Empty>
@@ -533,6 +601,7 @@ export function CustomersPage({ navigate, notify }: Row) {
       <Presence>
         {form && (
           <CustomerForm
+            customer={editCustomer}
             onClose={() => setForm(false)}
             onSaved={(c) => {
               setForm(false);
@@ -543,6 +612,18 @@ export function CustomersPage({ navigate, notify }: Row) {
           />
         )}
       </Presence>
+      <Presence>{archiveCustomer && (
+        <Confirm
+          title={archived ? "Recuperar cliente" : "Archivar cliente"}
+          text={`El historial de ${archiveCustomer.name} se conserva. Un cliente archivado deja de aparecer en el buscador diario.`}
+          confirm={archived ? "Recuperar" : "Archivar"}
+          onClose={() => setArchiveCustomer(null)}
+          onConfirm={async () => {
+            await api("customers.archive", { identifier: archiveCustomer.id, archived: !archived });
+            updateRequest({ page: 0 });
+          }}
+        />
+      )}</Presence>
     </>
   );
 }
@@ -553,15 +634,17 @@ export function CustomerPage({ id, vehicleId, navigate, notify }: Row) {
     [vehicle, setVehicle] = useState<Row | null>(null),
     [archive, setArchive] = useState(false),
     [selected, setSelected] = useState(vehicleId || "");
+  const { sort, toggle } = useListSort();
+  const sortBy = (key: string) => { toggle(key); setHistoryPage(0); };
   const [customer, loading, error] = useLoad<Row | null>(
     "customers.get",
     { identifier: id },
     null,
     tick,
   );
-  const [docs, historyLoading, historyError] = useLoad<Row>(
+  const [docs, historyLoading, historyError, historyStale] = useListData<Row>(
     "documents.list",
-    { customer_id: id, vehicle_id: selected || null, page: historyPage },
+    { customer_id: id, vehicle_id: selected || null, page: historyPage, sort_by: sort?.key || "", sort_direction: sort?.direction || "asc" },
     { items: [], total: 0 },
     tick,
   );
@@ -687,9 +770,7 @@ export function CustomerPage({ id, vehicleId, navigate, notify }: Row) {
                       }
                     >
                       <span className="plate">{v.plate}</span>
-                      <strong>
-                        {v.make} {v.model}
-                      </strong>
+                      <strong>{vehicleDescription(v)}</strong>
                       <small>
                         {Number(v.km).toLocaleString("es-ES")} km{" "}
                         {v.itv_date && "\u00b7 ITV " + dateText(v.itv_date)}
@@ -722,46 +803,40 @@ export function CustomerPage({ id, vehicleId, navigate, notify }: Row) {
               )}
             </div>
             {historyError && <Notice tone="error">{historyError}</Notice>}
-            {historyLoading ? (
+            {historyStale && docs.items.length > 0 && <p className="padded subtle" role="status">{historyLoading ? "Actualizando historial…" : "Resultados anteriores del historial."}</p>}
+            {historyLoading && !docs.items.length ? (
               <Loading />
             ) : docs.items.length ? (
               <div className="table-scroll">
-                <table>
+                <table aria-busy={historyLoading}>
                   <thead>
                     <tr>
-                      <th>Factura</th>
-                      <th>Fecha</th>
-                      <th>Matr&iacute;cula</th>
-                      <th className="right">Importe</th>
-                      <th />
+                      <SortHeader label="Factura" field="full_number" sort={sort} onSort={sortBy} />
+                      <SortHeader label="Fecha" field="issue_date" sort={sort} onSort={sortBy} />
+                      <SortHeader label="Matrícula" field="plate" sort={sort} onSort={sortBy} />
+                      <SortHeader label="Importe" field="total_cents" className="right" sort={sort} onSort={sortBy} />
+                      <th><span className="sr-only">Acciones</span></th>
                     </tr>
                   </thead>
                   <tbody>
                     {docs.items.map((d: Row) => (
-                      <tr
-                        key={d.id}
-                        className="clickable"
-                        onClick={() =>
-                          navigate("editor", { id: d.id, kind: "invoice" })
-                        }
-                      >
+                      <EntityRow key={d.id} disabled={historyStale} onOpen={() => navigate("editor", { id: d.id, kind: "invoice" })}>
                         <td>
-                          <button
-                            className="text-button"
-                            onClick={() =>
-                              navigate("editor", { id: d.id, kind: "invoice" })
-                            }
-                          >
+                          <EntityReference entity="document" id={d.id} navigate={navigate} disabled={historyStale}>
                             {d.full_number || "Borrador"}
-                          </button>
+                          </EntityReference>
                         </td>
                         <td>{dateText(d.issue_date)}</td>
-                        <td>{d.plate || "\u2014"}</td>
-                        <td className="right amount">{money(d.total_cents)}</td>
                         <td>
-                          <Icon name="right" size={16} />
+                          <EntityReference entity="vehicle" id={d.vehicle_id} navigate={navigate} disabled={historyStale}>
+                            {d.plate || (d.vehicle_id ? "Vehículo sin matrícula conservada" : "—")}
+                          </EntityReference>
                         </td>
-                      </tr>
+                        <td className="right amount"><HistoricalTotal total={d.total_cents} review={d.historical_review} /></td>
+                        <td><RowActions disabled={historyStale} label={d.full_number || "borrador"} items={[
+                          { label: "Abrir factura", onSelect: () => navigate("editor", { id: d.id, kind: "invoice" }) },
+                        ]} /></td>
+                      </EntityRow>
                     ))}
                   </tbody>
                 </table>
@@ -821,13 +896,18 @@ export function CustomerPage({ id, vehicleId, navigate, notify }: Row) {
     </>
   );
 }
-export function VehiclesPage({ navigate }: Row) {
+export function VehiclesPage({ navigate, notify }: Row) {
+  const [editVehicle, setEditVehicle] = useState<Row | null>(null);
+  const [tick, setTick] = useState(0);
+  const { sort, toggle } = useListSort();
+  const sortBy = (key: string) => { toggle(key); setPage(0); };
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [data, loading, error] = useLoad<Row>(
+  const [data, loading, error, stale] = useListData<Row>(
     "vehicles.page",
-    { query, page },
+    { query, page, sort_by: sort?.key || "", sort_direction: sort?.direction || "asc" },
     { items: [], total: 0 },
+    tick,
   );
   const rows = data.items as Row[];
   return (
@@ -850,10 +930,13 @@ export function VehiclesPage({ navigate }: Row) {
               }}
             />
           </div>
-          <span className="subtle">Hasta 300 coincidencias</span>
+          <span className="subtle">
+            {data.total} {data.total === 1 ? "vehículo" : "vehículos"}
+          </span>
         </div>
         {error && <Notice tone="error">{error}</Notice>}
-        {loading ? (
+        {stale && rows.length > 0 && <p className="padded subtle" role="status">{loading ? "Actualizando vehículos…" : "Resultados anteriores de vehículos."}</p>}
+        {loading && !rows.length ? (
           <Loading />
         ) : !rows.length ? (
           <Empty
@@ -863,34 +946,41 @@ export function VehiclesPage({ navigate }: Row) {
           />
         ) : (
           <div className="table-scroll">
-            <table>
+            <table aria-busy={loading}>
               <thead>
                 <tr>
-                  <th>Matr&iacute;cula</th>
-                  <th>Veh&iacute;culo</th>
-                  <th>Cliente</th>
-                  <th>Tel&eacute;fono</th>
-                  <th>Kil&oacute;metros</th>
+                  <SortHeader label="Matrícula" field="plate" sort={sort} onSort={sortBy} />
+                  <SortHeader label="Vehículo" field="description" sort={sort} onSort={sortBy} />
+                  <SortHeader label="Cliente" field="customer_name" sort={sort} onSort={sortBy} />
+                  <SortHeader label="Teléfono" field="phone" sort={sort} onSort={sortBy} />
+                  <SortHeader label="Kilómetros" field="km" sort={sort} onSort={sortBy} />
+                  <th><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((v) => (
-                  <tr key={v.id}>
+                  <EntityRow key={v.id} disabled={stale} onOpen={() => navigate("vehicle", { id: v.id })}>
                     <td>
-                      <button
-                        className="plate text-button"
-                        onClick={() => navigate("vehicle", { id: v.id })}
-                      >
+                      <EntityReference entity="vehicle" id={v.id} navigate={navigate} disabled={stale} className="plate">
                         {v.plate}
-                      </button>
+                      </EntityReference>
+                    </td>
+                    <td className="vehicle-description">
+                      {vehicleDescription(v)}
                     </td>
                     <td>
-                      {v.make} {v.model}
+                      <EntityReference entity="customer" id={v.customer_id} navigate={navigate} disabled={stale}>
+                        {v.customer_name}
+                      </EntityReference>
                     </td>
-                    <td>{v.customer_name}</td>
                     <td>{v.phone || "\u2014"}</td>
                     <td>{Number(v.km).toLocaleString("es-ES")}</td>
-                  </tr>
+                    <td><RowActions disabled={stale} label={v.plate} items={[
+                      { label: "Ver ficha", onSelect: () => navigate("vehicle", { id: v.id }) },
+                      { label: "Editar vehículo", onSelect: () => setEditVehicle(v) },
+                      { label: "Ver titular", onSelect: () => navigate("customer", { id: v.customer_id }) },
+                    ]} /></td>
+                  </EntityRow>
                 ))}
               </tbody>
             </table>
@@ -898,13 +988,31 @@ export function VehiclesPage({ navigate }: Row) {
         )}
         <Pager page={page} total={data.total} onChange={setPage} />
       </section>
+      <Presence>{editVehicle && (
+        <VehicleForm
+          customerId={editVehicle.customer_id}
+          vehicle={editVehicle}
+          onClose={() => setEditVehicle(null)}
+          onSaved={() => { setEditVehicle(null); setTick(value => value + 1); notify("Vehículo guardado"); }}
+        />
+      )}</Presence>
     </>
   );
+}
+
+function ownershipReason(reason: string) {
+  return /^Importación: [0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(
+    reason,
+  )
+    ? "Alta desde importación"
+    : reason;
 }
 
 export function VehiclePage({ id, navigate, notify }: Row) {
   const [tick, setTick] = useState(0);
   const [page, setPage] = useState(0);
+  const { sort, toggle } = useListSort();
+  const sortBy = (key: string) => { toggle(key); setPage(0); };
   const [transfer, setTransfer] = useState(false);
   const [owner, setOwner] = useState<Row | null>(null);
   const [reason, setReason] = useState("");
@@ -916,9 +1024,9 @@ export function VehiclePage({ id, navigate, notify }: Row) {
     null,
     tick,
   );
-  const [history] = useLoad<Row>(
+  const [history, historyLoading, historyError, historyStale] = useListData<Row>(
     "documents.list",
-    { vehicle_id: id, page },
+    { vehicle_id: id, page, sort_by: sort?.key || "", sort_direction: sort?.direction || "asc" },
     { items: [], total: 0 },
     tick,
   );
@@ -934,7 +1042,11 @@ export function VehiclePage({ id, navigate, notify }: Row) {
       </button>
       <PageHead
         title={vehicle.plate}
-        subtitle={`${vehicle.make} ${vehicle.model}`}
+        subtitle={
+          <span className="vehicle-description">
+            {vehicleDescription(vehicle)}
+          </span>
+        }
       >
         <Button
           onClick={() =>
@@ -945,150 +1057,172 @@ export function VehiclePage({ id, navigate, notify }: Row) {
         </Button>
       </PageHead>
       <HistorySearch vehicleId={id} navigate={navigate} />
-      <section className="panel padded">
-        <h2>Titular actual</h2>
-        <p>
-          {vehicle.customer_name} ·{" "}
-          <strong>{vehicle.phone || "Sin teléfono"}</strong>
-        </p>
-        <p>{Number(vehicle.km).toLocaleString("es-ES")} km</p>
-        <Button
-          onClick={() => {
-            setOwner(null);
-            setReason("");
-            setError("");
-            setTransfer(true);
-          }}
-        >
-          Cambiar propietario
-        </Button>
-      </section>
-      <section className="panel padded">
-        <h2>Historial de titularidad</h2>
-        <ul>
-          {vehicle.owners.map((entry: Row) => (
-            <li key={entry.id}>
-              {entry.customer_name} · {dateText(entry.from_date)} —{" "}
-              {entry.until_date ? dateText(entry.until_date) : "Actual"}
-              {entry.reason && ` · ${entry.reason}`}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="panel">
-        <div className="section-head">
-          <h2>Facturas del vehículo</h2>
-        </div>
-        <p className="padded">
-          Cada documento conserva el cliente y la matrícula de su emisión,
-          aunque cambie el propietario.
-        </p>
-        {history.items.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Documento</th>
-                  <th>Fecha</th>
-                  <th>Cliente al emitir</th>
-                  <th>Matrícula al emitir</th>
-                  <th className="right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.items.map((document: Row) => (
-                  <tr key={document.id}>
-                    <td>
-                      <button
-                        className="text-button"
-                        onClick={() =>
-                          navigate("editor", {
-                            id: document.id,
-                            kind: "invoice",
-                          })
-                        }
-                      >
-                        {document.full_number || "Borrador"}
-                      </button>
-                    </td>
-                    <td>{dateText(document.issue_date)}</td>
-                    <td>{document.customer_name}</td>
-                    <td>{document.plate}</td>
-                    <td className="right">{money(document.total_cents)}</td>
+      <div className="vehicle-detail">
+        <section className="panel padded vehicle-owner-card">
+          <h2>Titular actual</h2>
+          <p>
+            <EntityReference entity="customer" id={vehicle.customer_id} navigate={navigate}>
+              {vehicle.customer_name}
+            </EntityReference> ·{" "}
+            <strong>{vehicle.phone || "Sin teléfono"}</strong>
+          </p>
+          <p>{Number(vehicle.km).toLocaleString("es-ES")} km</p>
+          <Button
+            onClick={() => {
+              setOwner(null);
+              setReason("");
+              setError("");
+              setTransfer(true);
+            }}
+          >
+            Cambiar propietario
+          </Button>
+        </section>
+        <section className="panel padded vehicle-owner-card">
+          <h2>Historial de titularidad</h2>
+          <ul className="vehicle-owners">
+            {vehicle.owners.map((entry: Row) => (
+              <li key={entry.id}>
+                <EntityReference entity="customer" id={entry.customer_id} navigate={navigate}>
+                  {entry.customer_name}
+                </EntityReference> · {dateText(entry.from_date)} —{" "}
+                {entry.until_date ? dateText(entry.until_date) : "Actual"}
+                {entry.reason && (
+                  <span className="vehicle-owner-reason">
+                    {" "}
+                    · {ownershipReason(entry.reason)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="panel">
+          <div className="section-head">
+            <h2>Facturas del vehículo</h2>
+          </div>
+          <p className="padded">
+            Cada documento conserva el cliente y la matrícula de su emisión,
+            aunque cambie el propietario.
+          </p>
+          {historyError && <Notice tone="error">{historyError}</Notice>}
+          {historyStale && history.items.length > 0 && <p className="padded subtle" role="status">{historyLoading ? "Actualizando historial…" : "Resultados anteriores del historial."}</p>}
+          {historyLoading && !history.items.length ? <Loading /> : history.items.length ? (
+            <div className="table-scroll">
+              <table aria-busy={historyLoading}>
+                <thead>
+                  <tr>
+                    <SortHeader label="Documento" field="full_number" sort={sort} onSort={sortBy} />
+                    <SortHeader label="Fecha" field="issue_date" sort={sort} onSort={sortBy} />
+                    <SortHeader label="Cliente al emitir" field="customer_name" sort={sort} onSort={sortBy} />
+                    <SortHeader label="Matrícula al emitir" field="plate" sort={sort} onSort={sortBy} />
+                    <SortHeader label="Total" field="total_cents" className="right" sort={sort} onSort={sortBy} />
+                    <th><span className="sr-only">Acciones</span></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty title="Este vehículo aún no tiene facturas" />
-        )}
-        <Pager page={page} total={history.total} onChange={setPage} />
-      </section>
-      <Presence>{transfer && (
-        <Modal
-          title="Cambiar propietario"
-          onClose={() => !busy && setTransfer(false)}
-        >
-          <Notice>
-            Las facturas anteriores permanecen con su cliente original. El nuevo
-            titular se utilizará para trabajos nuevos.
-          </Notice>
-          <CustomerSearch
-            placeholder="Buscar nuevo propietario"
-            onSelect={(value) => setOwner(value)}
-          />
-          {owner && (
-            <p>
-              Nuevo titular: <strong>{owner.name}</strong>
-            </p>
+                </thead>
+                <tbody>
+                  {history.items.map((document: Row) => (
+                    <EntityRow key={document.id} disabled={historyStale} onOpen={() => navigate("editor", { id: document.id, kind: "invoice" })}>
+                      <td>
+                        <EntityReference entity="document" id={document.id} navigate={navigate} disabled={historyStale}>
+                          {document.full_number || "Borrador"}
+                        </EntityReference>
+                      </td>
+                      <td>{dateText(document.issue_date)}</td>
+                      <td>
+                        <EntityReference entity="customer" id={document.customer_id} navigate={navigate} disabled={historyStale}>
+                          {document.customer_name?.trim() || document.current_customer_name || "Cliente no disponible"}
+                        </EntityReference>
+                        {!document.customer_name?.trim() && document.current_customer_name && (
+                          <small className="block subtle">Ficha actual</small>
+                        )}
+                      </td>
+                      <td>
+                        <EntityReference entity="vehicle" id={document.vehicle_id} navigate={navigate} disabled={historyStale}>
+                          {document.plate || (document.vehicle_id ? "Vehículo sin matrícula conservada" : "—")}
+                        </EntityReference>
+                      </td>
+                      <td className="right"><HistoricalTotal total={document.total_cents} review={document.historical_review} /></td>
+                      <td><RowActions disabled={historyStale} label={document.full_number || "borrador"} items={[
+                        { label: "Abrir factura", onSelect: () => navigate("editor", { id: document.id, kind: "invoice" }) },
+                      ]} /></td>
+                    </EntityRow>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty title="Este vehículo aún no tiene facturas" />
           )}
-          <Input
-            label="Motivo del cambio de propietario"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            maxLength={500}
-          />
-          {error && <Notice tone="error">{error}</Notice>}
-          <div className="form-actions">
-            <Button onClick={() => setTransfer(false)} disabled={busy}>
-              Cancelar
-            </Button>
-            <Button
-              tone="primary"
-              busy={busy}
-              disabled={
-                !owner ||
-                owner.customer_id === vehicle.customer_id ||
-                !reason.trim()
-              }
-              onClick={async () => {
-                setBusy(true);
-                setError("");
-                try {
-                  await api("vehicles.transfer", {
-                    identifier: id,
-                    customer_id: owner!.customer_id,
-                    reason,
-                    expected_version: vehicle.version,
-                  });
-                  setTransfer(false);
-                  setTick((t) => t + 1);
-                  notify(
-                    "Titular actualizado. El historial anterior se conserva.",
-                  );
-                } catch (e: unknown) {
-                  setError(e instanceof Error ? e.message : String(e));
-                } finally {
-                  setBusy(false);
+          <Pager page={page} total={history.total} onChange={setPage} />
+        </section>
+      </div>
+      <Presence>
+        {transfer && (
+          <Modal
+            title="Cambiar propietario"
+            onClose={() => !busy && setTransfer(false)}
+          >
+            <Notice>
+              Las facturas anteriores permanecen con su cliente original. El
+              nuevo titular se utilizará para trabajos nuevos.
+            </Notice>
+            <CustomerSearch
+              placeholder="Buscar nuevo propietario"
+              onSelect={(value) => setOwner(value)}
+            />
+            {owner && (
+              <p>
+                Nuevo titular: <strong>{owner.name}</strong>
+              </p>
+            )}
+            <Input
+              label="Motivo del cambio de propietario"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+            />
+            {error && <Notice tone="error">{error}</Notice>}
+            <div className="form-actions">
+              <Button onClick={() => setTransfer(false)} disabled={busy}>
+                Cancelar
+              </Button>
+              <Button
+                tone="primary"
+                busy={busy}
+                disabled={
+                  !owner ||
+                  owner.customer_id === vehicle.customer_id ||
+                  !reason.trim()
                 }
-              }}
-            >
-              Confirmar cambio de titular
-            </Button>
-          </div>
-        </Modal>
-      )}</Presence>
+                onClick={async () => {
+                  setBusy(true);
+                  setError("");
+                  try {
+                    await api("vehicles.transfer", {
+                      identifier: id,
+                      customer_id: owner!.customer_id,
+                      reason,
+                      expected_version: vehicle.version,
+                    });
+                    setTransfer(false);
+                    setTick((t) => t + 1);
+                    notify(
+                      "Titular actualizado. El historial anterior se conserva.",
+                    );
+                  } catch (e: unknown) {
+                    setError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Confirmar cambio de titular
+              </Button>
+            </div>
+          </Modal>
+        )}
+      </Presence>
     </>
   );
 }

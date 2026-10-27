@@ -30,6 +30,21 @@ async function audit(
   info: import("@playwright/test").TestInfo,
   name: string,
 ) {
+  // Audit the settled UI without disabling its entrance/hover transitions.
+  // Infinite spinners never finish; canceled finite animations are harmless.
+  await page.evaluate(async () => {
+    while (true) {
+      const animations = document.getAnimations().filter(
+        (animation) =>
+          animation.playState === "running" &&
+          Number.isFinite(animation.effect?.getComputedTiming().endTime),
+      );
+      if (!animations.length) return;
+      await Promise.all(
+        animations.map((animation) => animation.finished.catch(() => undefined)),
+      );
+    }
+  });
   const result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();

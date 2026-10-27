@@ -142,13 +142,12 @@ test("puntero mueve y redimensiona; teclado confirma fechas en una vista estrech
     { steps: 8 },
   );
   await page.mouse.up();
-  let dialog = page.getByRole("dialog", { name: "Editar evento", exact: true });
-  await expect(
-    dialog.getByRole("textbox", { name: "Comienza", exact: true }),
-  ).toHaveValue("2026-09-24T10:00");
-  await dialog.getByRole("button", { name: "Guardar evento" }).click();
+  const dialog = page.getByRole("dialog", { name: "Editar evento", exact: true });
   await expect(dialog).toBeHidden();
   await expect(move).toContainText("10:00 – 11:00");
+  await expect.poll(async () => (await rpc<Event>("agenda.get", { identifier: created.id })).start)
+    .toBe("2026-09-24T08:00:00+00:00");
+  await expect(move).toBeEnabled();
   await page.getByRole("button", { name: "Cerrar aviso", exact: true }).click();
   const resize = page.getByRole("button", {
     name: "Cambiar duración de Cita arrastrable",
@@ -166,12 +165,11 @@ test("puntero mueve y redimensiona; teclado confirma fechas en una vista estrech
     { steps: 4 },
   );
   await page.mouse.up();
-  dialog = page.getByRole("dialog", { name: "Editar evento", exact: true });
-  await expect(
-    dialog.getByRole("textbox", { name: "Termina", exact: true }),
-  ).toHaveValue("2026-09-24T11:30");
-  await dialog.getByRole("button", { name: "Guardar evento" }).click();
   await expect(dialog).toBeHidden();
+  await expect(move).toContainText("10:00 – 11:30");
+  await expect.poll(async () => (await rpc<Event>("agenda.get", { identifier: created.id })).end)
+    .toBe("2026-09-24T09:30:00+00:00");
+  await expect(move).toBeEnabled();
   await move.focus();
   await page.keyboard.press("Enter");
   await dialog

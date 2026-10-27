@@ -8,6 +8,8 @@ from .errors import require, AppError
 from .money import calculate, decimal, cents, canonical_tax_rate, normalize_tax_adjustments
 from .validation import today, now, iso_date, valid_tax_id, normalized, plate
 from .settings import Settings
+from .historical_reviews import synchronize_defaults, current_review
+from .sorting import order_by, text_order, label_order, STATUS_LABELS
 
 METHODS = ('cash','card','transfer','bizum','other')
 IMMUTABLE = ('issued','historical','void')
@@ -16,6 +18,20 @@ _CUSTOMER_SNAPSHOT_FIELDS = ('id','legacy_code','name','tax_id','address','posta
 AMOUNTS_KNOWN_SQL = "(d.base_cents IS NOT NULL AND d.tax_cents IS NOT NULL AND d.total_cents IS NOT NULL)"
 PAYMENT_KNOWN_SQL = "(d.total_cents IS NOT NULL AND (d.status NOT IN ('historical','import_reverted') OR coalesce(json_extract(d.payload,'$.payment_state'),'unknown') != 'unknown' OR EXISTS(SELECT 1 FROM document_payment_baselines b WHERE b.document_id=d.id)))"
 PAID_SQL = "(coalesce((SELECT b.paid_cents FROM document_payment_baselines b WHERE b.document_id=d.id),0)+coalesce((SELECT sum(p.amount_cents) FROM payments p WHERE p.document_id=d.id),0))"
+_LIST_SORT = {key: text_order('d.' + key) for key in ('full_number', 'plate')}
+_LIST_SORT.update(issue_date="nullif(d.issue_date,'')", due_date="nullif(d.due_date,'')",
+    customer_name=text_order("coalesce(nullif(trim(d.customer_name),''),d.current_customer_name)"),
+    status=label_order('d.status', STATUS_LABELS), total_cents='d.total_cents')
+_REVIEW_TOTAL_SORT = '''CASE WHEN d.total_cents IS NOT NULL THEN d.total_cents
+    WHEN hr.state IN ('estimated','verified') AND json_extract(hr.payload,'$.base_cents') IS NOT NULL
+         AND json_extract(hr.payload,'$.tax_cents') IS NOT NULL
+         AND json_extract(hr.payload,'$.total_cents') IS NOT NULL
+    THEN json_extract(hr.payload,'$.total_cents') END'''
+_BALANCE_KNOWN_SORT = '''(d.total_cents IS NOT NULL AND
+    (d.status NOT IN ('historical','import_reverted') OR
+     coalesce(json_extract(d.payload,'$.payment_state'),'unknown')!='unknown' OR balance_base.document_id IS NOT NULL))'''
+_BALANCE_PAID_SORT = '(coalesce(balance_base.paid_cents,0)+coalesce(balance_payments.paid_cents,0))'
+_PENDING_SORT = "CASE WHEN d.status IN ('issued','historical') AND "+_BALANCE_KNOWN_SORT+' THEN d.total_cents-'+_BALANCE_PAID_SORT+' END'
 
 
 def _historical_availability(document):
@@ -27,6 +43,8 @@ def _historical_availability(document):
     provenance = payload.get('amounts_provenance', document.get('amounts_provenance') or {})
     document['amounts_provenance'] = json.loads(provenance) if isinstance(provenance,str) else provenance
     document['can_rectify'] = document['kind'] == 'invoice' and document['status'] in ('issued','historical') and document['amounts_state'] == 'known' and bool(document['issue_date'])
+    review = document.get('historical_review')
+    document['historical_review'] = json.loads(review) if isinstance(review, str) else review
     return document
 
 
@@ -37,8 +55,10 @@ def _is_test_document(environment):
 
 # The same identity must be used for detail, count, filtering and pagination.
 # An absent vehicle snapshot intentionally stays absent after publication.
+# The current customer is separate from the snapshot; UI/search use its name only
+# when no original name was preserved. Never backfill the immutable payload.
 _SNAPSHOT_IDENTITY = "(d.status IN ('issued','historical','void') OR (d.status!='draft' AND json_type(d.payload,'$.customer')='object'))"
-_DOCUMENT_ROWS = f'''(SELECT d.*,
+_DOCUMENT_ROWS = f'''(SELECT d.*,c.name AS current_customer_name,
     CASE WHEN {_SNAPSHOT_IDENTITY} THEN json_extract(d.payload,'$.customer.name') ELSE c.name END AS customer_name,
     CASE WHEN {_SNAPSHOT_IDENTITY} OR (d.reference_id IS NOT NULL AND json_type(d.payload,'$.vehicle') IS NOT NULL)
         THEN json_extract(d.payload,'$.vehicle.plate') ELSE v.plate END AS plate
@@ -54,11 +74,14 @@ class Documents:
         if conn is None:
             with self.db.read() as current:
                 return self.get(identifier,current)
+        synchronize_defaults(conn)
         row = conn.execute('SELECT d.* FROM '+_DOCUMENT_ROWS+' WHERE d.id=?',(identifier,)).fetchone()
         require(row, 'No se encuentra el documento.', 'not_found')
         result = dict(row)
         result['payload'] = json.loads(row['payload'])
         _historical_availability(result)
+        if result['kind'] == 'invoice' and result['status'] in ('historical','import_reverted') and result['amounts_state'] != 'known':
+            result['historical_review'] = current_review(conn, identifier, history=True)
         result['payments'] = [dict(p) for p in conn.execute('SELECT * FROM payments WHERE document_id=? ORDER BY created_at',(identifier,))]
         baseline = conn.execute('SELECT * FROM document_payment_baselines WHERE document_id=?',(identifier,)).fetchone()
         result['payment_baseline'] = dict(baseline) if baseline else None
@@ -75,8 +98,14 @@ class Documents:
         result['fiscal_status'] = dict(status) if status else None
         return result
 
-    def list(self,kind='invoice',query='',customer_id=None,vehicle_id=None,status='',page=0):
+    def list(self,kind='invoice',query='',customer_id=None,vehicle_id=None,status='',page=0,review_state='',sort_by='',sort_direction='asc'):
         require(kind in ('invoice','quote','order'), 'Tipo no admitido.')
+        require(review_state in ('','pending_review','estimated','verified'), 'Estado de revisión histórica no válido.')
+        columns = {**_LIST_SORT, 'total_cents': _REVIEW_TOTAL_SORT} if kind == 'invoice' else _LIST_SORT
+        if sort_by == 'pending_cents':
+            columns = {**columns, 'pending_cents': _PENDING_SORT}
+        ordering = order_by(sort_by, sort_direction, columns,
+                            default='d.issue_date DESC,d.created_at DESC,d.id DESC', tie='d.id ASC')
         condition,params = ["d.kind=?", "d.status!='import_reverted'"],[kind]
         if customer_id:
             condition.append('d.customer_id=?');params.append(customer_id)
@@ -85,7 +114,7 @@ class Documents:
         if status:
             condition.append('d.status=?');params.append(status)
         if query:
-            text_match = "normalized(coalesce(d.full_number,'')||' '||coalesce(d.customer_name,'')||' '||coalesce(d.plate,'')) LIKE ? ESCAPE '\\'"
+            text_match = "normalized(coalesce(d.full_number,'')||' '||coalesce(nullif(trim(d.customer_name),''),d.current_customer_name,'')||' '||coalesce(d.plate,'')) LIKE ? ESCAPE '\\'"
             q = normalized(query).replace('\\','\\\\').replace('%','\\%').replace('_','\\_')
             params.append('%'+q+'%')
             compact = plate(query)
@@ -94,11 +123,29 @@ class Documents:
                 params.append('%'+compact+'%')
             else:
                 condition.append(text_match)
-        joins = ' FROM '+_DOCUMENT_ROWS+' WHERE '+' AND '.join(condition)
+        review_join = ' LEFT JOIN historical_review_current hr ON hr.document_id=d.id' if kind == 'invoice' else ''
+        review_field = 'hr.payload' if kind == 'invoice' else 'NULL'
+        if review_state:
+            condition.append("d.status='historical'")
+            if kind == 'invoice':
+                condition.append('hr.state=?');params.append(review_state)
+            else:
+                condition.append('0')
+        joins = ' FROM '+_DOCUMENT_ROWS+review_join+' WHERE '+' AND '.join(condition)
+        # Global balance ordering must not scan payments for every candidate.
+        # Aggregate once only when requested; default and other sorts retain
+        # their existing receipt expressions and query plan.
+        balance_join = ''' LEFT JOIN document_payment_baselines balance_base ON balance_base.document_id=d.id
+            LEFT JOIN (SELECT document_id,sum(amount_cents) AS paid_cents FROM payments GROUP BY document_id)
+            balance_payments ON balance_payments.document_id=d.id''' if sort_by == 'pending_cents' else ''
+        list_joins = ' FROM '+_DOCUMENT_ROWS+review_join+balance_join+' WHERE '+' AND '.join(condition)
+        payment_known = _BALANCE_KNOWN_SORT if sort_by == 'pending_cents' else PAYMENT_KNOWN_SQL
+        paid = _BALANCE_PAID_SORT if sort_by == 'pending_cents' else PAID_SQL
         with self.db.read() as conn:
+            synchronize_defaults(conn)
             conn.create_function('normalized_plate',1,plate,deterministic=True)
             total = conn.execute('SELECT count(*)'+joins,params).fetchone()[0]
-            rows = conn.execute("SELECT d.id,d.kind,d.status,d.issue_date,d.due_date,d.full_number,d.customer_id,d.vehicle_id,d.total_cents,d.base_cents,d.tax_cents,d.version,d.customer_name,d.plate,coalesce(json_extract(d.payload,'$.date_state'),'unknown') AS date_state,json_extract(d.payload,'$.amounts_provenance') AS amounts_provenance,"+PAYMENT_KNOWN_SQL+" AS payment_known, CASE WHEN "+PAYMENT_KNOWN_SQL+" THEN "+PAID_SQL+" ELSE NULL END AS paid_cents,(SELECT o.status FROM fiscal_records r JOIN fiscal_outbox o ON o.record_id=r.id WHERE r.document_id=d.id ORDER BY r.seq DESC LIMIT 1) AS fiscal_state"+joins+' ORDER BY d.issue_date DESC,d.created_at DESC,d.id DESC LIMIT 50 OFFSET ?',(*params,max(0,int(page))*50))
+            rows = conn.execute("SELECT d.id,d.kind,d.status,d.issue_date,d.due_date,d.full_number,d.customer_id,d.vehicle_id,d.total_cents,d.base_cents,d.tax_cents,d.version,d.customer_name,d.current_customer_name,d.plate,"+review_field+" AS historical_review,coalesce(json_extract(d.payload,'$.date_state'),'unknown') AS date_state,json_extract(d.payload,'$.amounts_provenance') AS amounts_provenance,"+payment_known+" AS payment_known, CASE WHEN "+payment_known+" THEN "+paid+" ELSE NULL END AS paid_cents,(SELECT o.status FROM fiscal_records r JOIN fiscal_outbox o ON o.record_id=r.id WHERE r.document_id=d.id ORDER BY r.seq DESC LIMIT 1) AS fiscal_state"+list_joins+' ORDER BY '+ordering+' LIMIT 50 OFFSET ?',(*params,max(0,int(page))*50))
             return {'items':[_historical_availability(dict(r)) for r in rows],'total':total,'page':page}
 
     def save(self,data):

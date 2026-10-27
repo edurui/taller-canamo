@@ -7,9 +7,9 @@ import hashlib
 import sqlite3
 from datetime import datetime, timezone
 
-from . import v0002_fiscal, v0003_import_history, v0004_wire_evidence, v0005_agenda_exceptions, v0006_b2b, v0007_b2b_source_files, v0008_partial_history
+from . import v0002_fiscal, v0003_import_history, v0004_wire_evidence, v0005_agenda_exceptions, v0006_b2b, v0007_b2b_source_files, v0008_partial_history, v0009_historical_reviews
 
-MIGRATIONS = (v0002_fiscal,v0003_import_history,v0004_wire_evidence,v0005_agenda_exceptions,v0006_b2b,v0007_b2b_source_files,v0008_partial_history)
+MIGRATIONS = (v0002_fiscal,v0003_import_history,v0004_wire_evidence,v0005_agenda_exceptions,v0006_b2b,v0007_b2b_source_files,v0008_partial_history,v0009_historical_reviews)
 LATEST_VERSION = MIGRATIONS[-1].VERSION
 
 
@@ -60,6 +60,8 @@ def upgrade(conn, baseline_sql, *, migrations=None):
             if migration.VERSION != version + 1:
                 raise RuntimeError('Falta una migración intermedia; no se modifica la base.')
             execute_statements(conn, migration.SQL)
+            if hasattr(migration, 'after'):
+                migration.after(conn)
             conn.execute('INSERT INTO schema_migrations VALUES(?,?,?,?)',(
                 migration.VERSION, migration.NAME, checksum, datetime.now(timezone.utc).isoformat(timespec='seconds')))
             conn.execute(f'PRAGMA user_version={migration.VERSION}')

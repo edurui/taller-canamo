@@ -84,6 +84,29 @@ def test_imported_history_uses_only_its_explicit_snapshot(app):
     assert app.fiscal.records() == []
 
 
+@pytest.mark.parametrize('snapshot', [{}, {'name': None}, {'name': ''}, {'name': '   '}])
+def test_history_without_snapshot_name_exposes_and_searches_linked_customer(app, customer, snapshot):
+    draft = make_document(app, customer)
+    payload = {**draft['payload'], 'customer': snapshot, 'historical': True}
+    original = dumps(payload)
+    with app.db.transaction() as conn:
+        conn.execute("UPDATE documents SET status='historical',payload=? WHERE id=?", (original, draft['id']))
+    listed = app.documents.list(query=customer['name'])
+    assert listed['total'] == 1 and listed['items'][0]['id'] == draft['id']
+    assert listed['items'][0]['customer_name'] == snapshot.get('name')
+    assert listed['items'][0]['current_customer_name'] == customer['name']
+    updated_name = 'Álvaro %_\\ sintético'
+    app.contacts.save_customer({**customer, 'name': updated_name})
+    app.contacts.archive_customer(customer['id'])
+    assert app.documents.list(query=customer['name'])['total'] == 0
+    assert app.documents.list(query=updated_name)['items'][0]['current_customer_name'] == updated_name
+    detail = app.documents.get(draft['id'])
+    assert detail['current_customer_name'] == updated_name
+    assert detail['payload']['customer'] == snapshot
+    with app.db.read() as conn:
+        assert conn.execute('SELECT payload FROM documents WHERE id=?', (draft['id'],)).fetchone()[0] == original
+
+
 @pytest.mark.parametrize("quantity, expected_tax", [("1", 2), ("-1", -2)])
 def test_equivalent_vat_rates_share_one_rounding_group(quantity, expected_tax):
     result = calculate([

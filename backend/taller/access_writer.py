@@ -6,7 +6,8 @@ import sqlite3
 
 from .access import CHUNK_BYTES, Staging, json_write
 from .access_mapping import CUSTOMER_FIELDS, VEHICLE_FIELDS, ENTITIES, fingerprint
-from .db import uid, dumps
+from .db import uid, dumps, migrate_connection, SCHEMA_VERSION
+from .historical_reviews import synchronize_defaults
 from .errors import AppError, require
 from .validation import normalized, plate, now
 
@@ -183,6 +184,7 @@ class AccessWriter:
             legacy_key = 'access:' + fingerprint([batch['source_id'], key, batch['id']])
             conn.execute('INSERT INTO documents(id,kind,status,customer_id,vehicle_id,issue_date,full_number,payload,base_cents,tax_cents,total_cents,legacy_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                          (identifier, 'invoice', 'historical', owner, vehicle_id, value['issue_date'], str(value['full_number']), dumps(payload), value['base_cents'], value['tax_cents'], value['total_cents'], legacy_key, now(), now()))
+            synchronize_defaults(conn)
             if value.get('paid_cents') is not None:
                 conn.execute('INSERT INTO document_payment_baselines VALUES(?,?,?,?,?)', (identifier, value['paid_cents'], 'Saldo explícito del origen ' + batch['source_id'] + ' / ' + key, 'import:' + identifier, now()))
         state = self._state(conn, entity, identifier)
@@ -219,7 +221,10 @@ class AccessWriter:
                     clone = sqlite3.connect(temporary); original.backup(clone); clone.close(); os.replace(temporary, simulation_path)
             conn = sqlite3.connect(simulation_path); conn.row_factory = sqlite3.Row
             try:
-                conn.execute('PRAGMA foreign_keys=ON'); conn.execute('BEGIN IMMEDIATE')
+                conn.execute('PRAGMA foreign_keys=ON')
+                if conn.execute('PRAGMA user_version').fetchone()[0] != SCHEMA_VERSION:
+                    migrate_connection(conn)
+                conn.execute('BEGIN IMMEDIATE')
                 saved = self._batch(batch_id, conn)
                 info = saved['summary'].get('simulation', {'cursor': 0, 'done': False, 'counts': {entity: 0 for entity in ENTITIES}, 'actions': {}})
                 if not info['done']:
@@ -340,13 +345,19 @@ class AccessWriter:
                     after = json.loads(change['after_record']); record = after['record']; entity = change['entity']
                     current = conn.execute('SELECT * FROM import_records WHERE source_id=? AND entity=? AND source_key=?', (record['source_id'], entity, record['source_key'])).fetchone()
                     require(current and current['batch_id'] == batch_id and current['target_id'] == record['target_id'], 'Otro lote ha reutilizado este registro. Revierte primero los lotes posteriores.', 'conflict')
-                    if change['action'] != 'link': require(self._state(conn, entity, record['target_id']) == json.loads(record['imported_state']), 'Hay actividad posterior en una ficha/factura. No se revierte el lote.', 'conflict')
+                    # Reverting a replacement refreshes the active source record's
+                    # snapshot (version/timestamp). Compare against that snapshot,
+                    # while retaining the immutable original change as evidence.
+                    if change['action'] != 'link': require(self._state(conn, entity, record['target_id']) == json.loads(current['imported_state']), 'Hay actividad posterior en una ficha/factura. No se revierte el lote.', 'conflict')
                     if after.get('prior_target_after'):
                         prior = json.loads(change['before_record']); require(self._state(conn, entity, prior['target_id']) == after['prior_target_after'], 'El histórico sustituido tiene actividad posterior.', 'conflict')
                     if change['action'] == 'insert' and entity in ('customers', 'vehicles'):
                         column = 'customer_id' if entity == 'customers' else 'vehicle_id'
                         for table in ('documents', 'events'):
-                            references = conn.execute('SELECT id FROM ' + table + ' WHERE ' + column + '=?', (record['target_id'],)).fetchall()
+                            # Reverted histories remain as evidence and do not
+                            # prevent archiving their imported contact afterwards.
+                            active = " AND status!='import_reverted'" if table == 'documents' else ''
+                            references = conn.execute('SELECT id FROM ' + table + ' WHERE ' + column + '=?' + active, (record['target_id'],)).fetchall()
                             require(all(row['id'] in target_ids for row in references), 'La ficha se ha usado después de importar; no se borrará actividad.', 'conflict')
                         if entity == 'customers':
                             references = conn.execute('SELECT id FROM vehicles WHERE customer_id=?', (record['target_id'],)).fetchall()

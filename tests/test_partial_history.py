@@ -8,7 +8,7 @@ import sqlite3
 import pytest
 from pypdf import PdfReader
 
-from taller.db import Database, SCHEMA, dumps
+from taller.db import Database, SCHEMA, SCHEMA_VERSION, dumps
 from taller.errors import AppError
 from taller.migrations import MIGRATIONS, upgrade
 from taller.validation import today
@@ -144,14 +144,15 @@ def test_database_still_rejects_nulls_for_new_documents_and_preserves_history(ap
 def test_v7_migration_preserves_issued_snapshot_payment_and_foreign_keys(tmp_path):
     root = tmp_path / 'synthetic-old'; root.mkdir()
     with sqlite3.connect(root / 'taller.sqlite3', isolation_level=None) as conn:
-        upgrade(conn, SCHEMA, migrations=MIGRATIONS[:-1])
+        upgrade(conn, SCHEMA, migrations=tuple(migration for migration in MIGRATIONS if migration.VERSION <= 7))
         stamp = '2001-01-01T00:00:00Z'
         conn.execute('INSERT INTO customers(id,name,search_text,created_at,updated_at) VALUES(?,?,?,?,?)', ('c','Synthetic','synthetic',stamp,stamp))
         conn.execute("INSERT INTO documents(id,kind,status,customer_id,issue_date,full_number,payload,base_cents,tax_cents,total_cents,created_at,updated_at) VALUES('d','invoice','issued','c','2001-01-01','SYN-1','{}',100,21,121,?,?)", (stamp,stamp))
         conn.execute("INSERT INTO payments VALUES('p','d',121,'cash','2001-01-01','',NULL,'synthetic-key',?)", (stamp,))
         before = conn.execute('SELECT * FROM documents').fetchall()
     database = Database(root)
-    assert database.migration_result == {'from_version': 7, 'to_version': 8, 'applied': [8]}
+    assert database.migration_result == {'from_version': 7, 'to_version': SCHEMA_VERSION,
+                                         'applied': list(range(8, SCHEMA_VERSION + 1))}
     with database.read() as conn:
         assert [tuple(row) for row in conn.execute('SELECT * FROM documents')] == before
         assert conn.execute('SELECT amount_cents FROM payments').fetchone()[0] == 121

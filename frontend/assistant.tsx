@@ -1,6 +1,7 @@
 import { Presence, useClosing } from "./overlays.js";
 import { Textarea } from "./controls.js";
 import * as React from "react";
+import { HistoricalTotal } from "./historical-review.js";
 import {
   api,
   Row,
@@ -18,7 +19,6 @@ import {
   Pager,
   fileBase64,
   dateText,
-  money,
 } from "./core.js";
 
 type Suggestion = {
@@ -725,7 +725,7 @@ function HistoryResults({
                     .join(" · ")}
                 </small>
               </span>
-              <span>{money(item.total_cents)}</span>
+              <span><HistoricalTotal total={item.total_cents} review={item.historical_review} /></span>
             </button>
           ))}
         </div>

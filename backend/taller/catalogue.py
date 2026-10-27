@@ -6,6 +6,7 @@ from .db import uid
 from .errors import require
 from .money import decimal, canonical_tax_rate
 from .validation import now, clean_text
+from .sorting import order_by, text_order, decimal_collation
 
 
 class Catalogue:
@@ -85,10 +86,16 @@ class Catalogue:
         self.db.audit(conn,'stock.move',identifier,{'product':product_id,'quantity':str(change),'stock':str(final)})
         return {'id':identifier,'stock':str(final)}
 
-    def movements(self,product_id,page=0):
+    def movements(self,product_id,page=0,sort_by='',sort_direction='asc'):
+        ordering = order_by(sort_by, sort_direction,
+                            {'created_at': "nullif(created_at,'')", 'reason': text_order('reason'),
+                             'quantity': "nullif(quantity,'') COLLATE decimal_number"},
+                            default='created_at DESC,rowid DESC', tie='id ASC')
         require(type(page) is int and page>=0, 'Página no válida.')
         with self.db.read() as conn:
-            return [dict(r) for r in conn.execute('SELECT * FROM stock_movements WHERE product_id=? ORDER BY created_at DESC,rowid DESC LIMIT 200 OFFSET ?',(product_id,page*200))]
+            if sort_by == 'quantity':
+                decimal_collation(conn)
+            return [dict(r) for r in conn.execute('SELECT * FROM stock_movements WHERE product_id=? ORDER BY '+ordering+' LIMIT 200 OFFSET ?',(product_id,page*200))]
 
     def suppliers(self,include_archived=False):
         with self.db.read() as conn:

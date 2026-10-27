@@ -150,7 +150,46 @@ Cada fila mapeada tiene una decisión trazable; todas las tablas extraídas se c
 
 El informe principal recuperado usa 21 %, otras copias 18/16 %, fecha del día al imprimir
 y datos actuales de cliente. No se ha acreditado su selección por periodo ni redondeo
-histórico. No aplicar el calendario legal ni un tipo fijo a 2003–2026.
+histórico. No aplicar el calendario legal ni un tipo fijo a los importes originales
+como si estuvieran acreditados.
+
+## Estimación y revisión de históricos incompletos
+
+Desde SQLite v9, las facturas históricas con base, IVA o total desconocidos tienen
+una revisión separada. El listado distingue **Estimada**, **Pendiente de revisión**
+y **Contrastada con original**, y permite filtrar por esos estados.
+
+La propuesta automática supone explícitamente que el importe original de cada línea
+es anterior al IVA. Suma los decimales exactos, redondea una sola vez la base a céntimos
+con HALF_UP y calcula el IVA sobre esa base. Sugiere el tipo general por fecha:
+16 % entre 01/01/2003 y 30/06/2010, 18 % entre 01/07/2010 y 31/08/2012 y 21 % desde
+01/09/2012. La fecha no acredita el devengo ni el tipo realmente aplicado.
+
+Sin líneas, con algún importe ausente/no válido, fecha incierta o contradicciones,
+queda **Pendiente de revisión**, con todos los importes estimados desconocidos;
+no se usan ceros ni una suma parcial. Cantidad × precio sirve únicamente para
+detectar discrepancias; no rellena el importe ausente. Fechas anteriores a 2003
+requieren un porcentaje explícito. La propuesta no sustituye tipos o importes
+que sí estén conservados en el original.
+
+En el detalle, **Revisar estimación** permite ajustar el porcentaje con un motivo.
+Esto conserva el estado de estimación. Para **Contrastada con original** hace falta
+cotejar base, IVA y total, confirmar la casilla y registrar la evidencia documental.
+Las incidencias originales impiden ese contraste; el formulario no permite inventar
+líneas ni fechas. **Hipótesis y revisiones** conserva el historial y permite
+restablecer la propuesta automática con motivo, sin borrar revisiones anteriores.
+Si otra ventana guarda primero, se exige actualizar antes de volver a guardar.
+
+Las revisiones no alteran el documento importado, su PDF, cobros, conciliación,
+informes operativos ni registros fiscales. Tampoco habilitan rectificaciones.
+Copias y exportación portable conservan las revisiones por separado. Sustituir un
+histórico crea otro documento: no hereda el contraste del anterior; revertir conserva
+ambos originales y sus respectivas revisiones.
+
+La migración crea una copia previa al abrir una base v8 y materializa las propuestas
+en una transacción. No hace falta reimportar Access. En esta revisión se ha probado
+exclusivamente con bases sintéticas; no se ha aplicado a los datos reales del taller.
+Evidencia y límites: `reports/HISTORICOS-REVISION-2026-10-08.md`.
 
 ## Resolución, cambios y cobros
 

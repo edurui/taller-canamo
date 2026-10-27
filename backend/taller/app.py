@@ -9,8 +9,11 @@ from pathlib import Path
 from .db import Database
 from .settings import Settings
 from .contacts import Contacts
+from .addresses import Addresses
+from .address_jobs import AddressJobs
 from .catalogue import Catalogue
 from .documents import Documents, PAYMENT_KNOWN_SQL, PAID_SQL
+from .historical_reviews import HistoricalReviews
 from .agenda import Agenda
 from .assistance import Assistance
 from .reporting import Reporting
@@ -33,10 +36,13 @@ class App:
         self.db=Database(root)
         self.settings=Settings(self.db)
         self.contacts=Contacts(self.db)
+        self.addresses=Addresses()
+        self.address_jobs=AddressJobs(self.addresses)
         self.catalogue=Catalogue(self.db,self.settings)
         self.certificates=Certificates(self.db,self.settings)
         self.fiscal=Fiscal(self.db,self.settings,self.certificates)
         self.documents=Documents(self.db,self.settings,self.fiscal,self.catalogue)
+        self.historical_reviews=HistoricalReviews(self.db)
         self.agenda=Agenda(self.db,self.settings)
         self.assistance=Assistance(self.db,self.settings,self.documents,self.contacts)
         self.b2b=B2B(self.db,self.settings,self.documents)
@@ -50,10 +56,14 @@ class App:
           'settings.logo':self.settings.logo,'asset.read':self.asset,
           'series.list':self.settings.list_series,'series.save':self.settings.save_series,
           'customers.search':self.contacts.search,'customers.list':self.contacts.list_customers,
+          'addresses.search':self.addresses.search,'addresses.start':self.address_jobs.start,
+          'addresses.result':self.address_jobs.result,'addresses.cancel':self.address_jobs.cancel,
           'customers.get':self.contacts.customer,'customers.save':self.contacts.save_customer,'customers.archive':self.contacts.archive_customer,
           'vehicles.list':self.contacts.list_vehicles,'vehicles.save':self.contacts.save_vehicle,'vehicles.transfer':self.contacts.transfer_vehicle,
           'vehicles.get':self.contacts.vehicle,'vehicles.page':self.contacts.vehicles_page,
           'documents.list':self.documents.list,'documents.get':self.documents.get,'documents.save':self.documents.save,
+          'historical.review_preview':self.historical_reviews.preview,'historical.review_save':self.historical_reviews.save,
+          'historical.review_reset':self.historical_reviews.reset,
           'documents.publish':self.documents.publish,'documents.delete':self.documents.delete_draft,
           'documents.status':self.documents.change_status,'documents.convert':self.documents.convert,
           'documents.rectify':self.documents.rectify,'documents.void':self.documents.void,'documents.pdf':self.pdf,
@@ -109,6 +119,9 @@ class App:
         # Internal connections/transports must never be accepted from the IPC layer.
         require(not (set(params or {}) & {'conn','transport'}),'Par\u00e1metro interno no permitido.')
         try:
+            # Remote suggestions do not touch SQLite or retain its lock.
+            if action in ('addresses.search','addresses.start','addresses.result','addresses.cancel'):
+                return self.actions[action](**(params or {}))
             with self.db.lock:
                 require(action in ('backup.recovery_status','app.shutdown') or not (self.db.root/'.restore-journal.json').exists(),
                         'La restauración necesita recuperar sus archivos. Cierra y vuelve a abrir la aplicación antes de continuar.',

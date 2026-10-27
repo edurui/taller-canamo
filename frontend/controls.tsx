@@ -62,14 +62,30 @@ export const Textarea = React.forwardRef<
   );
 });
 
-/** Optional local suggestions; free text remains valid. */
+export type AutocompleteOption = { id: string; label: string; value: string };
+
+/** Optional suggestions; free text remains valid. String consumers stay local. */
 export function Autocomplete({
-  suggestions,
+  suggestions = [],
   onSuggestion,
+  options: suppliedOptions,
+  onOption,
+  filterSuggestions = true,
+  pending = false,
+  onDismiss,
+  listLabel = "Conceptos frecuentes",
+  emptyText = "Puedes escribir un concepto nuevo.",
   ...props
 }: InputProps & {
-  suggestions: string[];
+  suggestions?: string[];
   onSuggestion?: (value: string) => void;
+  options?: AutocompleteOption[];
+  onOption?: (option: AutocompleteOption) => void;
+  filterSuggestions?: boolean;
+  pending?: boolean;
+  onDismiss?: () => void;
+  listLabel?: string;
+  emptyText?: string;
 }) {
   const input = React.useRef<HTMLInputElement>(null);
   const id = React.useId();
@@ -78,31 +94,37 @@ export function Autocomplete({
   const suppressFocus = React.useRef(false);
   const compact = useCompact();
   const query = String(props.value ?? "");
-  const options = suggestions
-    .filter((value) => clean(value).includes(clean(query)))
+  const entries = suppliedOptions ?? suggestions.map(value => ({ id: value, label: value, value }));
+  const options = entries
+    .filter((option) => !filterSuggestions || clean(option.label).includes(clean(query)))
     .slice(0, 20);
   const visible =
     open &&
     !props.disabled &&
-    suggestions.length > 0 &&
-    (compact || options.length > 0);
+    (entries.length > 0 || pending) &&
+    (compact || options.length > 0 || pending);
   const label = props["aria-label"] || "Concepto";
   function close() {
     suppressFocus.current = compact;
     setOpen(false);
+    onDismiss?.();
   }
-  function choose(value: string) {
+  function choose(option: AutocompleteOption) {
     if (!input.current) return;
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(input.current, value);
-    input.current.dispatchEvent(new Event("input", { bubbles: true }));
-    onSuggestion?.(value);
+    if (suppliedOptions) onOption?.(option);
+    else {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input.current, option.value);
+      input.current.dispatchEvent(new Event("input", { bubbles: true }));
+      onSuggestion?.(option.value);
+    }
     close();
   }
   function keys(event: React.KeyboardEvent<HTMLInputElement>) {
     props.onKeyDown?.(event);
+    if (event.defaultPrevented) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       setOpen(true);
@@ -121,7 +143,7 @@ export function Autocomplete({
       choose(options[active]);
     }
     if (event.key === "Tab") close();
-    if (event.key === "Escape" && visible) {
+    if (event.key === "Escape" && (visible || (open && onDismiss))) {
       event.preventDefault();
       event.stopPropagation();
       close();
@@ -138,6 +160,7 @@ export function Autocomplete({
     role: "combobox",
     "aria-autocomplete": "list" as const,
     "aria-expanded": visible,
+    "aria-busy": pending || props["aria-busy"],
     "aria-controls": visible ? id : undefined,
     "aria-activedescendant":
       visible && options[active] ? id + "-" + active : undefined,
@@ -182,12 +205,13 @@ export function Autocomplete({
             <div
               role="listbox"
               id={id}
-              aria-label="Conceptos frecuentes"
+              aria-label={listLabel}
+              aria-busy={pending}
               className="picker-options"
             >
               {options.map((option, index) => (
                 <button
-                  key={option}
+                  key={option.id}
                   id={id + "-" + index}
                   type="button"
                   tabIndex={-1}
@@ -201,12 +225,12 @@ export function Autocomplete({
                   onClick={() => choose(option)}
                   onMouseEnter={() => setActive(index)}
                 >
-                  {option}
+                  {option.label}
                 </button>
               ))}
               {!options.length && (
                 <p className="picker-empty">
-                  Puedes escribir un concepto nuevo.
+                  {emptyText}
                 </p>
               )}
             </div>

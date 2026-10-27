@@ -108,6 +108,35 @@ def test_stale_exception_edit_cannot_overwrite_series_and_pattern_change_needs_r
     assert changed['version'] == result['version'] + 1
 
 
+def test_drag_from_stale_list_cannot_recreate_an_event_deleted_elsewhere(app):
+    saved = event(app, recurrence={'freq': 'none'}, notes='Notas sintéticas', reminders=[0, 15])
+    stale = october(app)[0]
+    other_window = App(app.db.root)
+    other_window.agenda.remove(saved['id'], version=saved['version'])
+    with app.db.read() as conn:
+        audit_count = conn.execute('SELECT count(*) FROM audit').fetchone()[0]
+
+    with pytest.raises(AppError) as missing:
+        app.dispatch('agenda.save', {'data': {
+            **stale, 'scope': 'series',
+            'start': '2026-10-18T08:30:00Z', 'end': '2026-10-18T09:30:00Z',
+        }})
+    assert missing.value.code == 'not_found'
+    assert october(App(app.db.root)) == []
+    with app.db.read() as conn:
+        assert conn.execute('SELECT count(*) FROM events').fetchone()[0] == 0
+        assert conn.execute('SELECT count(*) FROM notifications').fetchone()[0] == 0
+        assert conn.execute('SELECT count(*) FROM audit').fetchone()[0] == audit_count
+
+
+@pytest.mark.parametrize('version_fields', [{}, {'version': None}])
+def test_new_event_with_client_id_and_no_version_remains_valid(app, version_fields):
+    identifier = '00000000-0000-4000-8000-000000000001'
+    saved = event(app, id=identifier, recurrence={'freq': 'none'}, **version_fields)
+    assert saved['id'] == identifier and saved['version'] == 1
+    assert october(app)[0]['id'] == identifier
+
+
 def test_snooze_and_delivery_survive_title_edit_and_restart(app):
     start = datetime.now(UTC) - timedelta(minutes=5)
     saved = app.agenda.save({'title': 'Antes', 'start': start.isoformat(), 'end': (start + timedelta(hours=1)).isoformat(), 'reminders': [0, 15]})

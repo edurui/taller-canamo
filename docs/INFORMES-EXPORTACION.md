@@ -5,9 +5,17 @@
 En **Más herramientas → Resumen** puedes elegir fechas inclusivas o consultar todo
 el historial. No se limita la consulta a los últimos 24 meses.
 
-- **Facturación:** facturas emitidas e históricas por fecha de factura, incluidas
-  rectificativas; se identifican los documentos de prueba. Borradores, anuladas y
-  lotes revertidos no se suman como facturación vigente.
+- **Importe de facturas:** facturas emitidas e históricas por fecha de factura,
+  incluidas rectificativas. Cada factura aporta una sola cantidad: el total original
+  conservado; si falta, la revisión contrastada con el original o la estimación
+  disponible. El desglose mensual separa esas tres procedencias. Las facturas sin
+  importe se cuentan aparte y el total se indica como parcial; si ninguna conserva
+  un importe, aparece «No consta», no cero. Un cero original sí se conserva como cero.
+  Las facturas sin fecha confirmada se avisan aparte, sin asignarles un mes supuesto.
+  Se identifican los documentos de prueba. Borradores, anuladas y lotes revertidos
+  no se suman como facturación vigente.
+- **Desglose fiscal original:** sección desplegable con base, IVA y total originales
+  completos, sin incorporar las estimaciones ni revisiones. Su CSV sigue disponible.
 - **Cobros:** movimientos reales por fecha de pago y medio, con entradas,
   devoluciones y contrapartidas. Los saldos iniciales documentados y sus ajustes
   aparecen separados: no son entradas ni salidas de caja.
@@ -21,6 +29,19 @@ el historial. No se limita la consulta a los últimos 24 meses.
 Este resumen ayuda a gestionar el taller. No sustituye la contabilidad ni las
 declaraciones tributarias. Los CSV de cada sección conservan estos mismos criterios.
 
+**Exportar importes de facturas** incluye por mes el total disponible, número de
+facturas con/sin importe y cantidad/recuento de cada procedencia. Los importes son
+céntimos enteros; una celda vacía en `total_cents` significa que el mes sólo tiene
+facturas sin importe. Sólo se suma la revisión vigente, no sus versiones anteriores.
+Cambiar, contrastar o restablecer una revisión se refleja al volver a consultar el
+resumen. No se sobrescriben los documentos originales ni se crean cobros o saldos.
+
+El mismo criterio de presentación se usa en Facturas, Últimas facturas de Inicio,
+historial del cliente, facturas del vehículo y búsqueda de trabajos del historial:
+original prioritario, «Estimado» o «Contrastado con original» junto a la revisión,
+y «No consta» cuando falta el importe. El PDF y la exportación de snapshots conservan
+los datos originales; las revisiones siguen disponibles por separado en el portable.
+
 ## Datos para otras herramientas
 
 **Exportación portable completa** genera un ZIP sin cifrar con:
@@ -28,6 +49,8 @@ declaraciones tributarias. Los CSV de cada sección conservan estos mismos crite
 - `data.json`: todas las filas originales, identificadores, relaciones, snapshots,
   líneas, series, cobros, saldos documentados, auditoría y procedencia. Incluye
   borradores, anuladas e importaciones revertidas, identificadas por su estado.
+  Las tablas `historical_review_*` conservan las versiones de estimación/revisión,
+  su proyección actual y la cola pendiente, separadas de los importes originales.
 - `schema.json`: descripción de columnas, claves y relaciones.
 - `csv/`: vistas UTF-8 con BOM y separador punto y coma. Las cabeceras se conservan
   incluso cuando no hay filas; `document_lines.csv` facilita los conceptos.

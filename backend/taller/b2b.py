@@ -12,6 +12,7 @@ from lxml import etree
 from .db import dumps, uid
 from .errors import AppError, require
 from .validation import iso_date, now, today
+from .sorting import order_by, text_order, label_order
 
 LAW = 'https://www.boe.es/eli/es/rd/2026/03/25/238/con'
 DRAFT = 'https://www.hacienda.gob.es/sgt/normativadoctrina/proyectos/16042026-proyecto-pom-factura-electronica.pdf'
@@ -253,7 +254,11 @@ class B2B:
         with self.db.read() as conn:
             return self._get(conn,identifier)
 
-    def list(self,direction='',query='',page=0):
+    def list(self,direction='',query='',page=0,sort_by='',sort_direction='asc'):
+        ordering = order_by(sort_by, sort_direction,
+            {'invoice_number': text_order('invoice_number'), 'issue_date': "nullif(issue_date,'')",
+             'direction': label_order('direction', {'inbound': 'Recibida', 'outbound': 'Preparada'}),
+             'total_cents': 'total_cents'}, default='created_at DESC,id', tie='id ASC')
         require(direction in ('','outbound','inbound'),'Dirección B2B no admitida.')
         require(isinstance(page,int) and page>=0,'Página no válida.')
         terms,params = ['1=1'],[]
@@ -265,7 +270,7 @@ class B2B:
         where=' WHERE '+' AND '.join(terms)
         with self.db.read() as conn:
             total=conn.execute('SELECT count(*) FROM b2b_documents'+where,params).fetchone()[0]
-            rows=conn.execute('SELECT id,document_id,direction,invoice_number,issuer_nif,recipient_nif,issue_date,total_cents,currency,test_document,created_at FROM b2b_documents'+where+' ORDER BY created_at DESC,id LIMIT 50 OFFSET ?',(*params,page*50))
+            rows=conn.execute('SELECT id,document_id,direction,invoice_number,issuer_nif,recipient_nif,issue_date,total_cents,currency,test_document,created_at FROM b2b_documents'+where+' ORDER BY '+ordering+' LIMIT 50 OFFSET ?',(*params,page*50))
             return {'items':[dict(row) for row in rows],'total':total,'page':page}
 
     def export(self,identifier):

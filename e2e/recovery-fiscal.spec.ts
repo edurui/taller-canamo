@@ -31,10 +31,10 @@ test("traslado preparado conserva el paquete y bloquea nuevas emisiones tras rei
     .poll(
       async () =>
         (
-          await rpc<{ backup: { retention: { daily: number } } }>(
+          await rpc<{ backup: { retention?: { daily: number } } }>(
             "settings.get",
           )
-        ).backup.retention.daily,
+        ).backup.retention?.daily,
     )
     .toBe(3);
   await page
@@ -119,9 +119,10 @@ test("diagnóstico y subsanación fiscal local desde interfaz sin aceptación ex
   ).toBeVisible();
   const before = await rpc<{ id: string; status: string }[]>("fiscal.list");
   await page
-    .getByRole("button", { name: "Detalle", exact: true })
+    .getByRole("button", { name: /^Acciones de / })
     .first()
     .click();
+  await page.getByRole("menuitem", { name: "Detalle", exact: true }).click();
   const detail = page.getByRole("dialog", { name: "Detalle del registro" });
   await expect(detail.getByText("No recibido", { exact: true })).toBeVisible();
   await detail

@@ -54,3 +54,21 @@ bibliotecas. No se impone una prohibición de ingeniería inversa para depurar c
 en bibliotecas amparados por sus licencias. No se requieren cuotas o claves comerciales
 para los motores seleccionados. Conservar estas licencias y el acceso a las fuentes
 correspondientes al redistribuir el instalador junto con el proyecto.
+
+## Fuente externa opcional de direcciones
+
+Direcciones: CartoCiudad (IGN/CNIG) · CC BY 4.0.
+Servicio y procedencia: https://www.cartociudad.es/web/portal
+Licencia de información geográfica IGN/CNIG: https://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf
+CC BY 4.0: https://creativecommons.org/licenses/by/4.0/deed.es
+Contrato REST: https://github.com/IDEESpain/Cartociudad#1-candidates
+
+Se consulta exclusivamente el servicio oficial HTTPS de candidatos al escribir una
+dirección española. No se incluye ni descarga una base cartográfica o postal. La
+aplicación adapta las sugerencias al formulario, sin coordenadas ni respuesta remota
+persistida; conserva únicamente los campos que el usuario decide guardar como cliente.
+Los códigos postales devueltos por el geocodificador no equivalen a distribuir la
+capa de códigos postales de Grupo Correos, cuya descarga no ofrece CartoCiudad.
+No se integra el código del servidor CartoCiudad ni se le aplica la licencia de ese
+repositorio a las fuentes de datos. No hay claves API ni coste por llamada configurado.
+La entrada manual y el guardado no necesitan este servicio ni conexión a Internet.
