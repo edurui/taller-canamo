@@ -29,13 +29,13 @@ def main():
     parser.add_argument('--verify',action='store_true')
     args = parser.parse_args()
     if args.verify:
-        manifest = json.loads((TARGET/'manifest.json').read_text())
+        manifest = json.loads((TARGET/'manifest.json').read_text(encoding='utf-8'))
         for name, expected in manifest['assets'].items():
             if not (TARGET/name).is_file() or digest(TARGET/name)!=expected:
                 raise SystemExit('Falta o ha cambiado un modelo local: '+name)
         print('Modelos locales verificados:',len(manifest['assets']))
         return
-    lock = json.loads(LOCK.read_text())
+    lock = json.loads(LOCK.read_text(encoding='utf-8'))
     if not any(name.endswith('.zip') for name in lock['files']):
         raise SystemExit('El lock debe contener el modelo de voz con su hash revisado.')
     cache = ROOT/'build/assistant-downloads'

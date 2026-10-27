@@ -40,7 +40,7 @@ def download(item, destination):
 
 
 def prepare(with_jre=True):
-    lock = json.loads((ROOT / 'tools/access/dependencies.lock.json').read_text())
+    lock = json.loads((ROOT / 'tools/access/dependencies.lock.json').read_text(encoding='utf-8'))
     library = DESTINATION / 'lib' / ('jackcess-' + lock['jackcess']['version'] + '.jar')
     download(lock['jackcess'], library)
     javac = shutil.which('javac')

@@ -69,7 +69,7 @@ def main():
             'verified':'CRC y SHA-256 de cada archivo',
             'excluded':'Datos privados, informes, dependencias instaladas, motores generados y artefactos; reconstruir mediante los locks/scripts incluidos.'}
     (ROOT/'reports').mkdir(exist_ok=True)
-    (ROOT/'reports/source-artifact.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+    (ROOT/'reports/source-artifact.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False))
 
 

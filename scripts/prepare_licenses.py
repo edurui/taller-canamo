@@ -42,7 +42,7 @@ def main():
         shutil.rmtree(TARGET)
     TARGET.mkdir(parents=True)
     inventory = []
-    supplements = json.loads((ROOT/'tools/legal/supplemental-lock.json').read_text())
+    supplements = json.loads((ROOT/'tools/legal/supplemental-lock.json').read_text(encoding='utf-8'))
     for dist in sorted(importlib.metadata.distributions(), key=lambda item: item.metadata['Name'].lower()):
         name = dist.metadata['Name']; key = name.lower().replace('_','-')
         files = []
@@ -62,12 +62,12 @@ def main():
         classifiers = [value for value in dist.metadata.get_all('Classifier',[]) if value.startswith('License ::')]
         inventory.append({'ecosystem':'python','name':name,'version':dist.version,'license':license[:500] if license else classifiers,
                           'homepage':dist.metadata.get('Home-page'),'project_urls':dist.metadata.get_all('Project-URL',[]),'notices':sorted(set(files))})
-    lock = json.loads((ROOT/'package-lock.json').read_text())
+    lock = json.loads((ROOT/'package-lock.json').read_text(encoding='utf-8'))
     for package, metadata in sorted(lock.get('packages',{}).items()):
         if not package:continue
         directory = ROOT/package
         if not (directory/'package.json').is_file():continue  # Other-platform optional package; collected on that platform.
-        installed = json.loads((directory/'package.json').read_text())
+        installed = json.loads((directory/'package.json').read_text(encoding='utf-8'))
         files = []
         for source in directory.iterdir():
             if any(token in source.name.upper() for token in TOKENS):
@@ -81,7 +81,7 @@ def main():
                 ('@esbuild/', 'esbuild'), ('@napi-rs/lzma-', '@napi-rs/lzma'),
                 ('@rollup/rollup-', 'rollup'), ('@tauri-apps/cli-', '@tauri-apps/cli')) if name.startswith(prefix)), None)
             owner = ROOT/'node_modules'/parent if parent else None
-            if owner and (owner/'package.json').is_file() and json.loads((owner/'package.json').read_text())['version']==installed['version']:
+            if owner and (owner/'package.json').is_file() and json.loads((owner/'package.json').read_text(encoding='utf-8'))['version']==installed['version']:
                 for source in owner.iterdir():
                     if any(token in source.name.upper() for token in TOKENS):
                         copied=copy_notice(source,TARGET/'npm'/safe(name)/safe(source.name))
