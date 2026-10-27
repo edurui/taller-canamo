@@ -60,7 +60,7 @@ jobs:
         run: |
           .\.venv\Scripts\python.exe scripts/prepare_access_runtime.py
           if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar el lector Access.' }
-          .\.venv\Scripts\python.exe -m pytest --maxfail=1 --junitxml=reports/windows-preflight.xml tests/test_access_staging.py tests/test_stdio_lifecycle.py::test_protocol_preserves_unicode_with_a_legacy_console tests/test_access_forensics.py::test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows tests/test_release_candidate.py::test_copy_preserves_results_and_only_referenced_evidence
+          .\.venv\Scripts\python.exe -m pytest --maxfail=1 --junitxml=reports/windows-preflight.xml tests/test_source_checkout.py tests/test_access_staging.py tests/test_stdio_lifecycle.py::test_protocol_preserves_unicode_with_a_legacy_console tests/test_access_forensics.py::test_real_jackcess_fixture_is_unchanged_and_public_summary_has_no_rows tests/test_release_candidate.py::test_copy_preserves_results_and_only_referenced_evidence
           if ($LASTEXITCODE -ne 0) { throw 'La regresión Windows sigue fallando; no se inicia el build completo.' }
       - name: Check browser regressions before the full suite
         shell: pwsh

@@ -81,6 +81,8 @@ def test_simulated_windows_rejects_changed_inputs_and_removes_old_acceptance(win
     with pytest.raises(SystemExit, match='cambiaron'):
         module.main()
     assert not report.exists()
+    assert json.loads((root / 'reports/windows-inputs-changed.json').read_text()) == {
+        'accepted': False, 'changes': [{'path': 'input', 'before': 'before', 'after': 'changed'}]}
     assert json.loads((root / 'reports/windows-staged-sidecar.json').read_text())['fixture'].startswith('simulated')
 
 

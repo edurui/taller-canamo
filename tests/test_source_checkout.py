@@ -18,6 +18,8 @@ def test_checkout_with_autocrlf_preserves_pinned_resources(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     (tmp_path / 'synthetic.py').write_bytes(b'print("synthetic")\n')
+    (tmp_path / 'src-tauri').mkdir(exist_ok=True)
+    (tmp_path / 'src-tauri/Cargo.toml').write_bytes(b'[package]\nname = "synthetic"\n')
     (tmp_path / 'synthetic.cmd').write_bytes(b'@echo synthetic\n')
 
     def git(*args):
@@ -33,4 +35,5 @@ def test_checkout_with_autocrlf_preserves_pinned_resources(tmp_path):
     for name, data in resources.items():
         assert (checkout / name).read_bytes() == data, name
     assert (checkout / 'synthetic.py').read_bytes() == b'print("synthetic")\n'
+    assert (checkout / 'src-tauri/Cargo.toml').read_bytes() == b'[package]\nname = "synthetic"\n'
     assert (checkout / 'synthetic.cmd').read_bytes() == b'@echo synthetic\r\n'

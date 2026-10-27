@@ -75,6 +75,7 @@ def main():
     # A failed rebuild must not leave an earlier acceptance report referring to
     # an artifact path that this invocation may have overwritten.
     report.unlink(missing_ok=True)
+    (ROOT / "reports" / "windows-inputs-changed.json").unlink(missing_ok=True)
     rustc = shutil.which("rustc")
     if not rustc:
         raise SystemExit("Falta Rust. Consulta docs/BUILD-WINDOWS.md.")
@@ -136,7 +137,14 @@ def main():
         artifacts = [executable]
     manifest = [{"path": str(path.relative_to(ROOT)), "sha256": sha256(path), "bytes": path.stat().st_size} for path in artifacts]
     report.parent.mkdir(exist_ok=True)
-    if build_input_hashes(include_desktop=not args.sidecar_only) != source_hashes:
+    final_hashes = build_input_hashes(include_desktop=not args.sidecar_only)
+    if final_hashes != source_hashes:
+        changed = [{"path": name, "before": source_hashes.get(name), "after": final_hashes.get(name)}
+                   for name in sorted(set(source_hashes) | set(final_hashes))
+                   if source_hashes.get(name) != final_hashes.get(name)]
+        changes_report = ROOT / "reports" / "windows-inputs-changed.json"
+        changes_report.write_text(json.dumps({"accepted": False, "changes": changed}, indent=2) + "\n", encoding="utf-8")
+        print("Archivos modificados:", ", ".join(item["path"] for item in changed), flush=True)
         raise SystemExit("El código o los recursos cambiaron durante el empaquetado. El artefacto no se acepta: repite la construcción con las fuentes estables.")
     dependencies = {package.metadata["Name"]: package.version for package in importlib.metadata.distributions()}
     report.write_text(json.dumps({"target": target, "python": sys.version, "artifacts": manifest,
