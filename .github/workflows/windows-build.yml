@@ -25,11 +25,24 @@ jobs:
         with:
           node-version: '22.22.2'
           cache: npm
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with:
-          distribution: temurin
-          java-version: '17.0.20.1+1'
-          overwrite-settings: false
+      # Temurin's four-part security release is not a SemVer accepted by
+      # setup-java. Install the exact official archive, without downgrading.
+      - name: Install build JDK from verified archive
+        shell: pwsh
+        run: |
+          $canamoAccessLock = Get-Content tools/access/dependencies.lock.json -Raw | ConvertFrom-Json
+          $canamoJdkArchive = Join-Path $env:RUNNER_TEMP 'canamo-build-jdk.zip'
+          $canamoJdkFolder = Join-Path $env:RUNNER_TEMP 'canamo-build-jdk'
+          Invoke-WebRequest -Uri $canamoAccessLock.build_jdk.windows.url -OutFile $canamoJdkArchive
+          $canamoJdkHash = (Get-FileHash $canamoJdkArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($canamoJdkHash -ne $canamoAccessLock.build_jdk.windows.sha256) { throw 'El JDK no coincide con el hash fijado.' }
+          Expand-Archive -LiteralPath $canamoJdkArchive -DestinationPath $canamoJdkFolder
+          $canamoJdkRoots = @(Get-ChildItem -LiteralPath $canamoJdkFolder -Directory)
+          if ($canamoJdkRoots.Count -ne 1) { throw 'Estructura inesperada del JDK.' }
+          "JAVA_HOME=$($canamoJdkRoots[0].FullName)" >> $env:GITHUB_ENV
+          "$($canamoJdkRoots[0].FullName)\bin" >> $env:GITHUB_PATH
+          & (Join-Path $canamoJdkRoots[0].FullName 'bin/javac.exe') -version
+          if ($LASTEXITCODE -ne 0) { throw 'No se puede ejecutar el compilador Java.' }
       - name: Python dependencies verified by hashes
         shell: pwsh
         run: |
