@@ -152,6 +152,31 @@ runpy.run_path("scripts/run_preview.py", run_name="__main__")
 
 export { expect };
 
+// The disclosure can be visible before its clipping/scroll layout has settled.
+// Wait for its real animations, rather than clicking a moving ancestor's child.
+export async function navigateSidebar(page: import("@playwright/test").Page, name: string) {
+  await expect(page.locator(".topbar")).toBeVisible();
+  const sidebar = page.locator(".sidebar");
+  if (!(await sidebar.isVisible()))
+    await page.getByRole("button", { name: "Abrir menú", exact: true }).click();
+  await expect(sidebar).toBeVisible();
+  const target = sidebar.getByRole("button", { name, exact: true });
+  if (!(await target.isVisible())) {
+    const tools = sidebar.getByRole("button", { name: "Más herramientas", exact: true });
+    if ((await tools.getAttribute("aria-expanded")) !== "true") await tools.click();
+    await expect(tools).toHaveAttribute("aria-expanded", "true");
+  }
+  await sidebar.evaluate(async element => {
+    while (true) {
+      const animations = element.getAnimations({ subtree: true }).filter(animation =>
+        animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
+      if (!animations.length) return;
+      await Promise.all(animations.map(animation => animation.finished.catch(() => undefined)));
+    }
+  });
+  await target.click();
+}
+
 // Exercise the visible picker, including options portalled outside a parent dialog.
 export async function chooseOption(
   control: import("@playwright/test").Locator,

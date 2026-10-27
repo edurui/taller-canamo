@@ -1,4 +1,4 @@
-import { chooseOption } from "./fixtures";
+import { chooseOption, navigateSidebar } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
@@ -56,8 +56,7 @@ test("proveedor y catálogo: búsqueda, archivo, entradas, salidas y recuento ac
   });
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Proveedores", exact: true }).click();
+  await navigateSidebar(page, "Proveedores");
   await page
     .getByRole("button", { name: "Nuevo proveedor", exact: true })
     .click();
@@ -194,8 +193,7 @@ test("presupuesto → orden → factura conserva líneas y un solo consumo; info
     idempotency_key: "operations-in",
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Presupuestos", exact: true }).click();
+  await navigateSidebar(page, "Presupuestos");
   await page
     .getByRole("button", { name: "Nuevo presupuesto", exact: true })
     .first()
@@ -297,8 +295,7 @@ test("presupuesto → orden → factura conserva líneas y un solo consumo; info
   await expect(payment).toBeHidden();
   await backend.restart();
   await page.reload();
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Resumen", exact: true }).click();
+  await navigateSidebar(page, "Resumen");
   await page
     .getByRole("button", { name: "Todo el historial", exact: true })
     .click();

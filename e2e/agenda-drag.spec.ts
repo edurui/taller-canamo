@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 type Row = Record<string, any>;
 const title = "Cita de arrastre sintética";
@@ -10,8 +10,7 @@ const base = { title, start_local: "2026-05-15T10:00", end_local: "2026-05-15T11
 
 async function open(page: Page, date = "2026-05-15") {
   await page.goto("/");
-  await page.getByRole("button", { name: "Más herramientas", exact: true }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await navigateSidebar(page, "Agenda");
   await page.getByLabel("Ir a una fecha").fill(date);
   await page.getByRole("button", { name: "Día", exact: true }).click();
   await expect(moveButton(page)).toBeEnabled();
@@ -115,8 +114,7 @@ test("soltar guarda una vez, conserva campos y bloquea una segunda edición mien
   for (const key of ["title", "kind", "notes", "location", "reminders", "completed", "recurrence"]) expect(updated[key]).toEqual(saved[key]);
   await backend.restart();
   await page.reload();
-  await page.getByRole("button", { name: "Más herramientas", exact: true }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await navigateSidebar(page, "Agenda");
   await page.getByLabel("Ir a una fecha").fill("2026-05-15");
   await page.getByRole("button", { name: "Día", exact: true }).click();
   await expect(moveButton(page)).toContainText("11:00 – 12:00");

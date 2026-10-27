@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 type Rpc = <T = Record<string, unknown>>(action: string, params?: Record<string, unknown>) => Promise<T>;
 
@@ -34,12 +34,7 @@ print(json.dumps(result))
 
 async function openReports(page: Page) {
   await page.goto("/");
-  await expect(page.locator(".sidebar")).toBeAttached();
-  const menu = page.getByRole("button", { name: "Abrir menú", exact: true });
-  if (await menu.isVisible()) await menu.click();
-  const tools = page.getByRole("button", { name: "Más herramientas", exact: true });
-  if (await tools.getAttribute("aria-expanded") === "false") await tools.click();
-  await page.locator(".sidebar").getByRole("button", { name: "Resumen", exact: true }).click();
+  await navigateSidebar(page, "Resumen");
   await page.getByRole("button", { name: "Todo el historial", exact: true }).click();
 }
 

@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { writeFile } from "node:fs/promises";
 import type { Page } from "@playwright/test";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 type Event = Record<string, any>;
 
@@ -58,8 +58,7 @@ for (const theme of ["light", "dark"] as const) {
 
 async function openAgenda(page: Page, date: string) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await navigateSidebar(page, "Agenda");
   await page.getByLabel("Ir a una fecha").fill(date);
 }
 

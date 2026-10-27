@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 for (const theme of ["light", "dark"]) {
   test(`accesibilidad ${theme}: inicio, formulario, factura y agenda estrecha`, async ({
@@ -48,8 +48,7 @@ for (const theme of ["light", "dark"]) {
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: /Nueva factura/ }).click();
     await audit("factura");
-    await page.getByRole("button", { name: "Más herramientas" }).click();
-    await page.getByRole("button", { name: "Agenda", exact: true }).click();
+    await navigateSidebar(page, "Agenda");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Agenda");
     await audit("agenda");
   });

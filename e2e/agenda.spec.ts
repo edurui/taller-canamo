@@ -1,4 +1,4 @@
-import { chooseOption } from "./fixtures";
+import { chooseOption, navigateSidebar } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "./fixtures";
 
@@ -10,8 +10,7 @@ async function openAgenda(
   date = "2026-10-18",
 ) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await navigateSidebar(page, "Agenda");
   await page.getByLabel("Ir a una fecha").fill(date);
 }
 
@@ -84,8 +83,7 @@ test("editar una repetición, cancelar otra y restablecerla tras reinicio", asyn
   events = await rpc<Event[]>("agenda.list", autumn);
   expect(events).toHaveLength(2);
   await page.reload();
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await navigateSidebar(page, "Agenda");
   await page.getByLabel("Ir a una fecha").fill("2026-10-25");
   await page.getByRole("button", { name: "Día", exact: true }).click();
   await page

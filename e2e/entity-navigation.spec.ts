@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page, TestInfo } from "@playwright/test";
-import { test, expect, chooseOption } from "./fixtures";
+import { test, expect, chooseOption, navigateSidebar } from "./fixtures";
 
 type Rpc = <T = Record<string, unknown>>(
   action: string,
@@ -58,20 +58,7 @@ async function seed(rpc: Rpc) {
 }
 
 async function sidebar(page: Page, name: string) {
-  await expect(page.locator(".sidebar")).toBeAttached();
-  const menu = page.getByRole("button", { name: "Abrir menú", exact: true });
-  if (await menu.isVisible()) await menu.click();
-  await expect(page.locator(".sidebar")).toBeVisible();
-  let target = page
-    .locator(".sidebar")
-    .getByRole("button", { name, exact: true });
-  if (!(await target.isVisible())) {
-    await page
-      .locator(".sidebar")
-      .getByRole("button", { name: "Más herramientas", exact: true })
-      .click();
-  }
-  await target.click();
+  await navigateSidebar(page, name);
 }
 
 async function audit(page: Page, info: TestInfo, name: string) {

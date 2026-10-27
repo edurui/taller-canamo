@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 type Rpc = <T = Record<string, unknown>>(action: string, params?: Record<string, unknown>) => Promise<T>;
 type Seed = { customer: string; vehicle: string; document: string; product: string; supplier: string };
@@ -39,13 +39,7 @@ print(json.dumps({'customer':a['id'],'vehicle':vehicles[0]['id'],'document':doc[
 }
 
 async function sidebar(page: Page, label: string) {
-  await expect(page.getByRole("banner")).toBeVisible();
-  const opener = page.getByRole("button", { name: "Abrir menú", exact: true });
-  if (await opener.isVisible()) await opener.click();
-  const nav = page.locator(".sidebar");
-  const target = nav.getByRole("button", { name: label, exact: true });
-  if (!(await target.isVisible())) await nav.getByRole("button", { name: "Más herramientas", exact: true }).click();
-  await target.click();
+  await navigateSidebar(page, label);
 }
 function row(page: Page, label: string) {
   return page.getByRole("row").filter({ has: page.getByRole("button", { name: label, exact: true }) });
@@ -343,6 +337,8 @@ for (const theme of ["light", "dark"] as const) {
       await rpc("settings.save", { section: "appearance", values: { theme } });
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
+      // Stress the real disclosure with a slower transition; do not disable it.
+      await page.addStyleTag({ content: '.extras-disclosure { transition-duration: 1200ms !important; }' });
       await sidebar(page, "Artículos y stock");
       await sortButton(page, "Referencia").click();
       await expect(page.locator("tbody tr").first()).toContainText("Artículo dos");

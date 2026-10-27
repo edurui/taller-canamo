@@ -135,8 +135,16 @@ Intentos públicos y fuentes exactas:
   arranca y supera PDF, cadena, CEN/EN16931, OCR, voz y lectura/mapeo Access.
   Falla el descarte de la importación sintética; aún sin NSIS aceptado.
 - [40561307066](https://github.com/edurui/taller-canamo/actions/runs/40561307066):
-  candidato en curso, fuente `8dcf8ad`; cinco regresiones Python iniciales
-  correctas, pendiente completar la verificación del servicio y las baterías.
+  fuente `8dcf8ad`: servicio congelado completo correcto (nueve comprobaciones),
+  **818 pytest Windows (608,96 s), 164 E2E (8,3 min) y 16 Rust correctas**.
+  Tauri compilado, NSIS generado y diagnóstico del conjunto correcto. La guarda
+  final rechazó cambios en entradas; no se aceptó el instalador ni se ejecutaron
+  todavía instalación y WebView2.
+- [40568228932](https://github.com/edurui/taller-canamo/actions/runs/40568228932):
+  fuente `69035ab`; herramientas WebDriver y comprobaciones iniciales correctas,
+  servicio congelado completo y 818 pytest Windows (446,93 s). Navegador: 163
+  correctas y una fallida (7,3 min), al pulsar Artículos durante el despliegue del
+  menú en el caso accesible claro a 1366 px. Sin instalador aceptado en este intento.
 
 Las seis incidencias de navegador anteriores se localizaron en el arnés: tres
 lectores Python emitían CP1252 y Node los interpretaba como UTF-8; ahora todas las
@@ -176,6 +184,23 @@ error debía revertir las filas parciales. Ambas fallan en la versión anterior
 en el ejecutable congelado corresponde al siguiente intento, no a estas pruebas
 locales. Los MDB y datos reales no se usan en este diagnóstico.
 
+La discrepancia final de entradas se reprodujo en un clon independiente con
+`core.autocrlf=true`: Tauri CLI 2.11.5 reescribe `src-tauri/Cargo.toml` de CRLF a LF
+antes de compilar. Fue el único archivo versionado modificado, y sus bytes finales
+coincidían exactamente con el original LF de Git. Se fija LF para ese manifiesto
+en `.gitattributes`; no se excluye del cálculo ni se normalizan sus hashes.
+Repetida la prueba con el atributo corregido: **383 archivos versionados intactos**.
+Ambas pruebas se detienen deliberadamente después del tratamiento del manifiesto
+y antes del compilador; no se presentan como builds Windows. Cuatro controles
+dirigidos de checkout/orquestación correctos (0,05 s). Si vuelve a cambiar cualquier
+entrada, la guarda conserva el rechazo y genera `windows-inputs-changed.json` con
+rutas y hashes anteriores/finales. Las herramientas WebDriver se compilan antes
+de las baterías largas, para detectar sus dependencias sin esperar al empaquetado.
+
+Comparación final de datos reales en solo lectura tras la preparación prolongada:
+las 22 tablas de negocio de la previsualización siguen idénticas a las de la copia
+restaurada. No hubo cambios de dominio posteriores a la copia verificada.
+
 ## Impresión y condiciones de puesta en marcha
 
 Generada con el motor real una muestra A4 de una página, exclusivamente con datos
@@ -193,3 +218,17 @@ El usuario confirma que existe un archivo de tipo Personal Information Exchange.
 La interfaz acepta PFX/P12; no se ha recibido ni inspeccionado ese archivo y no se
 presupone su vigencia ni representación. La contraseña se introduce exclusivamente
 en destino y el certificado se configura aparte de las copias generales.
+
+## Sincronización del menú en las pruebas de navegador
+
+La traza del último fallo muestra foco en «Artículos y stock», pero Inicio sigue
+abierto después del clic: el elemento se desplaza con su contenedor recortado
+durante la transición. El helper común espera las animaciones finitas reales del
+menú antes del clic. Se conservan las comprobaciones de navegación, ordenación,
+teclado y Axe; no se añaden reintentos ni se desactivan transiciones. Las pruebas
+específicas de animación del menú permanecen sin cambios. Los cuatro casos de
+menús accesibles se ejecutan además con transición de 1,2 s, para exigir esa espera.
+
+`npm run typecheck:e2e`: correcto. Cuatro casos dirigidos correctos (7,3 s).
+Batería E2E local completa: **164 correctas (4,0 min)**, cero fallos, omitidas o flaky. El gate Windows previo incorpora esos cuatro
+casos: exige diez correctos, cero omitidos, fallidos o flaky, antes del build largo.

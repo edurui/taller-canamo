@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 type Rpc = <T = Record<string, unknown>>(action: string, params?: Record<string, unknown>) => Promise<T>;
 async function seed(rpc: Rpc, count = 56) {
@@ -25,12 +25,7 @@ print(json.dumps({'customer':customer['id'],'vehicle':vehicle['id']}))
 `, data_directory], { cwd: resolve("."), encoding: "utf8" }));
 }
 async function sidebar(page: Page, name: string) {
-  await expect(page.locator(".sidebar")).toBeAttached();
-  const opener = page.getByRole("button", { name: "Abrir menú", exact: true });
-  if (await opener.isVisible()) await opener.click();
-  const target = page.locator(".sidebar").getByRole("button", { name, exact: true });
-  if (!(await target.isVisible())) await page.getByRole("button", { name: "Más herramientas", exact: true }).click();
-  await target.click();
+  await navigateSidebar(page, name);
 }
 async function invoices(page: Page) { await page.goto("/"); await sidebar(page, "Facturas"); }
 function sort(page: Page, label: string) { return page.getByRole("button", { name: new RegExp(`^${label}: ordenar `) }); }

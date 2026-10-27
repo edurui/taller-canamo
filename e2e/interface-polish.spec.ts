@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { test, expect } from "./fixtures";
+import { test, expect, navigateSidebar } from "./fixtures";
 
 const customerData = {
   name: "Cliente de interfaz sintético",
@@ -220,8 +220,7 @@ test("calendario: año, mes, día bisiesto, teclado, límites y cierre con foco"
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
   // Reports has a real minimum on its end date; earlier days cannot be selected.
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Resumen", exact: true }).click();
+  await navigateSidebar(page, "Resumen");
   await page
     .getByRole("button", { name: "Salir sin guardar", exact: true })
     .click();
@@ -337,8 +336,7 @@ test("selectores dentro de modales: búsqueda, teclado, foco y movimiento reduci
   await rpc("demo.load");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await navigateSidebar(page, "Agenda");
   await page.getByRole("button", { name: "Nuevo evento", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: "Nuevo evento",
@@ -412,8 +410,7 @@ test("espacios y alineación en fichas y resumen; texto grande en ventanas estre
     expect(
       Math.abs(add!.y + add!.height - kilometres!.y - kilometres!.height),
     ).toBeLessThanOrEqual(2);
-  await page.getByRole("button", { name: "Más herramientas" }).click();
-  await page.getByRole("button", { name: "Resumen", exact: true }).click();
+  await navigateSidebar(page, "Resumen");
   await expect(
     page.getByRole("heading", { name: "Resumen del taller" }),
   ).toBeVisible();

@@ -1,10 +1,13 @@
 # Registro de trabajo · actualizado el 27/10/2026
 
 Preparación de entrega Windows: copia cifrada real restaurada y verificada,
-814 pytest Windows correctas, typechecks/build correctos y seis regresiones de
-navegador corregidas y aprobadas en el paso inicial Windows. Construcción completa
-todavía en curso; ningún instalador aceptado. Local final: 814 pytest y 164 E2E
-correctas. Detalle y límites: `../reports/PREPARACION-WINDOWS-2026-10-27.md`.
+818 pytest Windows, 164 E2E y 16 Rust correctas sobre `8dcf8ad`, junto al servicio
+congelado. NSIS generado pero rechazado por alteración CRLF/LF de Cargo.toml,
+reproducida y corregida mediante atributo LF sin debilitar la guarda. Sobre
+`69035ab`, servicio/818 pytest correctos; 163 E2E correctas y un clic durante la
+transición del menú. Corregida espera del arnés, cuatro casos dirigidos correctos,
+164 E2E locales correctas (4,0 min), sin omitidas ni flaky. Ningún instalador
+aceptado todavía. Detalle: `../reports/PREPARACION-WINDOWS-2026-10-27.md`.
 
 Actualización incremental del Access nuevo aplicada únicamente a la prueba local:
 3 clientes, 2 vehículos y 12 históricos con 38 líneas. Los datos previos permanecen

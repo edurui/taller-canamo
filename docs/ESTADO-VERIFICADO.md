@@ -16,11 +16,19 @@ idénticos a sus hashes. Sobre `dabe244` han pasado
 los dos casos de regresión, **814 pytest Windows**, ambos typechecks y el build.
 La batería de navegador detectó seis incidencias del arnés (158 casos correctos),
 corregidas en `b7d6da9`: UTF-8 explícito y esperas sobre la aplicación lista.
-La batería completa de 164 E2E Windows ya pasó sobre `b7d6da9`. Después se corrigió
-la codificación del protocolo congelado y se detectó una conexión SQLite de ensayo
-sin cierre. El servicio ya ejecutó PDF, XML, OCR, voz y lectura Access; su descarte
-se vuelve a comprobar sobre `8dcf8ad`. Cinco regresiones iniciales Windows correctas.
-Todavía sin instalador aceptado. Seguimiento, comandos,
+Sobre `8dcf8ad` ya pasan en Windows el servicio congelado completo, 818 pytest,
+164 E2E y 16 Rust; Tauri compila, genera NSIS y supera el diagnóstico del conjunto.
+La guarda final rechazó variaciones de entradas; en un clon se reprodujo que Tauri
+convierte Cargo.toml CRLF a LF. Se fija su LF desde el checkout y se mantiene la
+comparación byte a byte. Prueba corregida: 383 archivos intactos. Sobre `69035ab`
+pasan herramientas WebDriver, regresiones iniciales, servicio congelado y 818 pytest
+Windows (446,93 s). La batería E2E termina con 163 correctas y una espera agotada:
+el arnés pulsa un elemento mientras su contenedor se está desplegando. Se espera
+el final de las animaciones reales en el helper común; no se desactivan animaciones
+ni se omiten aserciones. Cuatro casos dirigidos pasan con la transición ralentizada
+a 1,2 s; batería local completa: 164 correctas (4,0 min), sin fallos, omitidas ni flaky.
+Todavía sin instalador aceptado ni instalación/UI acreditadas.
+Seguimiento, comandos,
 evidencias, incidencias y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
 
 ## Access actualizado: altas incrementales de la prueba local · 27/10/2026
