@@ -51,6 +51,45 @@ def dpapi(data: bytes, *, decrypt=False) -> bytes:
         kernel.LocalFree(outgoing.pbData)
 
 
+def _windows_private_directory(path: str, sid: str):
+    """Replace the DACL, including explicit grants inherited by older helpers."""
+    from ctypes import wintypes
+    advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
+    convert = advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW
+    convert.argtypes = [wintypes.LPCWSTR, wintypes.DWORD,
+                        ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.DWORD)]
+    convert.restype = wintypes.BOOL
+    get_dacl = advapi32.GetSecurityDescriptorDacl
+    get_dacl.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.BOOL),
+                        ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.BOOL)]
+    get_dacl.restype = wintypes.BOOL
+    set_security = advapi32.SetNamedSecurityInfoW
+    set_security.argtypes = [wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD,
+                            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    set_security.restype = wintypes.DWORD
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel32.LocalFree.restype = ctypes.c_void_p
+    descriptor = ctypes.c_void_p()
+    # Protected DACL: only the current SID, full control, inherited by children.
+    # /grant:r alone retains unrelated explicit ACEs (e.g. mkdir's default ACL).
+    if not convert(f'D:P(A;OICI;FA;;;{sid})', 1, ctypes.byref(descriptor), None):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        present, defaulted = wintypes.BOOL(), wintypes.BOOL()
+        dacl = ctypes.c_void_p()
+        if not get_dacl(descriptor, ctypes.byref(present), ctypes.byref(dacl), ctypes.byref(defaulted)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        require(present.value and dacl.value, 'No se han podido preparar permisos privados en Windows.')
+        # SE_FILE_OBJECT; DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION.
+        result = set_security(ctypes.create_unicode_buffer(path), 1, 0x80000004,
+                              None, None, dacl, None)
+        if result:
+            raise ctypes.WinError(result)
+    finally:
+        kernel32.LocalFree(descriptor)
+
+
 def private_directory(path: str):
     os.chmod(path, 0o700)
     if os.name == 'nt':
@@ -61,7 +100,7 @@ def private_directory(path: str):
         who = subprocess.run([str(system32/'whoami.exe'), '/user', '/fo', 'csv', '/nh'], capture_output=True, text=True, check=True, creationflags=flags)
         sid = next(csv.reader(io.StringIO(who.stdout)))[1]
         require(sid.startswith('S-1-'), 'No se puede identificar el usuario de Windows.')
-        subprocess.run([str(system32/'icacls.exe'), path, '/inheritance:r', '/grant:r', f'*{sid}:(OI)(CI)F'], capture_output=True, check=True, creationflags=flags)
+        _windows_private_directory(path, sid)
 
 
 class Certificates:
