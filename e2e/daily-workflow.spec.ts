@@ -1,5 +1,34 @@
 import { test, expect } from "./fixtures";
 
+test("el buscador conserva la primera coincidencia con el ratón inmóvil y permite cambiar con ratón o teclado", async ({ page, rpc }) => {
+  for (const [name, phone] of [["Ensayo de puntero Alfa", "600000011"], ["Ensayo de puntero Beta", "600000022"]]) {
+    await rpc("customers.save", { data: { name, phone } });
+  }
+  await page.goto("/");
+  const search = page.getByRole("combobox", { name: "Buscar cliente o matrícula" });
+  const list = page.getByRole("listbox");
+  await search.fill("Ensayo de puntero");
+  await expect(list.getByRole("option")).toHaveCount(2);
+  const second = list.getByRole("option").nth(1);
+  const box = await second.boundingBox();
+  expect(box).not.toBeNull();
+  await search.fill("");
+  await expect(list).toBeHidden();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await search.fill("Ensayo de puntero");
+  await expect(list.getByRole("option")).toHaveCount(2);
+  await expect(list.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+  await search.press("ArrowDown");
+  await expect(second).toHaveAttribute("aria-selected", "true");
+  await search.press("ArrowUp");
+  await expect(list.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+  await page.mouse.move(box!.x + box!.width / 2 + 5, box!.y + box!.height / 2);
+  await expect(second).toHaveAttribute("aria-selected", "true");
+  await search.press("Enter");
+  await expect(page.getByRole("heading", { level: 1, name: "Ensayo de puntero Beta" })).toBeVisible();
+  await expect(page.locator(".big-phone")).toHaveText("600000022");
+});
+
 test("cliente y dos vehículos: matrícula normalizada, teléfono y teclado", async ({
   page,
 }) => {

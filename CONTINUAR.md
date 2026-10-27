@@ -15,14 +15,14 @@ evidencia; no se resuelven identidades ni importes por suposición. Contraseña 
 separada de la entrega. El traslado definitivo permanece sin activar.
 
 Build real en el workflow público existente, solo con código y datos sintéticos.
-Sobre `8dcf8ad` pasan servicio congelado completo, 818 pytest Windows, 164 E2E y
-16 Rust; se generó NSIS, pero fue rechazado por cambio CRLF/LF de Cargo.toml.
-La reproducción en clon y el atributo LF conservan 383 entradas intactas. Sobre
-`69035ab` pasan servicio/818 pytest; 163 E2E correctas y un clic durante la animación
-del menú. Se corrige la sincronización del arnés conservando animación y aserciones;
-cuatro casos dirigidos y 164 E2E locales correctos (4,0 min), sin omitidos ni flaky. El control
-inicial Windows exige ahora diez casos antes del build. Ningún instalador aceptado.
-Resultado y seguimiento: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
+Sobre `8dcf8ad` pasaron servicio/818 pytest/164 E2E/16 Rust en Windows, pero NSIS
+fue rechazado por Cargo.toml CRLF/LF; reproducido y corregido conservando hashes.
+Sobre `2eb0e90`, servicio y 818 pytest correctos, 163 E2E correctas y una selección
+alterada por un puntero inmóvil bajo el popup. Corregida en controles/buscador con
+regresión real: typechecks/build y tres dirigidas correctos. 819 pytest (107,51 s) y 166 E2E
+locales completas (4,1 min) correctas, sin omitidas ni flaky. El build ejecuta ahora toda la batería de navegador
+antes de empaquetar y detiene el primer fallo; todas las pruebas siguen exigidas.
+Ningún instalador aceptado. Detalle: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
 
 El usuario confirma disponer de un archivo Personal Information Exchange: no se
 ha recibido ni validado. Configurarlo en el Windows de destino y comprobar vigencia

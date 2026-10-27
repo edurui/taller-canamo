@@ -52,9 +52,10 @@ npx playwright install chromium
 ```
 
 El script prepara el lector Access y su JRE con URLs/hashes fijados, los modelos locales y
-el inventario de licencias. Primero construye y verifica el servicio PyInstaller para
-detectar fallos del ejecutable antes de las baterías largas. Después ejecuta pytest,
-typecheck de aplicación y E2E, build web, E2E de navegador, pruebas Rust y
+el inventario de licencias. Ejecuta ambos typechecks, build web y la batería completa
+de navegador antes de empaquetar: ante el primer fallo detiene la ejecución, y una
+ejecución correcta debe completar todos los casos. Después construye y verifica el
+servicio PyInstaller, ejecuta pytest completo, pruebas Rust y
 `tauri build -- --locked`. Todas las pruebas siguen siendo obligatorias. El build web precede
 a las pruebas de navegador incluso en un checkout sin `dist`. `scripts/verify_sidecar.py`
 ejecuta en el servicio empaquetado lectura ACCDB, OCR/voz, validación SaxonC/EN16931, licencias,

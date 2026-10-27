@@ -413,6 +413,36 @@ test("flechas y Enter aplican todos los campos una vez, mantienen el foco y Tab 
     expect(saved[key]).toBe(first[key]);
 });
 
+test("un ratón inmóvil bajo el desplegable no cambia la primera dirección ni la elegida con teclado", async ({ page }) => {
+  await mockAddresses(page, () => success(first, second));
+  const form = await openNew(page);
+  const input = await addressInput(page, form);
+  const list = page.getByRole("listbox", { name: "Direcciones sugeridas", exact: true });
+  await input.fill("Primera consulta sintética");
+  const secondRow = list.getByRole("option").nth(1);
+  await expect(secondRow).toBeVisible();
+  await settle(page);
+  const box = await secondRow.boundingBox();
+  expect(box).not.toBeNull();
+  await input.fill("");
+  await expect(list).toBeHidden();
+  // Leave the real pointer beneath the future second row before results arrive.
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await input.fill("Segunda consulta sintética");
+  await expect(list.getByRole("option")).toHaveCount(2);
+  await settle(page);
+  await expect(list.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+  await input.press("ArrowDown");
+  await expect(secondRow).toHaveAttribute("aria-selected", "true");
+  await input.press("ArrowUp");
+  await expect(list.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+  // A real move still activates the row and a click still applies it.
+  await page.mouse.move(box!.x + box!.width / 2 + 5, box!.y + box!.height / 2);
+  await expect(secondRow).toHaveAttribute("aria-selected", "true");
+  await secondRow.click();
+  await expectAddress(form, second);
+});
+
 test("el ratón selecciona y los cinco campos siguen admitiendo correcciones manuales", async ({
   page,
   rpc,

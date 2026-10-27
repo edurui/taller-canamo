@@ -240,3 +240,34 @@ Control negativo anterior y comprobación corregida ejecutados sin abrir la app 
 repetir baterías. Se cancela `40573597348` durante preparación de dependencias para
 incorporarlo antes del siguiente build completo. El selector Edge Driver aplica
 la misma separación PSModulePath ya requerida por pwsh → Windows PowerShell 5.1.
+
+## Selección con puntero inmóvil y orden de construcción
+
+[40573910114](https://github.com/edurui/taller-canamo/actions/runs/40573910114),
+fuente `2eb0e90`: seis regresiones Python (9,55 s), diez E2E iniciales (43,6 s),
+servicio congelado completo y 818 pytest Windows (452,81 s) correctos. La batería
+completa acaba con 163 E2E correctas y una fallida (7,8 min): la primera dirección
+ya no estaba seleccionada antes de pulsar flechas. No se generó un instalador.
+
+La traza conserva el ratón en (451,32;616,4), coordenadas del botón «Nuevo cliente»
+que después ocupa la segunda sugerencia. Al aparecer el popup se genera entrada
+de puntero sin movimiento y `onMouseEnter` cambia el índice activo. Se reproduce
+localmente dejando el puntero en la futura segunda fila: falla la misma aserción
+con el código anterior. Se cambia a movimiento real y se ignoran desplazamientos
+cero, en Autocomplete, Select y buscador global. No cambian clic, teclado, foco,
+validaciones, importes ni datos. Revisión React: eventos locales, sin estado,
+efectos, listeners globales o dependencias adicionales; ARIA y teclas conservados.
+
+Tres casos dirigidos correctos (5,0 s), typechecks y build correctos. Dos regresiones
+con ratón real cubren direcciones y búsqueda de cliente. La batería completa local
+termina con **166 E2E correctas (4,1 min)** y **819 pytest correctas (107,51 s)**,
+sin fallos, omitidas ni flaky. Se interrumpió una primera pasada
+local al corregir el texto esperado de un teléfono sintético; no cuenta como pasada
+correcta. La aplicación conserva el formato que el usuario introduce.
+
+Para detectar pronto otro fallo, el build ejecuta la batería completa de navegador
+antes del servicio/Python, con parada ante el primer fallo. Si pasa debe ejecutar
+todos los casos; después siguen congelado, pytest, Rust, NSIS, hashes, instalación
+y WebView2. No se omite ni se reutiliza una batería anterior. La prueba de
+orquestación exige que un navegador fallido detenga el empaquetado y borre la
+aceptación anterior. El gate inicial Windows exige trece casos de navegador.

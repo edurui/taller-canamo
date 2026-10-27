@@ -68,7 +68,7 @@ def test_simulated_windows_orchestration_preserves_diagnostic_and_manifest(windo
     assert artifacts['embedded_release_policy']['edition'] == 'development'
     assert all(len(item['sha256']) == 64 and item['bytes'] > 0 for item in artifacts['artifacts'])
     commands = [command[1:] for command in calls]
-    assert commands.index(['run', 'typecheck:e2e']) < commands.index(['run', 'build']) < commands.index(['run', 'test:e2e'])
+    assert commands.index(['run', 'typecheck:e2e']) < commands.index(['run', 'build']) < commands.index(['run', 'test:e2e', '--', '--max-failures=1'])
 
 
 def test_simulated_windows_rejects_changed_inputs_and_removes_old_acceptance(windows_builder, monkeypatch):
@@ -86,7 +86,7 @@ def test_simulated_windows_rejects_changed_inputs_and_removes_old_acceptance(win
     assert json.loads((root / 'reports/windows-staged-sidecar.json').read_text())['fixture'].startswith('simulated')
 
 
-def test_broken_frozen_service_stops_before_the_full_suites(windows_builder, monkeypatch):
+def test_broken_frozen_service_stops_before_the_full_backend_suite(windows_builder, monkeypatch):
     module, _, calls = windows_builder
     def failed_service(*args):
         raise RuntimeError('Synthetic frozen protocol failure')
@@ -94,4 +94,24 @@ def test_broken_frozen_service_stops_before_the_full_suites(windows_builder, mon
     with pytest.raises(RuntimeError, match='frozen protocol'):
         module.main()
     assert not any(command[1:3] == ['-m', 'pytest'] for command in calls)
-    assert not any(command[1:3] == ['run', 'test:e2e'] for command in calls)
+    assert any(command[1:] == ['run', 'test:e2e', '--', '--max-failures=1'] for command in calls)
+
+
+def test_broken_browser_stops_before_packaging_and_removes_old_acceptance(windows_builder, monkeypatch):
+    module, root, calls = windows_builder
+    report = root / 'reports/windows-artifacts.json'
+    report.parent.mkdir()
+    report.write_text('{"old_acceptance":true}', encoding='utf-8')
+    previous_run = module.run
+    def failed_browser(command, **kwargs):
+        if command[1:3] == ['run', 'test:e2e']:
+            raise RuntimeError('Synthetic browser failure')
+        previous_run(command, **kwargs)
+    def forbidden_packaging(*args):
+        pytest.fail('Packaging started after a browser failure')
+    monkeypatch.setattr(module, 'run', failed_browser)
+    monkeypatch.setattr(module, 'build_sidecar', forbidden_packaging)
+    with pytest.raises(RuntimeError, match='browser failure'):
+        module.main()
+    assert not report.exists()
+    assert not any(command[1:3] == ['-m', 'pytest'] for command in calls)

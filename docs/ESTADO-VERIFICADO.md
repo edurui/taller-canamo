@@ -9,27 +9,18 @@ reapertura, integridad/FK y auditoría correctas. Restauración desde la interfa
 comprobada, con datos tras recargar, sin errores JS ni violaciones Axe en el recorrido.
 El destino nuevo conserva `transfer_required`; no se activó el traslado definitivo.
 
-Corregidos requisitos del workflow, lectura UTF-8 de metadatos y conservación exacta
-de recursos fijados por SHA-256, resolutores XML, fsync y permisos en Windows.
-818 pytest y 164 E2E locales correctas; checkout Windows nuevo con 69 recursos
-idénticos a sus hashes. Sobre `dabe244` han pasado
-los dos casos de regresión, **814 pytest Windows**, ambos typechecks y el build.
-La batería de navegador detectó seis incidencias del arnés (158 casos correctos),
-corregidas en `b7d6da9`: UTF-8 explícito y esperas sobre la aplicación lista.
-Sobre `8dcf8ad` ya pasan en Windows el servicio congelado completo, 818 pytest,
-164 E2E y 16 Rust; Tauri compila, genera NSIS y supera el diagnóstico del conjunto.
-La guarda final rechazó variaciones de entradas; en un clon se reprodujo que Tauri
-convierte Cargo.toml CRLF a LF. Se fija su LF desde el checkout y se mantiene la
-comparación byte a byte. Prueba corregida: 383 archivos intactos. Sobre `69035ab`
-pasan herramientas WebDriver, regresiones iniciales, servicio congelado y 818 pytest
-Windows (446,93 s). La batería E2E termina con 163 correctas y una espera agotada:
-el arnés pulsa un elemento mientras su contenedor se está desplegando. Se espera
-el final de las animaciones reales en el helper común; no se desactivan animaciones
-ni se omiten aserciones. Cuatro casos dirigidos pasan con la transición ralentizada
-a 1,2 s; batería local completa: 164 correctas (4,0 min), sin fallos, omitidas ni flaky.
-Todavía sin instalador aceptado ni instalación/UI acreditadas.
-Seguimiento, comandos,
-evidencias, incidencias y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
+El proceso Windows ha superado servicio congelado completo, 818 pytest, 164 E2E y
+16 Rust sobre `8dcf8ad`; NSIS generado pero rechazado por normalización CRLF/LF de
+Cargo.toml, reproducida y corregida sin relajar hashes. Sobre `2eb0e90` pasan
+servicio y 818 pytest Windows (452,81 s), pero 163 E2E correctas y una fallida:
+el puntero inmóvil quedó bajo la segunda sugerencia y cambió la selección inicial.
+Se reproduce con ratón real y se corrige en controles y buscador: sólo movimiento
+real cambia el índice; clic, teclado y ARIA conservados. Tres dirigidas, ambos
+typechecks y build correctos; 819 pytest (107,51 s) y 166 E2E locales completas (4,1 min) correctas, sin fallos, omitidas ni flaky.
+El build adelanta todas las E2E al empaquetado y para al primer fallo; una pasada
+correcta sigue exigiendo todas las pruebas. Gate inicial Windows: trece casos.
+Todavía sin instalador aceptado ni instalación/UI acreditadas. Seguimiento,
+comandos, incidencias y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
 
 ## Access actualizado: altas incrementales de la prueba local · 27/10/2026
 

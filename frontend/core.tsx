@@ -1016,7 +1016,9 @@ export function CustomerSearch({
                       (!stale && active === index ? "active" : "")
                     }
                     onMouseDown={(event) => event.preventDefault()}
-                    onMouseEnter={() => setActive(index)}
+                    onMouseMove={(event) => {
+                      if (event.movementX || event.movementY) setActive(index);
+                    }}
                     onClick={() => choose(row)}
                   >
                     <span className="result-icon">

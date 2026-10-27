@@ -1,13 +1,14 @@
 # Registro de trabajo · actualizado el 27/10/2026
 
 Preparación de entrega Windows: copia cifrada real restaurada y verificada,
-818 pytest Windows, 164 E2E y 16 Rust correctas sobre `8dcf8ad`, junto al servicio
-congelado. NSIS generado pero rechazado por alteración CRLF/LF de Cargo.toml,
-reproducida y corregida mediante atributo LF sin debilitar la guarda. Sobre
-`69035ab`, servicio/818 pytest correctos; 163 E2E correctas y un clic durante la
-transición del menú. Corregida espera del arnés, cuatro casos dirigidos correctos,
-164 E2E locales correctas (4,0 min), sin omitidas ni flaky. Ningún instalador
-aceptado todavía. Detalle: `../reports/PREPARACION-WINDOWS-2026-10-27.md`.
+Windows ha superado servicio/818 pytest/164 E2E/16 Rust en un intento anterior,
+pero NSIS fue rechazado por CRLF/LF de Cargo.toml, reproducido y corregido. Sobre
+`2eb0e90`, servicio/818 pytest correctos y un fallo entre 164 E2E: puntero inmóvil
+bajo la segunda sugerencia alteró la selección. Corregidos controles/buscador con
+regresión real; typechecks/build y tres dirigidas correctos. Correctas: 819 pytest (107,51 s) y
+166 E2E locales completas (4,1 min), sin omitidas ni flaky. La batería completa de navegador pasa ahora antes del
+empaquetado, con parada al primer fallo. Sin instalador aceptado todavía. Detalle:
+`../reports/PREPARACION-WINDOWS-2026-10-27.md`.
 
 Actualización incremental del Access nuevo aplicada únicamente a la prueba local:
 3 clientes, 2 vehículos y 12 históricos con 38 líneas. Los datos previos permanecen

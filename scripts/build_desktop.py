@@ -104,16 +104,19 @@ def main():
         release_policy = Path(directory) / "release-policy.json"
         release_policy.write_text(json.dumps(policy, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
         policy_hash = sha256(release_policy)
+        if not args.sidecar_only:
+            # Run the full browser suite before expensive packaging/backend
+            # work. A failure stops immediately; a passing build runs every case.
+            run([npm, "run", "typecheck"])
+            run([npm, "run", "typecheck:e2e"])
+            run([npm, "run", "build"])
+            run([npm, "run", "test:e2e", "--", "--max-failures=1"])
         executable = build_sidecar(target, release_policy)
     if not args.sidecar_only:
-        # Diagnose the frozen protocol/engines before the longer full suites.
+        # Diagnose the frozen protocol/engines before the full backend suite.
         # All suites still gate acceptance of these same, unchanged bytes.
         run([sys.executable, "-m", "pytest", "--maxfail=1",
              "--junitxml=" + str(ROOT / "reports" / "windows-pytest.xml")])
-        run([npm, "run", "typecheck"])
-        run([npm, "run", "typecheck:e2e"])
-        run([npm, "run", "build"])
-        run([npm, "run", "test:e2e"])
         run([cargo, "test", "--locked", "--no-default-features", "--lib"], cwd=ROOT / "src-tauri",
             env={**os.environ, "CANAMO_TEST_PYTHON": sys.executable})
         installer_directory = ROOT / "src-tauri" / "target" / "release" / "bundle" / "nsis"

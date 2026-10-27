@@ -80,11 +80,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Falló typecheck E2E.' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Falló el build de interfaz.' }
-          npx playwright test --grep 'buscar matrícula conserva los kilómetros|Clientes accesible con tabla conservada: dark|cabecera visible al desplazar|orden de líneas: teclado|proveedor y catálogo|presupuesto → orden → factura conserva|menús y cabeceras accesibles sin desbordamiento' --max-failures=1
+          npx playwright test --grep 'buscar matrícula conserva los kilómetros|Clientes accesible con tabla conservada: dark|cabecera visible al desplazar|orden de líneas: teclado|proveedor y catálogo|presupuesto → orden → factura conserva|menús y cabeceras accesibles sin desbordamiento|flechas y Enter aplican todos los campos|un ratón inmóvil bajo el desplegable|el buscador conserva la primera coincidencia' --max-failures=1
           if ($LASTEXITCODE -ne 0) { throw 'La regresión de navegador sigue fallando; no se inicia la batería completa.' }
           Copy-Item reports/e2e/results.json reports/windows-e2e-preflight.json
           $canamoBrowserPreflight = Get-Content reports/windows-e2e-preflight.json -Raw | ConvertFrom-Json
-          if ($canamoBrowserPreflight.stats.expected -ne 10 -or $canamoBrowserPreflight.stats.unexpected -ne 0 -or $canamoBrowserPreflight.stats.skipped -ne 0 -or $canamoBrowserPreflight.stats.flaky -ne 0) { throw 'La comprobación inicial no ejecutó los diez casos completos.' }
+          if ($canamoBrowserPreflight.stats.expected -ne 13 -or $canamoBrowserPreflight.stats.unexpected -ne 0 -or $canamoBrowserPreflight.stats.skipped -ne 0 -or $canamoBrowserPreflight.stats.flaky -ne 0) { throw 'La comprobación inicial no ejecutó los trece casos completos.' }
       - name: Test and build selected installer
         shell: pwsh
         run: |

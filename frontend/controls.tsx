@@ -223,7 +223,11 @@ export function Autocomplete({
                   )}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => choose(option)}
-                  onMouseEnter={() => setActive(index)}
+                  onMouseMove={(event) => {
+                    // A popup appearing under a stationary pointer must not
+                    // replace the option selected by typing or the keyboard.
+                    if (event.movementX || event.movementY) setActive(index);
+                  }}
                 >
                   {option.label}
                 </button>
@@ -508,7 +512,9 @@ export function Select({
                     "picker-option",
                     active === index ? "active" : "",
                   )}
-                  onMouseEnter={() => setActive(index)}
+                  onMouseMove={(event) => {
+                    if (event.movementX || event.movementY) setActive(index);
+                  }}
                   onClick={() => choose(option)}
                 >
                   <span>
