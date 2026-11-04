@@ -1,9 +1,11 @@
 """Accept a prior full Windows build for testing without rebuilding its bytes.
 
-The original job may have failed only in desktop automation. All build, integrity,
-Python, browser and installed-service checks must already have passed.
+By default the original job may have failed only in desktop automation. Explicit
+--through-build also permits an installation failure, leaving that gate pending.
+All build, integrity, quality, Python and browser checks must already have passed.
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -113,7 +115,7 @@ def digest(path):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def verify(root, run_id, source_sha):
+def verify(root, run_id, source_sha, *, through_build=False):
     destination = Path("reports/windows-reused-artifact.json")
     destination.unlink(missing_ok=True)
     if not re.fullmatch(r"[0-9]+", run_id) or not re.fullmatch(r"[a-f0-9]{40}", source_sha):
@@ -138,18 +140,35 @@ def verify(root, run_id, source_sha):
             ["gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs"], text=True
         )
     )["jobs"]
-    require(len(jobs) == 1, "Número inesperado de jobs.")
-    steps = {step["name"]: step["conclusion"] for step in jobs[0]["steps"]}
-    for name in (
-        "Test and build selected installer",
-        "Install under a user path and verify bundled service",
-        "Store installer and verification evidence for review",
-    ):
-        require(steps[name] == "success", "Paso obligatorio fallido: " + name)
-    failed = {name for name, result in steps.items() if result == "failure"}
+    build_jobs = [
+        job
+        for job in jobs
+        if any(step["name"] == "Test and build selected installer" for step in job["steps"])
+    ]
     require(
-        failed <= {"Tauri UI with WebView2 and packaged service in the disposable runner account"},
-        "Falló un paso distinto de la prueba nativa.",
+        len(build_jobs) == 1
+        and all(job in build_jobs or job["conclusion"] == "skipped" for job in jobs),
+        "Jobs distintos del build completo y sus ramas omitidas.",
+    )
+    steps = {step["name"]: step["conclusion"] for step in build_jobs[0]["steps"]}
+    required_steps = [
+        "Test and build selected installer",
+        "Store installer and verification evidence for review",
+    ]
+    installation_step = "Install under a user path and verify bundled service"
+    if not through_build:
+        required_steps.append(installation_step)
+    for name in required_steps:
+        require(steps.get(name) == "success", "Paso obligatorio fallido: " + name)
+    failed = {name for name, result in steps.items() if result == "failure"}
+    allowed_failures = {
+        "Tauri UI with WebView2 and packaged service in the disposable runner account"
+    }
+    if through_build:
+        allowed_failures.add(installation_step)
+    require(
+        failed <= allowed_failures,
+        "Falló un paso anterior al punto de reanudación.",
     )
     manifests = list(root.rglob("windows-artifacts.json"))
     require(len(manifests) == 1, "Debe existir un único manifiesto del build.")
@@ -174,11 +193,19 @@ def verify(root, run_id, source_sha):
             for filename in ("e2e/results.json", "windows-e2e-preflight.json")
         }
     )
-    for filename in (
-        "sidecar-functional.json",
-        "windows-staged-sidecar.json",
-        "windows-installed-sidecar.json",
-    ):
+    quality = json.loads((artifact / "reports/quality/result.json").read_text(encoding="utf-8-sig"))
+    require(
+        quality["ok"] is True
+        and len(quality["commands"]) == 6
+        and {command["name"] for command in quality["commands"]}
+        == {"prettier", "eslint", "ruff-lint", "ruff-format", "rustfmt", "clippy"}
+        and all(command["exit_code"] == 0 for command in quality["commands"]),
+        "Formato y lint incompletos o fallidos.",
+    )
+    diagnostics = ["sidecar-functional.json", "windows-staged-sidecar.json"]
+    if not through_build:
+        diagnostics.append("windows-installed-sidecar.json")
+    for filename in diagnostics:
         require(
             json.loads((artifact / "reports" / filename).read_text(encoding="utf-8-sig"))["ok"]
             is True,
@@ -293,6 +320,8 @@ def verify(root, run_id, source_sha):
             )
     proof = {
         "ok": True,
+        "scope": "build" if through_build else "build-and-installed-service",
+        "pending_gates": ["installation", "native-ui"] if through_build else ["native-ui"],
         "build_run_id": run_id,
         "build_source_sha": source_sha,
         "original_workflow_conclusion": run["conclusion"],
@@ -319,4 +348,12 @@ def verify(root, run_id, source_sha):
 
 
 if __name__ == "__main__":
-    verify(Path("build-artifact"), os.environ["BUILD_RUN_ID"], os.environ["BUILD_SOURCE_SHA"])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--through-build", action="store_true")
+    args = parser.parse_args()
+    verify(
+        Path("build-artifact"),
+        os.environ["BUILD_RUN_ID"],
+        os.environ["BUILD_SOURCE_SHA"],
+        through_build=args.through_build,
+    )

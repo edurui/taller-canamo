@@ -6,6 +6,20 @@ batería funcional posterior al formateo correcta (842 Python/166 E2E, typecheck
 build y dependencias, sin cambios de fuentes). Conservar la exclusión de
 recursos externos y datos privados. No reutilizar el instalador anterior para
 atribuirle el código formateado ni la revisión de calidad nueva.
+Publicación realizada: rama `codex/entrega-windows-2026-11-04`, `0e4b4d0`.
+Run Windows `41802145854`, job `126480256385`: build y baterías completos correctos;
+falla comparación instalada porque Tauri parchea UNK -> NSS dentro del NSIS.
+No recompilar: guardia local validada sobre las 206 entradas y el instalador original.
+Reanudar con inputs `build_run_id=41802145854` y SHA completo de `0e4b4d0` en
+windows-build.yml; ese camino omite build y llama a windows-verify-installer.yml.
+Comprobación de integridad corregida sin modificar archivos ni aceptar otros bytes;
+49 regresiones, nueve controles PS, seis controles de calidad y actionlint correctos.
+Ver `../reports/REANUDACION-WINDOWS-2026-11-04.md`. No repetir petición de permiso.
+El manual `LEEME.md` conserva una frase
+histórica sobre ausencia de EXE Windows: actualizarla con el resultado real antes
+de preparar la entrega, junto con estado/aceptación. Las actualizaciones documentales
+posteriores deben identificar que los bytes del instalador pertenecen a `0e4b4d0`.
+No tocar la entrega privada ni los datos del 27/10; guardar el candidato nuevo aparte.
 
 Revisión actual: leer `../reports/REVISION-ENTREGA-2026-11-04.md` y la primera
 sección de `ESTADO-VERIFICADO.md`. Se corrigieron dependencias vulnerables y el

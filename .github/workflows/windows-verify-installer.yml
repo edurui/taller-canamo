@@ -1,5 +1,13 @@
 name: Verify an unchanged Windows installer (manual)
 on:
+  workflow_call:
+    inputs:
+      build_run_id:
+        required: true
+        type: string
+      build_source_sha:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       build_run_id:
@@ -28,6 +36,9 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.13'
+      - name: Check integrity verifier before installing
+        shell: pwsh
+        run: ./src-tauri/tests/test-artifact-integrity.ps1
       - name: Download the prior build without rebuilding
         shell: pwsh
         env:
@@ -39,7 +50,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -X utf8 scripts/verify_windows_artifact.py
+        run: python -X utf8 scripts/verify_windows_artifact.py --through-build
       - name: Match the Microsoft driver to the installed WebView2
         shell: pwsh
         run: ./src-tauri/tests/prepare-webdriver.ps1
@@ -49,11 +60,6 @@ jobs:
           $proof = Get-Content reports/windows-reused-artifact.json -Raw | ConvertFrom-Json
           ./src-tauri/tests/verify-installed.ps1 -Installer $proof.installer_path -KeepInstalled -Manifest $proof.manifest_path
           $installed = Get-Content reports/windows-installed-sidecar.json -Raw | ConvertFrom-Json
-          $manifest = Get-Content $proof.manifest_path -Raw | ConvertFrom-Json
-          foreach ($file in $installed.artifacts) {
-            $expected = @($manifest.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq (Split-Path $file.path -Leaf) })
-            if ($expected.Count -ne 1 -or $file.sha256 -ne $expected[0].sha256 -or $file.bytes -ne $expected[0].bytes) { throw 'Cambió un ejecutable del candidato.' }
-          }
           $app = @($installed.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq 'taller-canamo.exe' })
           if ($app.Count -ne 1) { throw 'Falta la aplicación instalada.' }
           "CANAMO_TEST_INSTALLED_APP=$($app[0].path)" >> $env:GITHUB_ENV

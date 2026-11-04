@@ -87,11 +87,24 @@ prueba de WebView2. Las verificaciones nativas siguen pendientes del runner Wind
 
 ## Publicación y Windows
 
-Rama local preparada: `codex/entrega-windows-2026-11-04`. `main` remoto coincide con
-`10bb9372544dfb581e77e9b652c85becc116a559`. El inventario de publicación no contiene
-bases, certificados, .env ni private-reference. El push y el workflow se harán
-después de aprobar las comprobaciones locales; todavía no se atribuye ningún
-resultado Windows a estas correcciones.
+Publicada la rama `codex/entrega-windows-2026-11-04`, commit
+`0e4b4d05a5ec497d1a090fce0b7edfb4cb21c61b`, después de aprobar las comprobaciones.
+206 archivos en el commit, incluidos los cambios revisados de la fase anterior.
+`main` se conserva en `10bb9372544dfb581e77e9b652c85becc116a559`; no se fuerza push,
+fusiona ni publica una release. El inventario no contiene bases, certificados,
+.env ni private-reference. Autor del commit: cuenta personal con correo noreply,
+sin cambiar la configuración global del usuario.
+
+El conector GitHub creó la rama; Git publicó el commit y la CLI lanzó el workflow
+manual mediante la sesión personal existente, sin imprimir ni guardar credenciales.
+Run [41802145854](https://github.com/edurui/taller-canamo/actions/runs/41802145854),
+job `126480256385`, sobre ese SHA, iniciado el 04/11 a las 09:46:57 Europe/Madrid,
+`release_candidate=true`. Construcción y baterías completas correctas: 843 Python,
+166 E2E, 16 Rust, seis controles de calidad y servicio congelado. Falló después
+la comparación del EXE instalado; la causa y su corrección sin recompilar están
+en `REANUDACION-WINDOWS-2026-11-04.md`. Todavía no se atribuye éxito al recorrido
+nativo. Ver `windows-dispatch.json`, `windows-runs.json`
+y `publish-source-proof.json` en el directorio local de evidencias.
 
 Pendiente: candidato nuevo instalado y probado con WebView2; después, equipo del
 taller/impresora, certificado legítimo y expediente de esos bytes, identidad/serie

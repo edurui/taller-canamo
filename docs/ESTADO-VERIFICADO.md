@@ -14,6 +14,17 @@ requiere un instalador nuevo: las comprobaciones previas del servicio empaquetad
 no se atribuyen automáticamente a estos bytes. Seguimiento:
 `../reports/CALIDAD-WINDOWS-2026-11-04.md`.
 
+Publicada rama `codex/entrega-windows-2026-11-04`, commit `0e4b4d0`; `main` intacta.
+Workflow `41802145854` (job `126480256385`): construcción correcta, 843 Python,
+166 E2E, 16 Rust, seis controles de calidad y servicio Windows empaquetado correctos.
+Falló la comparación del EXE instalado, antes del diagnóstico/UI: Tauri sustituye
+su marcador UNK por NSS al crear NSIS y restaura después el EXE de staging.
+Comprobado sobre el payload real: únicamente esas tres letras explican el hash.
+Se conserva el instalador original y se prepara una reanudación solo de instalación
+y ventana. Pasan 49 pruebas dirigidas, nueve controles PowerShell, calidad y actionlint.
+No presentar todavía la instalación o UI como aprobadas. Detalle:
+`../reports/REANUDACION-WINDOWS-2026-11-04.md`.
+
 Lo que sigue es el cierre de la revisión anterior de esta misma fecha.
 
 ## Revisión para entrega · 04/11/2026

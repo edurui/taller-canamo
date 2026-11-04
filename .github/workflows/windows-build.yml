@@ -7,10 +7,26 @@ on:
         required: true
         default: false
         type: boolean
+      build_run_id:
+        description: 'Opcional: reutilizar este build completo; omite toda recompilación'
+        required: false
+        type: string
+      build_source_sha:
+        description: 'Commit exacto del build reutilizado (obligatorio si se indica build_run_id)'
+        required: false
+        type: string
 permissions:
   contents: read
+  actions: read
 jobs:
+  verify-preserved:
+    if: inputs.build_run_id != '' || inputs.build_source_sha != ''
+    uses: ./.github/workflows/windows-verify-installer.yml
+    with:
+      build_run_id: ${{ inputs.build_run_id }}
+      build_source_sha: ${{ inputs.build_source_sha }}
   build:
+    if: inputs.build_run_id == '' && inputs.build_source_sha == ''
     runs-on: windows-2025
     timeout-minutes: 60
     steps:

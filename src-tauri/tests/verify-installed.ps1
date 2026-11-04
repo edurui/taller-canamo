@@ -2,11 +2,17 @@
 # This installs a development build, verifies it, and removes that installation.
 param([string]$Installer = "", [switch]$KeepInstalled, [string]$Manifest = "")
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'artifact-integrity.ps1')
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 if (-not $Installer) {
     $Installer = (Get-ChildItem (Join-Path $projectRoot "src-tauri/target/release/bundle/nsis/*-setup.exe") | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
 }
 if (-not $Installer -or -not (Test-Path $Installer)) { throw "Falta el instalador NSIS." }
+if ($Manifest) {
+    $expectedBuild = Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
+    # Validate the preserved installer before executing it.
+    Assert-BuildArtifact $Installer $expectedBuild.artifacts | Out-Null
+}
 $existing = Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq "Talleres El Canamo - Desarrollo" }
 if ($existing) { throw "Ya existe una instalación de desarrollo. Usa una cuenta Windows desechable para esta prueba." }
 $installRoot = Join-Path $env:TEMP ("Cáñamo instalación " + [guid]::NewGuid().ToString("N"))
@@ -24,12 +30,8 @@ try {
         [ordered]@{ path = (Resolve-Path $_).Path; bytes = (Get-Item $_).Length; sha256 = (Get-FileHash -Algorithm SHA256 $_).Hash.ToLowerInvariant() }
     }
     if ($Manifest) {
-        $expectedBuild = Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
-        foreach ($artifact in $artifacts) {
-            $expected = @($expectedBuild.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq (Split-Path $artifact.path -Leaf) })
-            if ($expected.Count -ne 1 -or $artifact.sha256 -ne $expected[0].sha256 -or $artifact.bytes -ne $expected[0].bytes) {
-                throw 'Los bytes instalados no coinciden con el manifiesto de construcción.'
-            }
+        $artifacts = @($Installer, $app, $service) | ForEach-Object {
+            Assert-BuildArtifact $_ $expectedBuild.artifacts
         }
     }
     # The diagnostic creates a disposable database, issues synthetic documents,

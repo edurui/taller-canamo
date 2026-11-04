@@ -48,6 +48,16 @@ def artifact_guard(tmp_path, monkeypatch):
     for name in ("windows-staged-sidecar.json", "windows-installed-sidecar.json"):
         write(name, {"ok": True})
     write(
+        "quality/result.json",
+        {
+            "ok": True,
+            "commands": [
+                {"name": name, "exit_code": 0}
+                for name in ("prettier", "eslint", "ruff-lint", "ruff-format", "rustfmt", "clippy")
+            ],
+        },
+    )
+    write(
         "sidecar-functional.json",
         {
             "ok": True,
@@ -146,6 +156,21 @@ def test_unchanged_build_can_be_reused_only_for_new_desktop_verification(artifac
     result = json.loads(proof.read_text())
     assert result["ok"] and result["rebuilt"] is False
     assert result["original_workflow_conclusion"] == "failure"
+    assert result["scope"] == "build-and-installed-service"
+    assert result["pending_gates"] == ["native-ui"]
+
+
+def test_build_checkpoint_keeps_failed_installation_pending(artifact_guard):
+    module, root, sha, _, reports, steps, _, proof = artifact_guard
+    steps[1]["conclusion"] = "failure"
+    (reports / "windows-installed-sidecar.json").unlink()
+    with pytest.raises(ValueError, match="Paso obligatorio"):
+        module.verify(root, "123", sha)
+    assert not proof.exists()
+    module.verify(root, "123", sha, through_build=True)
+    result = json.loads(proof.read_text())
+    assert result["scope"] == "build" and result["rebuilt"] is False
+    assert result["pending_gates"] == ["installation", "native-ui"]
 
 
 @pytest.mark.parametrize(
@@ -163,9 +188,14 @@ def test_unchanged_build_can_be_reused_only_for_new_desktop_verification(artifac
         "browser_retry",
         "css",
         "unlisted_source",
+        "failed_build",
+        "missing_quality",
+        "failed_quality",
+        "staged_diagnostic",
     ],
 )
-def test_rejects_damage_and_removes_stale_acceptance(artifact_guard, damage):
+@pytest.mark.parametrize("through_build", [False, True])
+def test_rejects_damage_and_removes_stale_acceptance(artifact_guard, damage, through_build):
     module, root, sha, installer, reports, steps, run, proof = artifact_guard
     if damage == "installer":
         installer.write_bytes(b"TAMPERED")
@@ -202,6 +232,18 @@ def test_rejects_damage_and_removes_stale_acceptance(artifact_guard, damage):
         Path("web/style.css").write_text("body { color: transparent; }")
     elif damage == "unlisted_source":
         Path("frontend/new.tsx").write_text("export const changed = true;")
+    elif damage == "failed_build":
+        steps[0]["conclusion"] = "failure"
+    elif damage in ("missing_quality", "failed_quality"):
+        path = reports / "quality/result.json"
+        value = json.loads(path.read_text())
+        if damage == "missing_quality":
+            value["commands"].pop()
+        else:
+            value["commands"][0]["exit_code"] = 1
+        path.write_text(json.dumps(value))
+    elif damage == "staged_diagnostic":
+        (reports / "windows-staged-sidecar.json").write_text('{"ok":false}')
     with pytest.raises(ValueError):
-        module.verify(root, "123", sha)
+        module.verify(root, "123", sha, through_build=through_build)
     assert not proof.exists()
