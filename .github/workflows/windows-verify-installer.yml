@@ -65,7 +65,7 @@ jobs:
           "CANAMO_TEST_INSTALLED_APP=$($app[0].path)" >> $env:GITHUB_ENV
       - name: Test the installed Tauri UI through its real WebView2
         shell: pwsh
-        run: python -X utf8 src-tauri/tests/desktop_smoke.py --application "$env:CANAMO_TEST_INSTALLED_APP" --native-driver ./edge-driver/msedgedriver.exe --isolated-windows-account --attach-edge
+        run: python -X utf8 src-tauri/tests/desktop_smoke.py --application "$env:CANAMO_TEST_INSTALLED_APP" --native-driver ./edge-driver/msedgedriver.exe --isolated-windows-account --attach-edge --ci-webview-policy
       - name: Capture desktop on failure
         if: failure()
         shell: pwsh
@@ -78,7 +78,7 @@ jobs:
           $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
           try {
             $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
-            $bitmap.Save((Join-Path $env:GITHUB_WORKSPACE 'reports/desktop/failure-desktop.png'))
+            $bitmap.Save((Join-Path $env:GITHUB_WORKSPACE 'reports/desktop/failure-after-cleanup.png'))
           } finally { $graphics.Dispose(); $bitmap.Dispose() }
           Get-Process | Where-Object { $_.Name -match 'taller-canamo|canamo-service|msedge|msedgedriver' } | Select-Object Name,Id,MainWindowTitle | ConvertTo-Json | Set-Content reports/desktop/processes.json
       - name: Remove only the disposable test installation

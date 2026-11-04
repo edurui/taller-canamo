@@ -15,6 +15,10 @@ windows-build.yml; ese camino omite build y llama a windows-verify-installer.yml
 Comprobación de integridad corregida sin modificar archivos ni aceptar otros bytes;
 49 regresiones, nueve controles PS, seis controles de calidad y actionlint correctos.
 Ver `../reports/REANUDACION-WINDOWS-2026-11-04.md`. No repetir petición de permiso.
+Primer run corto `41808916261`: instalación/diagnóstico correctos, UI falla en CDP
+antes de conectar. Se añade `--ci-webview-policy` solo para GitHub Windows elevado:
+HKLM por nombre exacto de app, restaurado al salir; 57 pruebas dirigidas correctas.
+Repetir únicamente el mismo camino corto con el build original `41802145854`.
 El manual `LEEME.md` conserva una frase
 histórica sobre ausencia de EXE Windows: actualizarla con el resultado real antes
 de preparar la entrega, junto con estado/aceptación. Las actualizaciones documentales

@@ -10,9 +10,11 @@ La aplicación destinada al taller es de escritorio para Windows. El equipo del 
 final no necesita Python, Node, Rust ni Java. El instalador incluye los motores locales;
 puede necesitar Internet para instalar WebView2 si no existe en el equipo.
 
-En este entorno Linux no se ha generado ni ejecutado un instalador Windows. La
-[guía Windows](docs/BUILD-WINDOWS.md) explica cómo construirlo y comprobarlo. No
-desactives las protecciones del sistema para omitir un problema de distribución.
+Existe un candidato Windows x64 construido en el runner Windows el 04/11/2026.
+Consulta sus pruebas y límites en el [estado verificado](docs/ESTADO-VERIFICADO.md);
+la [guía Windows](docs/BUILD-WINDOWS.md) explica cómo comprobarlo. El instalador aún
+no tiene firma digital. No desactives las protecciones del sistema para omitir un
+problema de distribución.
 
 Al abrir por primera vez, configura el taller. **Cargar demostración** crea únicamente
 datos ficticios y solo está disponible con la base vacía. Usa una instalación de ensayo

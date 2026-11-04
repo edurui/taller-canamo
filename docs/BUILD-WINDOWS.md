@@ -1,10 +1,11 @@
 # Construir, instalar y comprobar Windows
 
-Revisión 2026-11-04: **hace falta una nueva construcción Windows**. El instalador
+Revisión inicial 2026-11-04: hacía falta una nueva construcción Windows. El instalador
 del 27/10 está conservado, pero no incorpora las correcciones de dependencias ni
 su manifiesto cubre todos los recursos. Su prueba de ventana quedó fallida.
-El workflow corregido debe ejecutarse con datos sintéticos en `windows-2025`.
-Resultado y límites: `../reports/REVISION-ENTREGA-2026-11-04.md`.
+La nueva construcción ya terminó en `windows-2025`, run `41802145854`; se conserva
+su instalador. La reanudación verifica instalación/UI sin reconstruirlo. Resultado
+y límites: `../reports/REANUDACION-WINDOWS-2026-11-04.md`.
 La ejecución Tauri/PyInstaller Linux y la comprobación de tipos MSVC de septiembre
 son evidencia anterior, en `reports/escritorio-final-2026-09-23.md`.
 
@@ -97,7 +98,7 @@ Tras copiar la carpeta del proyecto y el instalador:
 
 Esta prueba instala con NSIS en una ruta temporal con espacios y tildes, comprueba ambos EXE,
 ejecuta el diagnóstico con base sintética temporal, verifica cierre sin servicio residual y
-desinstala. Rechaza ejecutar si ya encuentra otra instalación de desarrollo. Requiere PowerShell,
+desinstala. Rechaza ejecutar si ya encuentra otra instalación de desarrollo. Requiere PowerShell 7.2 o posterior,
 pero no Python, Node ni Rust en el equipo de prueba. Guarda `reports/windows-installed-sidecar.json`.
 Este diagnóstico no abre la interfaz; la siguiente prueba verifica el WebView real.
 
@@ -118,6 +119,10 @@ de pruebas habilita la conexión de depuración local de WebView2, siguiendo el
 Los drivers son exclusivos de pruebas y no se empaquetan. En ejecución manual,
 desinstalar después únicamente la instalación temporal conservada por la prueba;
 el workflow realiza esa limpieza incluso ante un fallo.
+El runner elevado de GitHub usa además `--ci-webview-policy`: política HKLM
+temporal solo para `taller-canamo.exe`, restaurada incluso si falla el ensayo,
+porque WebView2 150+ ignora la variable de entorno en hosts elevados. Esta opción
+se rechaza fuera de GitHub Windows; no se necesita para el usuario de la app.
 El smoke crea una demo desde los botones de Tauri, busca matrícula, comprueba el teléfono,
 abre la ficha con Enter, pide un PDF al servicio y comprueba la segunda instancia.
 Guarda `reports/desktop/result.json`, log y captura. En Windows utiliza la carpeta del usuario de
@@ -224,7 +229,25 @@ con manifiesto de entradas v2, hashes y baterías completas. Comprueba casos rea
 del informe, sin fijar una cifra histórica de tests ni aceptar omisiones/reintentos.
 Rechaza el instalador del 27/10 y cualquier entrada de ejecución distinta o ausente;
 no sirve para atribuir correcciones nuevas a bytes antiguos. No publica una release.
-Estado actual: `../reports/REVISION-ENTREGA-2026-11-04.md`. Ninguna prueba envía
+El candidato actual de `0e4b4d0` se construyó en `41802145854`: 843 Python,
+166 E2E y 16 Rust correctos. Para retomar instalación/UI sin reconstrucción, ejecutar
+el workflow registrado `windows-build.yml` sobre la rama de correcciones con:
+
+```text
+release_candidate=true
+build_run_id=41802145854
+build_source_sha=0e4b4d05a5ec497d1a090fce0b7edfb4cb21c61b
+```
+
+Esos inputs omiten el job `build` y llaman a `windows-verify-installer.yml`.
+`--through-build` solo acepta el punto de construcción completa: instalación/UI
+quedan pendientes y se ejecutan otra vez. La verificación del EXE instalado tiene
+en cuenta únicamente el marcador UNK -> NSS de Tauri, contrastando todos los demás
+bytes con el hash staged; conserva también el hash real del archivo instalado.
+Los nueve controles positivos/negativos del verificador se ejecutan antes de
+construir o instalar. Cualquier cambio en las entradas de ejecución invalida la
+reutilización y exige un build nuevo. No usar «re-run all jobs» para reanudar esta fase.
+Estado actual: `../reports/REANUDACION-WINDOWS-2026-11-04.md`. Ninguna prueba envía
 facturas a AEAT.
 
 ## Fuentes oficiales consultadas el 2026-09-23

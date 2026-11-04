@@ -22,7 +22,11 @@ su marcador UNK por NSS al crear NSIS y restaura después el EXE de staging.
 Comprobado sobre el payload real: únicamente esas tres letras explican el hash.
 Se conserva el instalador original y se prepara una reanudación solo de instalación
 y ventana. Pasan 49 pruebas dirigidas, nueve controles PowerShell, calidad y actionlint.
-No presentar todavía la instalación o UI como aprobadas. Detalle:
+Reanudación `41808916261`: **instalación/diagnóstico aprobados**, mismo SHA del
+instalador, build omitido; 3 min 25 s. UI pendiente por conexión CDP. Se prepara
+política temporal de depuración específica de la app en el runner elevado,
+según la documentación de Microsoft; 57 regresiones dirigidas correctas.
+No presentar todavía la UI como aprobada. Detalle:
 `../reports/REANUDACION-WINDOWS-2026-11-04.md`.
 
 Lo que sigue es el cierre de la revisión anterior de esta misma fecha.

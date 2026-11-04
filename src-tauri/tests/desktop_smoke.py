@@ -6,6 +6,7 @@ Windows: use a clean test account and matching msedgedriver; never real data.
 
 import argparse
 import base64
+from contextlib import ExitStack, contextmanager
 import hashlib
 import json
 import os
@@ -18,6 +19,53 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+
+
+@contextmanager
+def ci_webview_debugging(application, port, output):
+    """Temporary, app-specific HKLM policy for elevated disposable GitHub runners.
+
+    WebView2 150+ ignores environment overrides from elevated hosts. This does
+    not change the application, runtime version or production/user configuration.
+    https://github.com/MicrosoftEdge/WebView2Feedback/issues/5640
+    """
+    if sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true":
+        raise ValueError("La política WebView2 de pruebas solo se permite en GitHub Windows.")
+    import ctypes
+    import winreg
+
+    name = application.name
+    key_path = r"Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments"
+    with winreg.CreateKeyEx(
+        winreg.HKEY_LOCAL_MACHINE,
+        key_path,
+        0,
+        winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE | winreg.KEY_WOW64_64KEY,
+    ) as key:
+        try:
+            original = winreg.QueryValueEx(key, name)
+        except FileNotFoundError:
+            original = None
+        evidence = {
+            "application": name,
+            "port": port,
+            "elevated": bool(ctypes.windll.shell32.IsUserAnAdmin()),
+            "channel": "HKLM app-specific AdditionalBrowserArguments",
+            "original_value_present": original is not None,
+            "restored": False,
+        }
+        report = output / "webview-debug-policy.json"
+        report.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+        try:
+            winreg.SetValueEx(key, name, 0, winreg.REG_SZ, f"--remote-debugging-port={port}")
+            yield
+        finally:
+            if original is None:
+                winreg.DeleteValue(key, name)
+            else:
+                winreg.SetValueEx(key, name, 0, original[1], original[0])
+            evidence["restored"] = True
+            report.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
 
 
 def artifact_metadata(application):
@@ -43,6 +91,11 @@ def main():
     parser.add_argument("--xvfb")
     parser.add_argument("--isolated-windows-account", action="store_true")
     parser.add_argument(
+        "--ci-webview-policy",
+        action="store_true",
+        help="Solo GitHub Windows: política HKLM temporal para depurar el EXE en un runner elevado.",
+    )
+    parser.add_argument(
         "--attach-edge",
         action="store_true",
         help="Solo Windows: inicia el EXE normalmente y conecta Edge Driver al WebView2 real ya disponible.",
@@ -65,6 +118,12 @@ def main():
         )
     if args.attach_edge and sys.platform != "win32":
         parser.error("--attach-edge solo está disponible en Windows.")
+    if args.ci_webview_policy and (
+        not args.attach_edge
+        or sys.platform != "win32"
+        or os.environ.get("GITHUB_ACTIONS") != "true"
+    ):
+        parser.error("--ci-webview-policy requiere --attach-edge y un runner GitHub Windows.")
     if args.test_document_handlers and sys.platform != "linux":
         parser.error("Los receptores de prueba de documentos solo están implementados en Linux.")
     if args.test_save_dialog and (sys.platform != "linux" or not args.xvfb):
@@ -77,7 +136,10 @@ def main():
     data_directory = None
     processes = []
     save_evidence = None
-    with tempfile.TemporaryDirectory(prefix="canamo-desktop-e2e-") as temporary:
+    with (
+        tempfile.TemporaryDirectory(prefix="canamo-desktop-e2e-") as temporary,
+        ExitStack() as cleanup,
+    ):
         env = {
             **os.environ,
             "XDG_DATA_HOME": temporary + "/data",
@@ -184,12 +246,15 @@ raise SystemExit(status.get(program,0))
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", 0))
                 debug_port = probe.getsockname()[1]
-            # Process-local setting in the disposable test account only. No
-            # registry/configuration change and no change to the release EXE.
+            # Local environment suffices for non-elevated Windows accounts.
             env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
                 env.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
                 + f" --remote-debugging-port={debug_port}"
             )
+            if args.ci_webview_policy:
+                cleanup.enter_context(
+                    ci_webview_debugging(args.application, debug_port, args.output)
+                )
             application_process = subprocess.Popen(
                 [str(args.application.resolve())], env=env, stdout=log, stderr=log
             )
@@ -579,7 +644,7 @@ raise SystemExit(status.get(program,0))
                     capture_env["CANAMO_FAILURE_SCREEN"] = str(
                         (args.output / "failure-desktop.png").resolve()
                     )
-                    capture_script = """$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $b=[System.Windows.Forms.SystemInformation]::VirtualScreen; $p=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($p); try {$g.CopyFromScreen($b.Left,$b.Top,0,0,$b.Size);$p.Save($env:CANAMO_FAILURE_SCREEN)} finally {$g.Dispose();$p.Dispose()}; Get-Process | Where-Object {$_.Name -match 'taller-canamo|canamo-service|msedge'} | Select-Object Name,Id,MainWindowTitle | ConvertTo-Json"""
+                    capture_script = """$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $b=[System.Windows.Forms.SystemInformation]::VirtualScreen; $p=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($p); try {$g.CopyFromScreen($b.Left,$b.Top,0,0,$b.Size);$p.Save($env:CANAMO_FAILURE_SCREEN)} finally {$g.Dispose();$p.Dispose()}; Get-Process | Where-Object {$_.Name -match 'taller-canamo|canamo-service|msedge'} | Select-Object Name,Id,MainWindowTitle,Responding | ConvertTo-Json; Get-CimInstance Win32_Process | Where-Object {$_.Name -eq 'msedgewebview2.exe'} | Select-Object ProcessId,CommandLine | ConvertTo-Json"""
                     subprocess.run(
                         ["powershell", "-NoProfile", "-Command", capture_script],
                         env=capture_env,

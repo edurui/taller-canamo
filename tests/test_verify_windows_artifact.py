@@ -173,6 +173,29 @@ def test_build_checkpoint_keeps_failed_installation_pending(artifact_guard):
     assert result["pending_gates"] == ["installation", "native-ui"]
 
 
+@pytest.mark.parametrize("other_conclusion", ["skipped", "failure"])
+def test_only_skipped_workflow_branches_are_ignored(artifact_guard, monkeypatch, other_conclusion):
+    module, root, sha, _, _, _, _, proof = artifact_guard
+    original = module.subprocess.check_output
+
+    def output(command, **kwargs):
+        result = original(command, **kwargs)
+        if command[-1].endswith("/jobs"):
+            jobs = json.loads(result)
+            jobs["jobs"].append({"conclusion": other_conclusion, "steps": None})
+            return json.dumps(jobs)
+        return result
+
+    monkeypatch.setattr(module.subprocess, "check_output", output)
+    if other_conclusion == "skipped":
+        module.verify(root, "123", sha, through_build=True)
+        assert proof.exists()
+    else:
+        with pytest.raises(ValueError, match="Jobs distintos"):
+            module.verify(root, "123", sha, through_build=True)
+        assert not proof.exists()
+
+
 @pytest.mark.parametrize(
     "damage",
     [

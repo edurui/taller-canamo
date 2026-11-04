@@ -79,3 +79,31 @@ No se repiten las baterías de la app porque sus fuentes y artefactos no cambiar
 Estado al preparar la reanudación: instalación diagnosticada y UI nativa pendientes.
 No se han tocado datos reales ni flags fiscales. Certificado, expediente, corte
 de Access y ensayo en equipo/impresora del taller siguen siendo pasos externos.
+
+## Primera ejecución corta y ajuste de WebView2
+
+Run [41808916261](https://github.com/edurui/taller-canamo/actions/runs/41808916261),
+commit de pruebas `6e5b184`: **build omitido**; 09:36:57–09:40:22 UTC, 3 min 25 s.
+Pasan guardia de 206 entradas, driver Microsoft 156.0.4314.50, instalación,
+integridad, PDF, reapertura y cierre del servicio instalado. Falla únicamente
+la espera del puerto CDP de WebView2, antes de crear la sesión WebDriver.
+No se atribuye aceptación de UI. ZIP de evidencia `13311840401`, SHA-256
+`222a359c343b522d29c9f70438841cb752bd2e4f667d2f945aa711e02a4b918e`.
+
+Los logs muestran app, servicio y WebView2 vivos, pero la variable de depuración
+no permite conectar. Microsoft explica en [WebView2 #5640](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5640)
+que desde Runtime 150 los hosts elevados ignoran variables de usuario y políticas
+HKCU para estos argumentos; admiten API del host o política HKLM. Se prueba esta
+hipótesis sin recompilar: opción explícita `--ci-webview-policy`, rechazada fuera
+de GitHub Windows, establece solo `AdditionalBrowserArguments/taller-canamo.exe`
+en HKLM con el puerto local de ensayo. Conserva/restaura el valor anterior incluso
+si falla la prueba y guarda evidencia de elevación/puerto/restauración. No usa
+comodín, no cambia versión de WebView2 ni flags/protecciones de la aplicación.
+El entorno de producción y el instalador permanecen intactos.
+
+La captura previa al cierre se conserva con otro nombre que la captura posterior
+del workflow; antes se sobreescribía y perdía el estado de la ventana fallida.
+Se cubre también la respuesta GitHub `steps:null` de un job omitido, sin aceptar
+jobs fallidos adicionales. **57 pruebas dirigidas correctas** (incluidas seis de
+aislamiento/restauración de la política), Ruff y actionlint correctos; plantilla
+YAML formateada. Los nueve controles PS se adelantan también al build completo.

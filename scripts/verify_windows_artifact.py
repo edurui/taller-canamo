@@ -143,7 +143,9 @@ def verify(root, run_id, source_sha, *, through_build=False):
     build_jobs = [
         job
         for job in jobs
-        if any(step["name"] == "Test and build selected installer" for step in job["steps"])
+        if any(
+            step["name"] == "Test and build selected installer" for step in (job.get("steps") or [])
+        )
     ]
     require(
         len(build_jobs) == 1
