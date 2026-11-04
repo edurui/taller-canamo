@@ -53,6 +53,12 @@ def rows(root):
         }
 
 
+def install(executable, destination, *, check=True):
+    # NSIS requires /D last and unquoted, including when it contains spaces.
+    # subprocess list quoting hides /D and silently selects the default path.
+    return subprocess.run(f'"{executable}" /S /D={destination}', check=check, timeout=240)
+
+
 def main():
     if sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true":
         raise SystemExit("Esta prueba usa exclusivamente una cuenta Windows desechable de CI.")
@@ -108,7 +114,7 @@ def main():
                 ],
                 check=True,
             )
-            subprocess.run([str(wrapped), "/S", "/D=" + str(installation)], check=True, timeout=240)
+            install(wrapped, installation)
             assert rows(destination) == expected
             receipt = json.loads(
                 (destination / ".initial-data-loaded.json").read_text(encoding="utf-8-sig")
@@ -124,7 +130,7 @@ def main():
                     {"data": {"name": "Alta sintética posterior a la instalación"}},
                 )
             before = files(destination)
-            subprocess.run([str(wrapped), "/S", "/D=" + str(installation)], check=True, timeout=240)
+            install(wrapped, installation)
             assert files(destination) == before
             checks.append("reinstall_preserves_every_existing_data_file")
 
@@ -157,7 +163,7 @@ def main():
             destination.mkdir()
             sentinel = destination / "existing-file.txt"
             sentinel.write_text("SYNTHETIC EXISTING DATA")
-            result = subprocess.run([str(wrapped), "/S", "/D=" + str(installation)], timeout=240)
+            result = install(wrapped, installation, check=False)
             assert result.returncode != 0 and sentinel.read_text() == "SYNTHETIC EXISTING DATA"
             assert list(destination.iterdir()) == [sentinel]
             checks.append("existing_folder_without_database_is_not_replaced")
@@ -180,9 +186,7 @@ def main():
         finally:
             uninstaller = installation / "uninstall.exe"
             if uninstaller.exists():
-                subprocess.run(
-                    [str(uninstaller), "/S", "_?=" + str(installation)], timeout=90, check=True
-                )
+                subprocess.run(f'"{uninstaller}" /S _?={installation}', timeout=90, check=True)
             if destination.exists():
                 shutil.rmtree(destination)
 
