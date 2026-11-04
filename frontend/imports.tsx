@@ -1,21 +1,11 @@
-import { Presence } from "./overlays.js";
-import { SortHeader, useListSort } from "./list-controls.js";
-import { Select } from "./controls.js";
-import { useEffect, useRef, useState } from "react";
-import { EntityReference, type EntityNavigate } from "./entity-navigation.js";
-import {
-  api,
-  Button,
-  Confirm,
-  Field,
-  Input,
-  Notice,
-  Pager,
-  saveExport,
-  money,
-} from "./core";
+import { Presence } from './overlays.js';
+import { SortHeader, useListSort } from './list-controls.js';
+import { Select } from './controls.js';
+import { useEffect, useRef, useState } from 'react';
+import { EntityReference, type EntityNavigate } from './entity-navigation.js';
+import { api, Button, Confirm, Field, Input, Notice, Pager, saveExport, money } from './core';
 
-type Entity = "customers" | "vehicles" | "invoices" | "lines";
+type Entity = 'customers' | 'vehicles' | 'invoices' | 'lines';
 type Mapping = {
   table: string;
   key?: string[];
@@ -40,7 +30,7 @@ type Profile = {
   vehicles?: Mapping;
   invoices?: Mapping;
   lines?: Mapping;
-  options?: { decimal_separator: string; date_format: string; preservation?: "strict" | "partial" };
+  options?: { decimal_separator: string; date_format: string; preservation?: 'strict' | 'partial' };
   historical_calculation?: { tax_rate: string; evidence: string } | null;
 };
 type Source = { id: string; name: string };
@@ -56,15 +46,26 @@ type Table = {
 const diagnosticSortValues = {
   name: (row: Table) => row.name,
   rows: (row: Table) => row.rows,
-  reading: (row: Table) => row.linked ? "Vínculo bloqueado" : "Local",
+  reading: (row: Table) => (row.linked ? 'Vínculo bloqueado' : 'Local'),
 };
-type ReconciliationMetric = { key: string; label: string; source: number | null; destination: number | null };
+type ReconciliationMetric = {
+  key: string;
+  label: string;
+  source: number | null;
+  destination: number | null;
+};
 const reconciliationSortValues = {
   label: (row: ReconciliationMetric) => row.label,
   source: (row: ReconciliationMetric) => row.source,
   destination: (row: ReconciliationMetric) => row.destination,
 };
-const reconciliationLabels: Record<string, string> = { invoices: "Facturas", lines: "Líneas", base_cents: "Base", tax_cents: "Cuota IVA", total_cents: "Total" };
+const reconciliationLabels: Record<string, string> = {
+  invoices: 'Facturas',
+  lines: 'Líneas',
+  base_cents: 'Base',
+  tax_cents: 'Cuota IVA',
+  total_cents: 'Total',
+};
 type Incident = {
   id: number;
   level: string;
@@ -141,77 +142,76 @@ type Props = {
   navigate: EntityNavigate;
 };
 const labels: Record<string, string> = {
-  customers: "Clientes",
-  vehicles: "Vehículos",
-  invoices: "Facturas históricas",
-  lines: "Líneas de factura",
-  legacy_code: "Código antiguo",
-  name: "Nombre",
-  tax_id: "NIF",
-  address: "Dirección",
-  postal_code: "Código postal",
-  city: "Población",
-  province: "Provincia",
-  country: "País",
-  phone: "Teléfono",
-  phone2: "Otro teléfono",
-  email: "Correo",
-  notes: "Notas",
-  plate: "Matrícula",
-  make: "Marca",
-  model: "Modelo",
-  vin: "Bastidor",
-  kind: "Tipo",
-  km: "Kilómetros",
-  full_number: "Número original",
-  issue_date: "Fecha",
-  base: "Base original",
-  tax: "Cuota IVA original",
-  total: "Total original",
-  paid: "Cobrado documentado",
-  quantity: "Cantidad",
-  description: "Concepto",
-  unit_price: "Precio",
-  tax_rate: "Porcentaje IVA histórico",
-  legal_name: "Nombre fiscal",
-  insert: "Nuevos",
-  unchanged: "Sin cambios",
-  replace: "Cambios de origen",
-  skip: "Excluidos",
-  quarantine: "Conservados para revisión",
-  link: "Vinculados",
+  customers: 'Clientes',
+  vehicles: 'Vehículos',
+  invoices: 'Facturas históricas',
+  lines: 'Líneas de factura',
+  legacy_code: 'Código antiguo',
+  name: 'Nombre',
+  tax_id: 'NIF',
+  address: 'Dirección',
+  postal_code: 'Código postal',
+  city: 'Población',
+  province: 'Provincia',
+  country: 'País',
+  phone: 'Teléfono',
+  phone2: 'Otro teléfono',
+  email: 'Correo',
+  notes: 'Notas',
+  plate: 'Matrícula',
+  make: 'Marca',
+  model: 'Modelo',
+  vin: 'Bastidor',
+  kind: 'Tipo',
+  km: 'Kilómetros',
+  full_number: 'Número original',
+  issue_date: 'Fecha',
+  base: 'Base original',
+  tax: 'Cuota IVA original',
+  total: 'Total original',
+  paid: 'Cobrado documentado',
+  quantity: 'Cantidad',
+  description: 'Concepto',
+  unit_price: 'Precio',
+  tax_rate: 'Porcentaje IVA histórico',
+  legal_name: 'Nombre fiscal',
+  insert: 'Nuevos',
+  unchanged: 'Sin cambios',
+  replace: 'Cambios de origen',
+  skip: 'Excluidos',
+  quarantine: 'Conservados para revisión',
+  link: 'Vinculados',
 };
 const fields: Record<Entity, string[]> = {
   customers: [
-    "legacy_code",
-    "name",
-    "tax_id",
-    "address",
-    "postal_code",
-    "city",
-    "province",
-    "country",
-    "phone",
-    "phone2",
-    "email",
-    "notes",
+    'legacy_code',
+    'name',
+    'tax_id',
+    'address',
+    'postal_code',
+    'city',
+    'province',
+    'country',
+    'phone',
+    'phone2',
+    'email',
+    'notes',
   ],
-  vehicles: ["plate", "make", "model", "vin", "kind", "km", "notes"],
-  invoices: ["full_number", "issue_date", "base", "tax", "total", "paid"],
-  lines: ["description", "quantity", "unit_price", "base", "tax", "tax_rate"],
+  vehicles: ['plate', 'make', 'model', 'vin', 'kind', 'km', 'notes'],
+  invoices: ['full_number', 'issue_date', 'base', 'tax', 'total', 'paid'],
+  lines: ['description', 'quantity', 'unit_price', 'base', 'tax', 'tax_rate'],
 };
-const blankMapping = (): Mapping => ({ table: "", key: [], fields: {} });
-const message = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const blankMapping = (): Mapping => ({ table: '', key: [], fields: {} });
+const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const statusText: Record<string, string> = {
-  diagnosed: "Diagnosticado",
-  previewed: "Pendiente de simulación",
-  simulated: "Simulación terminada",
-  running: "En curso",
-  paused: "Pausado",
-  completed: "Importado",
-  reverted: "Revertido",
-  failed: "Requiere revisión",
+  diagnosed: 'Diagnosticado',
+  previewed: 'Pendiente de simulación',
+  simulated: 'Simulación terminada',
+  running: 'En curso',
+  paused: 'Pausado',
+  completed: 'Importado',
+  reverted: 'Revertido',
+  failed: 'Requiere revisión',
 };
 
 function ColumnSelect({
@@ -229,10 +229,7 @@ function ColumnSelect({
 }) {
   return (
     <Field label={label}>
-      <Select
-        value={value || ""}
-        onChange={(event) => onChange(event.target.value)}
-      >
+      <Select value={value || ''} onChange={(event) => onChange(event.target.value)}>
         <option value="">No conservado / sin mapear</option>
         {[...columns, ...extra].map((column) => (
           <option key={column} value={column}>
@@ -257,7 +254,7 @@ function KeyColumns({
   return (
     <fieldset
       style={{
-        border: "1px solid var(--border)",
+        border: '1px solid var(--border)',
         borderRadius: 8,
         padding: 12,
         marginBlock: 12,
@@ -265,15 +262,12 @@ function KeyColumns({
     >
       <legend>{label}</legend>
       <p>
-        Orden de la clave: {value.join(" + ") || "Selecciona columnas"}. El
-        orden debe coincidir en ambas tablas.
+        Orden de la clave: {value.join(' + ') || 'Selecciona columnas'}. El orden debe coincidir en
+        ambas tablas.
       </p>
       <div className="form-grid">
         {columns.map((column) => (
-          <label
-            key={column}
-            style={{ display: "flex", gap: 8, alignItems: "center" }}
-          >
+          <label key={column} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="checkbox"
               checked={value.includes(column)}
@@ -305,8 +299,8 @@ function ProfileEditor({
   if (profile.canonical)
     return (
       <Notice>
-        Este paquete ya declara clientes, vehículos, claves, instantáneas e
-        importes. Se validará su contenido completo.
+        Este paquete ya declara clientes, vehículos, claves, instantáneas e importes. Se validará su
+        contenido completo.
       </Notice>
     );
   const update = (entity: Entity, change: Partial<Mapping>) =>
@@ -317,272 +311,227 @@ function ProfileEditor({
   return (
     <>
       <p>
-        El perfil sugerido se basa en nombres de tablas y columnas. Revisa las
-        claves compuestas y los importes antes de continuar. Una tabla vinculada
-        se debe aportar como copia local independiente.
+        El perfil sugerido se basa en nombres de tablas y columnas. Revisa las claves compuestas y
+        los importes antes de continuar. Una tabla vinculada se debe aportar como copia local
+        independiente.
       </p>
-      {(["customers", "vehicles", "invoices", "lines"] as Entity[]).map(
-        (entity) => {
-          const config = profile[entity] || blankMapping();
-          const columns =
-            tables
-              .find((table) => table.name === config.table)
-              ?.columns.map((column) => column.name) || [];
-          const lineColumns =
-            tables
-              .find((table) => table.name === profile.lines?.table)
-              ?.columns.map((column) => "@lines." + column.name) || [];
-          return (
-            <details key={entity} open={entity === "customers"}>
-              <summary>
-                <strong>{labels[entity]}</strong> ·{" "}
-                {config.table || "No importar"}
-              </summary>
-              <div className="panel padded">
-                <Field label={`Tabla de ${labels[entity].toLowerCase()}`}>
-                  <Select
-                    value={config.table}
-                    onChange={(event) =>
-                      update(entity, {
-                        ...blankMapping(),
-                        table: event.target.value,
-                        customer_key: [],
-                        invoice_key: [],
-                        ignore_blank:
-                          entity === "vehicles" ? "plate" : undefined,
-                      })
+      {(['customers', 'vehicles', 'invoices', 'lines'] as Entity[]).map((entity) => {
+        const config = profile[entity] || blankMapping();
+        const columns =
+          tables
+            .find((table) => table.name === config.table)
+            ?.columns.map((column) => column.name) || [];
+        const lineColumns =
+          tables
+            .find((table) => table.name === profile.lines?.table)
+            ?.columns.map((column) => '@lines.' + column.name) || [];
+        return (
+          <details key={entity} open={entity === 'customers'}>
+            <summary>
+              <strong>{labels[entity]}</strong> · {config.table || 'No importar'}
+            </summary>
+            <div className="panel padded">
+              <Field label={`Tabla de ${labels[entity].toLowerCase()}`}>
+                <Select
+                  value={config.table}
+                  onChange={(event) =>
+                    update(entity, {
+                      ...blankMapping(),
+                      table: event.target.value,
+                      customer_key: [],
+                      invoice_key: [],
+                      ignore_blank: entity === 'vehicles' ? 'plate' : undefined,
+                    })
+                  }
+                >
+                  <option value="">No importar esta entidad</option>
+                  {tables.map((table) => (
+                    <option key={table.name} value={table.name} disabled={table.linked}>
+                      {table.name}
+                      {table.linked ? ' · vinculada, no se abre' : ` · ${table.rows} filas`}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {config.table && (
+                <>
+                  <KeyColumns
+                    label={
+                      entity === 'lines'
+                        ? 'Clave de la factura a la que pertenece cada línea'
+                        : `Clave estable de ${labels[entity].toLowerCase()}`
                     }
-                  >
-                    <option value="">No importar esta entidad</option>
-                    {tables.map((table) => (
-                      <option
-                        key={table.name}
-                        value={table.name}
-                        disabled={table.linked}
-                      >
-                        {table.name}
-                        {table.linked
-                          ? " · vinculada, no se abre"
-                          : ` · ${table.rows} filas`}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                {config.table && (
-                  <>
+                    columns={columns}
+                    value={entity === 'lines' ? config.invoice_key : config.key}
+                    onChange={(value) =>
+                      update(entity, entity === 'lines' ? { invoice_key: value } : { key: value })
+                    }
+                  />
+                  {(entity === 'vehicles' || entity === 'invoices') && (
                     <KeyColumns
-                      label={
-                        entity === "lines"
-                          ? "Clave de la factura a la que pertenece cada línea"
-                          : `Clave estable de ${labels[entity].toLowerCase()}`
-                      }
+                      label="Columnas que identifican al cliente"
                       columns={columns}
-                      value={
-                        entity === "lines" ? config.invoice_key : config.key
-                      }
-                      onChange={(value) =>
-                        update(
-                          entity,
-                          entity === "lines"
-                            ? { invoice_key: value }
-                            : { key: value },
-                        )
-                      }
+                      value={config.customer_key}
+                      onChange={(value) => update(entity, { customer_key: value })}
                     />
-                    {(entity === "vehicles" || entity === "invoices") && (
-                      <KeyColumns
-                        label="Columnas que identifican al cliente"
+                  )}
+                  <div className="form-grid">
+                    {fields[entity].map((field) => (
+                      <ColumnSelect
+                        key={field}
+                        label={`${labels[entity]} · ${labels[field]}`}
                         columns={columns}
-                        value={config.customer_key}
+                        extra={entity === 'invoices' ? lineColumns : []}
+                        value={config.fields[field]}
                         onChange={(value) =>
-                          update(entity, { customer_key: value })
+                          update(entity, {
+                            fields: { ...config.fields, [field]: value },
+                          })
                         }
                       />
-                    )}
-                    <div className="form-grid">
-                      {fields[entity].map((field) => (
-                        <ColumnSelect
-                          key={field}
-                          label={`${labels[entity]} · ${labels[field]}`}
-                          columns={columns}
-                          extra={entity === "invoices" ? lineColumns : []}
-                          value={config.fields[field]}
-                          onChange={(value) =>
-                            update(entity, {
-                              fields: { ...config.fields, [field]: value },
-                            })
-                          }
-                        />
-                      ))}
-                    </div>
-                    {entity === "customers" && (
-                      <details>
-                        <summary>
-                          Relación opcional con códigos postales
-                        </summary>
-                        {(() => {
-                          const join = config.joins?.[0] || {
-                            table: "",
-                            local: "",
-                            foreign: "",
-                            fields: { city: "", province: "" },
-                          };
-                          const related =
-                            tables
-                              .find((table) => table.name === join.table)
-                              ?.columns.map((column) => column.name) || [];
-                          const change = (patch: Partial<typeof join>) =>
-                            update(entity, { joins: [{ ...join, ...patch }] });
-                          return (
-                            <div className="form-grid">
-                              <Field label="Tabla de códigos postales">
-                                <Select
-                                  value={join.table}
-                                  onChange={(event) =>
-                                    event.target.value
-                                      ? change({ table: event.target.value })
-                                      : update(entity, { joins: [] })
-                                  }
-                                >
-                                  <option value="">Sin relación postal</option>
-                                  {tables
-                                    .filter((table) => !table.linked)
-                                    .map((table) => (
-                                      <option key={table.name}>
-                                        {table.name}
-                                      </option>
-                                    ))}
-                                </Select>
-                              </Field>
+                    ))}
+                  </div>
+                  {entity === 'customers' && (
+                    <details>
+                      <summary>Relación opcional con códigos postales</summary>
+                      {(() => {
+                        const join = config.joins?.[0] || {
+                          table: '',
+                          local: '',
+                          foreign: '',
+                          fields: { city: '', province: '' },
+                        };
+                        const related =
+                          tables
+                            .find((table) => table.name === join.table)
+                            ?.columns.map((column) => column.name) || [];
+                        const change = (patch: Partial<typeof join>) =>
+                          update(entity, { joins: [{ ...join, ...patch }] });
+                        return (
+                          <div className="form-grid">
+                            <Field label="Tabla de códigos postales">
+                              <Select
+                                value={join.table}
+                                onChange={(event) =>
+                                  event.target.value
+                                    ? change({ table: event.target.value })
+                                    : update(entity, { joins: [] })
+                                }
+                              >
+                                <option value="">Sin relación postal</option>
+                                {tables
+                                  .filter((table) => !table.linked)
+                                  .map((table) => (
+                                    <option key={table.name}>{table.name}</option>
+                                  ))}
+                              </Select>
+                            </Field>
+                            <ColumnSelect
+                              label="Código postal en clientes"
+                              columns={columns}
+                              value={join.local}
+                              onChange={(local) => change({ local })}
+                            />
+                            <ColumnSelect
+                              label="Clave en tabla postal"
+                              columns={related}
+                              value={join.foreign}
+                              onChange={(foreign) => change({ foreign })}
+                            />
+                            {['city', 'province'].map((field) => (
                               <ColumnSelect
-                                label="Código postal en clientes"
-                                columns={columns}
-                                value={join.local}
-                                onChange={(local) => change({ local })}
-                              />
-                              <ColumnSelect
-                                label="Clave en tabla postal"
+                                key={field}
+                                label={`Dato relacionado: ${labels[field]}`}
                                 columns={related}
-                                value={join.foreign}
-                                onChange={(foreign) => change({ foreign })}
+                                value={join.fields[field]}
+                                onChange={(value) =>
+                                  change({
+                                    fields: {
+                                      ...join.fields,
+                                      [field]: value,
+                                    },
+                                  })
+                                }
                               />
-                              {["city", "province"].map((field) => (
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </details>
+                  )}
+                  {entity === 'invoices' && (
+                    <>
+                      <details>
+                        <summary>Vehículo de origen e instantáneas históricas</summary>
+                        <KeyColumns
+                          label="Clave del vehículo (opcional)"
+                          columns={columns}
+                          value={config.vehicle_key}
+                          onChange={(vehicle_key) => update(entity, { vehicle_key })}
+                        />
+                        <Notice>
+                          Selecciona únicamente datos que se conservaron con la factura. Si faltan,
+                          figurará «No consta»; no se copiará la ficha actual.
+                        </Notice>
+                        {(
+                          [
+                            [
+                              'customer',
+                              'Receptor',
+                              ['name', 'tax_id', 'address', 'postal_code', 'city', 'province'],
+                            ],
+                            [
+                              'issuer',
+                              'Emisor',
+                              ['legal_name', 'tax_id', 'address', 'postal_code', 'city'],
+                            ],
+                            ['vehicle', 'Vehículo', ['plate', 'make', 'model', 'vin']],
+                          ] as [string, string, string[]][]
+                        ).map(([part, label, names]) => (
+                          <fieldset key={part}>
+                            <legend>{label} original</legend>
+                            <div className="form-grid">
+                              {names.map((name) => (
                                 <ColumnSelect
-                                  key={field}
-                                  label={`Dato relacionado: ${labels[field]}`}
-                                  columns={related}
-                                  value={join.fields[field]}
+                                  key={name}
+                                  label={`${label} original · ${labels[name]}`}
+                                  columns={columns}
+                                  value={config.snapshots?.[part]?.[name]}
                                   onChange={(value) =>
-                                    change({
-                                      fields: {
-                                        ...join.fields,
-                                        [field]: value,
+                                    update(entity, {
+                                      snapshots: {
+                                        ...config.snapshots,
+                                        [part]: {
+                                          ...config.snapshots?.[part],
+                                          [name]: value,
+                                        },
                                       },
                                     })
                                   }
                                 />
                               ))}
                             </div>
-                          );
-                        })()}
+                          </fieldset>
+                        ))}
                       </details>
-                    )}
-                    {entity === "invoices" && (
-                      <>
-                        <details>
-                          <summary>
-                            Vehículo de origen e instantáneas históricas
-                          </summary>
-                          <KeyColumns
-                            label="Clave del vehículo (opcional)"
-                            columns={columns}
-                            value={config.vehicle_key}
-                            onChange={(vehicle_key) =>
-                              update(entity, { vehicle_key })
-                            }
-                          />
-                          <Notice>
-                            Selecciona únicamente datos que se conservaron con
-                            la factura. Si faltan, figurará «No consta»; no se
-                            copiará la ficha actual.
-                          </Notice>
-                          {(
-                            [
-                              [
-                                "customer",
-                                "Receptor",
-                                [
-                                  "name",
-                                  "tax_id",
-                                  "address",
-                                  "postal_code",
-                                  "city",
-                                  "province",
-                                ],
-                              ],
-                              [
-                                "issuer",
-                                "Emisor",
-                                [
-                                  "legal_name",
-                                  "tax_id",
-                                  "address",
-                                  "postal_code",
-                                  "city",
-                                ],
-                              ],
-                              [
-                                "vehicle",
-                                "Vehículo",
-                                ["plate", "make", "model", "vin"],
-                              ],
-                            ] as [string, string, string[]][]
-                          ).map(([part, label, names]) => (
-                            <fieldset key={part}>
-                              <legend>{label} original</legend>
-                              <div className="form-grid">
-                                {names.map((name) => (
-                                  <ColumnSelect
-                                    key={name}
-                                    label={`${label} original · ${labels[name]}`}
-                                    columns={columns}
-                                    value={config.snapshots?.[part]?.[name]}
-                                    onChange={(value) =>
-                                      update(entity, {
-                                        snapshots: {
-                                          ...config.snapshots,
-                                          [part]: {
-                                            ...config.snapshots?.[part],
-                                            [name]: value,
-                                          },
-                                        },
-                                      })
-                                    }
-                                  />
-                                ))}
-                              </div>
-                            </fieldset>
-                          ))}
-                        </details>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </details>
-          );
-        },
-      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+        );
+      })}
       <div className="form-grid">
         <Field label="Separador decimal">
           <Select
-            value={profile.options?.decimal_separator || "."}
+            value={profile.options?.decimal_separator || '.'}
             onChange={(event) =>
               onChange({
                 ...profile,
                 options: {
                   ...profile.options,
-                  date_format: profile.options?.date_format || "iso",
+                  date_format: profile.options?.date_format || 'iso',
                   decimal_separator: event.target.value,
                 },
               })
@@ -594,13 +543,13 @@ function ProfileEditor({
         </Field>
         <Field label="Formato de fecha">
           <Select
-            value={profile.options?.date_format || "iso"}
+            value={profile.options?.date_format || 'iso'}
             onChange={(event) =>
               onChange({
                 ...profile,
                 options: {
                   ...profile.options,
-                  decimal_separator: profile.options?.decimal_separator || ".",
+                  decimal_separator: profile.options?.decimal_separator || '.',
                   date_format: event.target.value,
                 },
               })
@@ -612,40 +561,52 @@ function ProfileEditor({
         </Field>
       </div>
       <Field label="Conservación del histórico">
-        <Select value={profile.options?.preservation || "strict"} onChange={(event) => onChange({
-          ...profile,
-          options: { decimal_separator: ".", date_format: "iso", ...profile.options, preservation: event.target.value as "strict" | "partial" },
-        })}>
+        <Select
+          value={profile.options?.preservation || 'strict'}
+          onChange={(event) =>
+            onChange({
+              ...profile,
+              options: {
+                decimal_separator: '.',
+                date_format: 'iso',
+                ...profile.options,
+                preservation: event.target.value as 'strict' | 'partial',
+              },
+            })
+          }
+        >
           <option value="strict">Importes y fechas originales completos</option>
           <option value="partial">Conservar datos incompletos sin reconstruirlos</option>
         </Select>
       </Field>
-      {profile.options?.preservation === "partial" && <Notice>
-        Los importes y fechas desconocidos se muestran como «No consta». Los decimales originales se conservan sin redondear.
-        Las identidades ambiguas quedan agrupadas para revisión y no bloquean los registros seguros.
-        Este modo no aplica un porcentaje global de IVA.
-      </Notice>}
+      {profile.options?.preservation === 'partial' && (
+        <Notice>
+          Los importes y fechas desconocidos se muestran como «No consta». Los decimales originales
+          se conservan sin redondear. Las identidades ambiguas quedan agrupadas para revisión y no
+          bloquean los registros seguros. Este modo no aplica un porcentaje global de IVA.
+        </Notice>
+      )}
       <details>
         <summary>Importes calculados por el informe antiguo</summary>
         <Notice tone="warning">
-          Solo si el Access guardaba importes de línea y calculaba la cabecera
-          al imprimir. La reconstrucción se marcará y conservará su evidencia.
-          No se sustituyen importes que sí existen.
+          Solo si el Access guardaba importes de línea y calculaba la cabecera al imprimir. La
+          reconstrucción se marcará y conservará su evidencia. No se sustituyen importes que sí
+          existen.
         </Notice>
         <label>
           <input
             type="checkbox"
-            disabled={profile.options?.preservation === "partial"}
+            disabled={profile.options?.preservation === 'partial'}
             checked={Boolean(profile.historical_calculation)}
             onChange={(event) =>
               onChange({
                 ...profile,
                 historical_calculation: event.target.checked
-                  ? { tax_rate: "", evidence: "" }
+                  ? { tax_rate: '', evidence: '' }
                   : null,
               })
             }
-          />{" "}
+          />{' '}
           El informe usaba una fórmula histórica única confirmada
         </label>
         {profile.historical_calculation && (
@@ -696,28 +657,26 @@ function ResolveIncident({
 }) {
   const [action, setAction] = useState(
     initial?.skip
-      ? "skip"
+      ? 'skip'
       : initial?.replace
-        ? "replace"
+        ? 'replace'
         : initial?.accept_difference
-          ? "difference"
+          ? 'difference'
           : initial?.link
-            ? "link"
-            : "",
+            ? 'link'
+            : '',
   );
-  const [reason, setReason] = useState(initial?.reason || ""),
-    [query, setQuery] = useState("");
+  const [reason, setReason] = useState(initial?.reason || ''),
+    [query, setQuery] = useState('');
   const [matches, setMatches] = useState<{ id: string; name: string }[]>([]),
-    [selected, setSelected] = useState(initial?.link || ""),
-    [error, setError] = useState("");
-  const canLink =
-    incident.entity === "customers" || incident.entity === "vehicles";
+    [selected, setSelected] = useState(initial?.link || ''),
+    [error, setError] = useState('');
+  const canLink = incident.entity === 'customers' || incident.entity === 'vehicles';
   return (
     <details>
       <summary>
-        {incident.level === "error" ? "Revisar" : "Advertencia"} ·{" "}
-        {labels[incident.entity] || incident.entity} {incident.source_key}:{" "}
-        {incident.message}
+        {incident.level === 'error' ? 'Revisar' : 'Advertencia'} ·{' '}
+        {labels[incident.entity] || incident.entity} {incident.source_key}: {incident.message}
       </summary>
       <div className="panel padded">
         <Field label="Resolución">
@@ -727,25 +686,15 @@ function ResolveIncident({
             onChange={(event) => setAction(event.target.value)}
           >
             <option value="">Revisar el mapeo / conservar advertencia</option>
-            <option value="skip">
-              Excluir este registro y conservar su evidencia
-            </option>
-            <option value="replace">
-              Aceptar cambio del origen con sustitución protegida
-            </option>
-            {incident.entity === "invoices" && (
-              <option value="difference">
-                Conservar discrepancia de importes del original
-              </option>
+            <option value="skip">Excluir este registro y conservar su evidencia</option>
+            <option value="replace">Aceptar cambio del origen con sustitución protegida</option>
+            {incident.entity === 'invoices' && (
+              <option value="difference">Conservar discrepancia de importes del original</option>
             )}
-            {canLink && (
-              <option value="link">
-                Vincular explícitamente una ficha existente
-              </option>
-            )}
+            {canLink && <option value="link">Vincular explícitamente una ficha existente</option>}
           </Select>
         </Field>
-        {action === "link" && (
+        {action === 'link' && (
           <>
             <Input
               label="Buscar ficha para vincular"
@@ -756,25 +705,25 @@ function ResolveIncident({
               disabled={!query || disabled}
               onClick={async () => {
                 try {
-                  setError("");
-                  if (incident.entity === "customers") {
+                  setError('');
+                  if (incident.entity === 'customers') {
                     const result = await api<{
                       items: {
                         id: string;
                         name: string;
                         legacy_code: string;
                       }[];
-                    }>("customers.list", { query });
+                    }>('customers.list', { query });
                     setMatches(
                       result.items.map((item) => ({
                         id: item.id,
-                        name: `${item.name} · ${item.legacy_code || "sin código"}`,
+                        name: `${item.name} · ${item.legacy_code || 'sin código'}`,
                       })),
                     );
                   } else {
                     const result = await api<
                       { id: string; plate: string; customer_name: string }[]
-                    >("vehicles.list", { query });
+                    >('vehicles.list', { query });
                     setMatches(
                       result.map((item) => ({
                         id: item.id,
@@ -790,10 +739,7 @@ function ResolveIncident({
               Buscar ficha
             </Button>
             <Field label="Ficha que has comprobado">
-              <Select
-                value={selected}
-                onChange={(event) => setSelected(event.target.value)}
-              >
+              <Select value={selected} onChange={(event) => setSelected(event.target.value)}>
                 <option value="">Seleccionar coincidencia</option>
                 {matches.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -812,17 +758,15 @@ function ResolveIncident({
               onChange={(event) => setReason(event.target.value)}
             />
             <Button
-              disabled={
-                disabled || !reason.trim() || (action === "link" && !selected)
-              }
+              disabled={disabled || !reason.trim() || (action === 'link' && !selected)}
               onClick={() =>
                 onSave({
                   reason,
-                  ...(action === "skip"
+                  ...(action === 'skip'
                     ? { skip: true }
-                    : action === "replace"
+                    : action === 'replace'
                       ? { replace: true }
-                      : action === "difference"
+                      : action === 'difference'
                         ? { accept_difference: true }
                         : { link: selected }),
                 })
@@ -840,40 +784,46 @@ function ResolveIncident({
 
 export function ImportPanel({ refresh, notify, navigate }: Props) {
   const [sources, setSources] = useState<Source[]>([]),
-    [sourceId, setSourceId] = useState(""),
-    [sourceName, setSourceName] = useState("Access del taller");
-  const [profiles, setProfiles] = useState<
-      { id: string; name: string; profile: Profile }[]
-    >([]),
-    [profileName, setProfileName] = useState("Mi mapeo Access"),
+    [sourceId, setSourceId] = useState(''),
+    [sourceName, setSourceName] = useState('Access del taller');
+  const [profiles, setProfiles] = useState<{ id: string; name: string; profile: Profile }[]>([]),
+    [profileName, setProfileName] = useState('Mi mapeo Access'),
     [profile, setProfile] = useState<Profile | null>(null);
-  const [batches, setBatches] = useState<
-      { id: string; status: string; created_at: string }[]
-    >([]),
+  const [batches, setBatches] = useState<{ id: string; status: string; created_at: string }[]>([]),
     [batchTotal, setBatchTotal] = useState(0),
     [batchPage, setBatchPage] = useState(0);
   const [file, setFile] = useState<File | null>(null),
-    [encoding, setEncoding] = useState("utf-8-sig"),
-    [delimiter, setDelimiter] = useState("auto");
+    [encoding, setEncoding] = useState('utf-8-sig'),
+    [delimiter, setDelimiter] = useState('auto');
   const [review, setReview] = useState<Review | null>(null),
     [reconciliation, setReconciliation] = useState<Reconciliation | null>(null),
     [records, setRecords] = useState<RecordPreview[]>([]),
     [recordTotal, setRecordTotal] = useState(0),
     [recordPage, setRecordPage] = useState(0);
   const [busy, setBusy] = useState(false),
-    [progress, setProgress] = useState(""),
-    [error, setError] = useState(""),
+    [progress, setProgress] = useState(''),
+    [error, setError] = useState(''),
     [ack, setAck] = useState(false),
-    [confirm, setConfirm] = useState<"import" | "rollback" | "discard" | null>(
-      null,
-    ),
-    [reason, setReason] = useState("");
-  const { sort: diagnosticSort, toggle: sortDiagnostic, rows: diagnosticRows } = useListSort(review?.diagnostic.tables || [], diagnosticSortValues);
-  const { sort: reconciliationSort, toggle: sortReconciliation, rows: reconciliationRows } = useListSort(
-    Object.entries(reconciliationLabels).map(([key, label]) => ({ key, label,
-      source: reconciliation?.totals["source_" + key] ?? null,
-      destination: reconciliation?.totals["destination_" + key] ?? null,
-    })), reconciliationSortValues);
+    [confirm, setConfirm] = useState<'import' | 'rollback' | 'discard' | null>(null),
+    [reason, setReason] = useState('');
+  const {
+    sort: diagnosticSort,
+    toggle: sortDiagnostic,
+    rows: diagnosticRows,
+  } = useListSort(review?.diagnostic.tables || [], diagnosticSortValues);
+  const {
+    sort: reconciliationSort,
+    toggle: sortReconciliation,
+    rows: reconciliationRows,
+  } = useListSort(
+    Object.entries(reconciliationLabels).map(([key, label]) => ({
+      key,
+      label,
+      source: reconciliation?.totals['source_' + key] ?? null,
+      destination: reconciliation?.totals['destination_' + key] ?? null,
+    })),
+    reconciliationSortValues,
+  );
   const stop = useRef(false),
     mounted = useRef(true);
   useEffect(() => {
@@ -886,14 +836,14 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
   useEffect(() => {
     let active = true;
     Promise.all([
-      api<Source[]>("import.sources"),
-      api<{ id: string; name: string; profile: Profile }[]>("import.profiles"),
+      api<Source[]>('import.sources'),
+      api<{ id: string; name: string; profile: Profile }[]>('import.profiles'),
     ])
       .then(([origins, saved]) => {
         if (active) {
           setSources(origins);
           setProfiles(saved);
-          setSourceId((current) => current || origins[0]?.id || "");
+          setSourceId((current) => current || origins[0]?.id || '');
         }
       })
       .catch((error) => active && setError(message(error)));
@@ -906,7 +856,7 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
     api<{
       items: { id: string; status: string; created_at: string }[];
       total: number;
-    }>("import.batches", { source_id: sourceId || null, page: batchPage })
+    }>('import.batches', { source_id: sourceId || null, page: batchPage })
       .then((value) => {
         if (active) {
           setBatches(value.items);
@@ -920,11 +870,11 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
   }, [sourceId, batchPage, review?.status]);
   const editable = Boolean(
     review &&
-    ["diagnosed", "previewed", "simulated"].includes(review.status) &&
+    ['diagnosed', 'previewed', 'simulated'].includes(review.status) &&
     review.cursor === 0,
   );
   async function guarded(work: () => Promise<void>) {
-    setError("");
+    setError('');
     setBusy(true);
     stop.current = false;
     try {
@@ -934,15 +884,15 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
     } finally {
       if (mounted.current) {
         setBusy(false);
-        setProgress("");
+        setProgress('');
       }
     }
   }
   async function showRecords(batchId: string, page = 0) {
-    const value = await api<{ items: RecordPreview[]; total: number }>(
-      "import.records",
-      { batch_id: batchId, page },
-    );
+    const value = await api<{ items: RecordPreview[]; total: number }>('import.records', {
+      batch_id: batchId,
+      page,
+    });
     if (mounted.current) {
       setRecords(value.items);
       setRecordTotal(value.total);
@@ -950,21 +900,19 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
     }
   }
   async function loadBatch(batchId: string) {
-    const value = await api<Review>("import.review", { batch_id: batchId });
+    const value = await api<Review>('import.review', { batch_id: batchId });
     if (!mounted.current) return;
     setReview(value);
     setProfile(value.profile);
     setAck(Boolean(value.summary.simulation));
     setReconciliation(null);
     await showRecords(batchId);
-    if (value.status === "completed" || value.status === "reverted")
-      setReconciliation(
-        await api<Reconciliation>("import.reconcile", { batch_id: batchId }),
-      );
+    if (value.status === 'completed' || value.status === 'reverted')
+      setReconciliation(await api<Reconciliation>('import.reconcile', { batch_id: batchId }));
   }
   async function map(resolutions = review?.summary.resolutions || {}) {
     if (!review || !profile) return;
-    const value = await api<Review>("import.map", {
+    const value = await api<Review>('import.map', {
       batch_id: review.batch_id,
       profile,
       resolutions,
@@ -977,7 +925,7 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
   async function upload() {
     if (!file || !sourceId) return;
     let uploaded: { upload_id: string; chunk_bytes: number };
-    const storageKey = "canamo-import-upload:" + sourceId;
+    const storageKey = 'canamo-import-upload:' + sourceId;
     const previous = localStorage.getItem(storageKey);
     if (previous) {
       try {
@@ -986,24 +934,24 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
           chunk_bytes: number;
           name: string;
           size: number;
-        }>("import.upload_status", { upload_id: previous });
+        }>('import.upload_status', { upload_id: previous });
         uploaded =
           status.name === file.name && status.size === file.size
             ? status
-            : await api("import.upload_start", {
+            : await api('import.upload_start', {
                 name: file.name,
                 size: file.size,
                 source_id: sourceId,
               });
       } catch {
-        uploaded = await api("import.upload_start", {
+        uploaded = await api('import.upload_start', {
           name: file.name,
           size: file.size,
           source_id: sourceId,
         });
       }
     } else
-      uploaded = await api("import.upload_start", {
+      uploaded = await api('import.upload_start', {
         name: file.name,
         size: file.size,
         source_id: sourceId,
@@ -1015,10 +963,10 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
       const bytes = new Uint8Array(
         await file.slice(offset, offset + uploaded.chunk_bytes).arrayBuffer(),
       );
-      let binary = "";
+      let binary = '';
       for (let i = 0; i < bytes.length; i += 32768)
         binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
-      await api("import.upload_chunk", {
+      await api('import.upload_chunk', {
         upload_id: uploaded.upload_id,
         offset,
         content: btoa(binary),
@@ -1027,8 +975,8 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
         `Copia comprobada: ${Math.min(offset + bytes.length, file.size).toLocaleString()} de ${file.size.toLocaleString()} bytes`,
       );
     }
-    setProgress("Diagnosticando la copia local…");
-    const value = await api<Review>("import.diagnose", {
+    setProgress('Diagnosticando la copia local…');
+    const value = await api<Review>('import.diagnose', {
       upload_id: uploaded.upload_id,
       encoding,
       delimiter,
@@ -1048,14 +996,12 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
         done: boolean;
         cursor: number;
         remaining: number;
-      }>("import.simulate", {
+      }>('import.simulate', {
         batch_id: review.batch_id,
         acknowledge_warnings: ack,
       });
       done = value.done;
-      setProgress(
-        `Simulación: ${value.cursor} revisados, ${value.remaining} pendientes`,
-      );
+      setProgress(`Simulación: ${value.cursor} revisados, ${value.remaining} pendientes`);
     }
     await loadBatch(review.batch_id);
   }
@@ -1067,26 +1013,20 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
         done: boolean;
         cursor: number;
         remaining: number;
-      }>("import.run", { batch_id: review.batch_id });
+      }>('import.run', { batch_id: review.batch_id });
       done = value.done;
-      setProgress(
-        `Importación: ${value.cursor} revisados, ${value.remaining} pendientes`,
-      );
+      setProgress(`Importación: ${value.cursor} revisados, ${value.remaining} pendientes`);
     }
-    if (!done) await api("import.pause", { batch_id: review.batch_id });
+    if (!done) await api('import.pause', { batch_id: review.batch_id });
     await loadBatch(review.batch_id);
     await refresh();
-    notify(
-      done
-        ? "Importación terminada. Revisa la conciliación."
-        : "Lote pausado y conservado.",
-    );
+    notify(done ? 'Importación terminada. Revisa la conciliación.' : 'Lote pausado y conservado.');
   }
   async function report() {
     if (!review) return;
     let offset = 0;
     const parts: string[] = [];
-    let name = "";
+    let name: string;
     while (true) {
       const chunk = await api<{
         content: string;
@@ -1094,10 +1034,10 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
         size: number;
         done: boolean;
         name: string;
-      }>("import.export_report_chunk", { batch_id: review.batch_id, offset });
+      }>('import.export_report_chunk', { batch_id: review.batch_id, offset });
       if (chunk.size > 100 * 1024 * 1024)
         throw new Error(
-          "El informe supera 100 MiB. Usa la herramienta de exportación incluida para guardar el informe completo desde la carpeta de datos; no se ha truncado.",
+          'El informe supera 100 MiB. Usa la herramienta de exportación incluida para guardar el informe completo desde la carpeta de datos; no se ha truncado.',
         );
       parts.push(atob(chunk.content));
       offset = chunk.next_offset;
@@ -1106,29 +1046,26 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
     }
     await saveExport({
       name,
-      mime: "application/x-ndjson",
-      content: btoa(parts.join("")),
+      mime: 'application/x-ndjson',
+      content: btoa(parts.join('')),
     });
   }
   return (
     <>
       <div className="settings-title">
         <h2>Traer los datos de Access</h2>
-        <p>
-          Copia → diagnóstico → mapeo → simulación → importación → conciliación.
-        </p>
+        <p>Copia → diagnóstico → mapeo → simulación → importación → conciliación.</p>
       </div>
       <Notice>
-        Trabaja con una copia cerrada. Conservamos el original y los campos sin
-        mapear. El lector MDB/ACCDB abre tablas locales sin ejecutar macros,
-        consultas ni vínculos. Los históricos no consumen numeración nueva ni se
-        envían a AEAT.
+        Trabaja con una copia cerrada. Conservamos el original y los campos sin mapear. El lector
+        MDB/ACCDB abre tablas locales sin ejecutar macros, consultas ni vínculos. Los históricos no
+        consumen numeración nueva ni se envían a AEAT.
       </Notice>
       <section className="panel padded">
         <h3>1. Seleccionar la copia y su origen</h3>
         <p>
-          Usa el mismo origen para copias sucesivas del mismo Access: así se
-          detectan registros repetidos y cambios.
+          Usa el mismo origen para copias sucesivas del mismo Access: así se detectan registros
+          repetidos y cambios.
         </p>
         <div className="form-grid">
           <Field label="Origen de los datos">
@@ -1158,7 +1095,7 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
           disabled={busy || !sourceName.trim()}
           onClick={() =>
             guarded(async () => {
-              const source = await api<Source>("import.source_save", {
+              const source = await api<Source>('import.source_save', {
                 name: sourceName,
               });
               setSources([...sources, source]);
@@ -1177,32 +1114,25 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
           />
         </Field>
         <p>
-          MDB/ACCDB y CSV hasta 2 GiB. Paquete JSON hasta 64 MiB. Paquetes ZIP
-          con tablas JSONL hasta 2 GiB comprimidos. Todos los registros se
-          conservan o se informa un error.
+          MDB/ACCDB y CSV hasta 2 GiB. Paquete JSON hasta 64 MiB. Paquetes ZIP con tablas JSONL
+          hasta 2 GiB comprimidos. Todos los registros se conservan o se informa un error.
         </p>
         <details>
           <summary>Opciones de CSV</summary>
           <div className="form-grid">
             <Field label="Codificación del CSV">
-              <Select
-                value={encoding}
-                onChange={(event) => setEncoding(event.target.value)}
-              >
+              <Select value={encoding} onChange={(event) => setEncoding(event.target.value)}>
                 <option value="utf-8-sig">UTF-8</option>
                 <option value="cp1252">Windows-1252</option>
                 <option value="utf-16">UTF-16</option>
               </Select>
             </Field>
             <Field label="Separador de columnas CSV">
-              <Select
-                value={delimiter}
-                onChange={(event) => setDelimiter(event.target.value)}
-              >
+              <Select value={delimiter} onChange={(event) => setDelimiter(event.target.value)}>
                 <option value="auto">Detectar</option>
                 <option value=";">Punto y coma</option>
                 <option value=",">Coma</option>
-                <option value={"\t"}>Tabulación</option>
+                <option value={'\t'}>Tabulación</option>
               </Select>
             </Field>
           </div>
@@ -1218,11 +1148,11 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
       {error && <Notice tone="error">{error}</Notice>}
       {busy && (
         <div role="status">
-          <p>{progress || "Procesando…"}</p>
+          <p>{progress || 'Procesando…'}</p>
           <Button
             onClick={() => {
               stop.current = true;
-              setProgress("Terminando el paso actual antes de pausar…");
+              setProgress('Terminando el paso actual antes de pausar…');
             }}
           >
             Pausar después de este paso
@@ -1235,12 +1165,8 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
           <ul>
             {batches.map((batch) => (
               <li key={batch.id}>
-                <Button
-                  disabled={busy}
-                  onClick={() => guarded(() => loadBatch(batch.id))}
-                >
-                  {batch.created_at} ·{" "}
-                  {statusText[batch.status] || batch.status} ·{" "}
+                <Button disabled={busy} onClick={() => guarded(() => loadBatch(batch.id))}>
+                  {batch.created_at} · {statusText[batch.status] || batch.status} ·{' '}
                   {batch.id.slice(0, 8)}
                 </Button>
               </li>
@@ -1253,44 +1179,61 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
         <>
           <section className="panel padded">
             <h3>2. Diagnóstico y mapeo</h3>
-            <Notice tone={review.capacity.within_limit ? "info" : "error"}>
-              Copia de seguridad completa:{" "}
-              {Math.ceil(review.capacity.used_bytes / 1024 / 1024)} MiB de{" "}
-              {Math.floor(review.capacity.limit_bytes / 1024 / 1024)} MiB
-              admitidos; {review.capacity.files} archivos.{" "}
+            <Notice tone={review.capacity.within_limit ? 'info' : 'error'}>
+              Copia de seguridad completa: {Math.ceil(review.capacity.used_bytes / 1024 / 1024)} MiB
+              de {Math.floor(review.capacity.limit_bytes / 1024 / 1024)} MiB admitidos;{' '}
+              {review.capacity.files} archivos.{' '}
               {review.capacity.projected_after_import
-                ? "Incluye el crecimiento calculado en la simulación."
-                : "Se volverá a comprobar tras simular."}{" "}
+                ? 'Incluye el crecimiento calculado en la simulación.'
+                : 'Se volverá a comprobar tras simular.'}{' '}
               {!review.capacity.within_limit &&
-                "La importación se detendrá antes de aplicar el siguiente paso; no se recortan datos."}
+                'La importación se detendrá antes de aplicar el siguiente paso; no se recortan datos.'}
             </Notice>
             <p>
-              <strong>{review.diagnostic.name}</strong> ·{" "}
-              {review.diagnostic.engine} ·{" "}
-              {review.diagnostic.database_format ||
-                statusText[review.status] ||
-                review.status}
+              <strong>{review.diagnostic.name}</strong> · {review.diagnostic.engine} ·{' '}
+              {review.diagnostic.database_format || statusText[review.status] || review.status}
             </p>
-            <p style={{ overflowWrap: "anywhere" }}>
+            <p style={{ overflowWrap: 'anywhere' }}>
               SHA-256 de la copia: {review.diagnostic.source_sha256}
             </p>
             <div className="table-scroll">
               <table>
                 <thead>
                   <tr>
-                    <SortHeader label="Tabla" field="name" sort={diagnosticSort} onSort={sortDiagnostic} />
-                    <SortHeader label="Filas" field="rows" sort={diagnosticSort} onSort={sortDiagnostic} />
-                    <SortHeader label="Lectura" field="reading" sort={diagnosticSort} onSort={sortDiagnostic} />
+                    <SortHeader
+                      label="Tabla"
+                      field="name"
+                      sort={diagnosticSort}
+                      onSort={sortDiagnostic}
+                    />
+                    <SortHeader
+                      label="Filas"
+                      field="rows"
+                      sort={diagnosticSort}
+                      onSort={sortDiagnostic}
+                    />
+                    <SortHeader
+                      label="Lectura"
+                      field="reading"
+                      sort={diagnosticSort}
+                      onSort={sortDiagnostic}
+                    />
                   </tr>
                 </thead>
                 <tbody>
                   {diagnosticRows.map((table) => (
                     <tr key={table.name}>
                       <td>{table.name}</td>
-                      <td>{table.rows ?? "No leída"}{table.row_count_mismatch && <small style={{ display: "block" }}>
-                        Contador interno: {table.reported_rows}. Se conservan todas las filas recorridas.
-                      </small>}</td>
-                      <td>{table.linked ? "Vínculo bloqueado" : "Local"}</td>
+                      <td>
+                        {table.rows ?? 'No leída'}
+                        {table.row_count_mismatch && (
+                          <small style={{ display: 'block' }}>
+                            Contador interno: {table.reported_rows}. Se conservan todas las filas
+                            recorridas.
+                          </small>
+                        )}
+                      </td>
+                      <td>{table.linked ? 'Vínculo bloqueado' : 'Local'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1302,9 +1245,7 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
                   <Select
                     defaultValue=""
                     onChange={(event) => {
-                      const found = profiles.find(
-                        (item) => item.id === event.target.value,
-                      );
+                      const found = profiles.find((item) => item.id === event.target.value);
                       if (found) setProfile(found.profile);
                     }}
                   >
@@ -1330,12 +1271,12 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
                   <Button
                     onClick={() =>
                       guarded(async () => {
-                        await api("import.profile_save", {
+                        await api('import.profile_save', {
                           name: profileName,
                           profile,
                         });
-                        setProfiles(await api("import.profiles"));
-                        notify("Perfil guardado");
+                        setProfiles(await api('import.profiles'));
+                        notify('Perfil guardado');
                       })
                     }
                   >
@@ -1348,7 +1289,7 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
               </>
             )}
           </section>
-          {review.status !== "diagnosed" && (
+          {review.status !== 'diagnosed' && (
             <section className="panel padded">
               <h3>3. Vista previa e incidencias</h3>
               <div className="mini-stats">
@@ -1361,95 +1302,99 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
               </div>
               <p>
                 {Object.entries(review.actions)
-                  .map(
-                    ([action, count]) =>
-                      `${labels[action] || action}: ${count}`,
-                  )
-                  .join(" · ")}
+                  .map(([action, count]) => `${labels[action] || action}: ${count}`)
+                  .join(' · ')}
               </p>
-              <Notice tone={review.incident_counts.error ? "error" : "info"}>
-                {review.incident_counts.error} incidencias bloqueantes ·{" "}
-                {review.incident_counts.warning} advertencias. Se muestran 50
-                por página; la descarga incluye todas.
+              <Notice tone={review.incident_counts.error ? 'error' : 'info'}>
+                {review.incident_counts.error} incidencias bloqueantes ·{' '}
+                {review.incident_counts.warning} advertencias. Se muestran 50 por página; la
+                descarga incluye todas.
               </Notice>
-              {Boolean(review.quarantine_groups?.length) && <Notice tone="warning">
-                Hay registros conservados para revisión. Se mantienen sus originales y motivos; no se han asignado propietarios ni identidades dudosas.
-                La conciliación de lo importado no equivale a resolver estos casos.
-                <ul>{review.quarantine_groups?.map((group) => <li key={`${group.entity}:${group.reason}`}>
-                  {labels[group.entity]}: {group.count} · {({
-                    shared_vehicle_owner_unknown: "Matrícula compartida sin titularidad acreditada",
-                    customer_identity_unresolved: "Cliente sin identidad completa",
-                    customer_identity_incomplete: "Código o nombre de cliente incompleto",
-                    vehicle_identifier_invalid: "Identificador de vehículo no válido",
-                    header_identity_incomplete: "Cabecera sin clave completa",
-                    invoice_identity_conflict: "Cabecera en conflicto",
-                    duplicate_source_identity: "Clave de origen duplicada",
-                  } as Record<string, string>)[group.reason] || "Identidad pendiente de revisión"}
-                </li>)}</ul>
-              </Notice>}
-              <details open={profile.options?.preservation === "partial"}>
+              {Boolean(review.quarantine_groups?.length) && (
+                <Notice tone="warning">
+                  Hay registros conservados para revisión. Se mantienen sus originales y motivos; no
+                  se han asignado propietarios ni identidades dudosas. La conciliación de lo
+                  importado no equivale a resolver estos casos.
+                  <ul>
+                    {review.quarantine_groups?.map((group) => (
+                      <li key={`${group.entity}:${group.reason}`}>
+                        {labels[group.entity]}: {group.count} ·{' '}
+                        {(
+                          {
+                            shared_vehicle_owner_unknown:
+                              'Matrícula compartida sin titularidad acreditada',
+                            customer_identity_unresolved: 'Cliente sin identidad completa',
+                            customer_identity_incomplete: 'Código o nombre de cliente incompleto',
+                            vehicle_identifier_invalid: 'Identificador de vehículo no válido',
+                            header_identity_incomplete: 'Cabecera sin clave completa',
+                            invoice_identity_conflict: 'Cabecera en conflicto',
+                            duplicate_source_identity: 'Clave de origen duplicada',
+                          } as Record<string, string>
+                        )[group.reason] || 'Identidad pendiente de revisión'}
+                      </li>
+                    ))}
+                  </ul>
+                </Notice>
+              )}
+              <details open={profile.options?.preservation === 'partial'}>
                 <summary>Incidencias agrupadas por motivo</summary>
-                <ul>{review.incident_groups?.map((group, index) => <li key={index}>
-                  <strong>{group.count}</strong> · {labels[group.entity]} · {group.message}
-                </li>)}</ul>
+                <ul>
+                  {review.incident_groups?.map((group, index) => (
+                    <li key={index}>
+                      <strong>{group.count}</strong> · {labels[group.entity]} · {group.message}
+                    </li>
+                  ))}
+                </ul>
               </details>
               <details>
                 <summary>Revisar incidencias individuales y sus claves</summary>
-              {review.incidents.map((incident) => (
-                <ResolveIncident
-                  key={`${review.batch_id}:${incident.id}`}
-                  incident={incident}
-                  initial={
-                    review.summary.resolutions?.[
-                      incident.entity + ":" + incident.source_key
-                    ]
-                  }
-                  disabled={busy || !editable}
-                  onSave={(value) =>
-                    guarded(() =>
-                      map({
-                        ...review.summary.resolutions,
-                        [incident.entity + ":" + incident.source_key]: value,
-                      }),
+                {review.incidents.map((incident) => (
+                  <ResolveIncident
+                    key={`${review.batch_id}:${incident.id}`}
+                    incident={incident}
+                    initial={
+                      review.summary.resolutions?.[incident.entity + ':' + incident.source_key]
+                    }
+                    disabled={busy || !editable}
+                    onSave={(value) =>
+                      guarded(() =>
+                        map({
+                          ...review.summary.resolutions,
+                          [incident.entity + ':' + incident.source_key]: value,
+                        }),
+                      )
+                    }
+                  />
+                ))}
+                <Pager
+                  total={review.incident_counts.error + review.incident_counts.warning}
+                  page={review.page}
+                  onChange={(page: number) =>
+                    guarded(async () =>
+                      setReview(
+                        await api('import.review', {
+                          batch_id: review.batch_id,
+                          page,
+                        }),
+                      ),
                     )
                   }
                 />
-              ))}
-              <Pager
-                total={
-                  review.incident_counts.error + review.incident_counts.warning
-                }
-                page={review.page}
-                onChange={(page: number) =>
-                  guarded(async () =>
-                    setReview(
-                      await api("import.review", {
-                        batch_id: review.batch_id,
-                        page,
-                      }),
-                    ),
-                  )
-                }
-              />
               </details>
               <details>
-                <summary>
-                  Ver registros y campos originales ({recordTotal})
-                </summary>
+                <summary>Ver registros y campos originales ({recordTotal})</summary>
                 {records.map((record, index) => (
-                  <details
-                    key={`${record.entity}:${record.source_key}:${index}`}
-                  >
+                  <details key={`${record.entity}:${record.source_key}:${index}`}>
                     <summary>
-                      {labels[record.entity]} · {record.source_key} ·{" "}
+                      {labels[record.entity]} · {record.source_key} ·{' '}
                       {labels[record.action] || record.action}
                     </summary>
                     <pre
                       style={{
-                        whiteSpace: "pre-wrap",
-                        overflowWrap: "anywhere",
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
                         maxHeight: 360,
-                        overflow: "auto",
+                        overflow: 'auto',
                       }}
                     >
                       {JSON.stringify(
@@ -1463,9 +1408,7 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
                 <Pager
                   total={recordTotal}
                   page={recordPage}
-                  onChange={(page: number) =>
-                    guarded(() => showRecords(review.batch_id, page))
-                  }
+                  onChange={(page: number) => guarded(() => showRecords(review.batch_id, page))}
                 />
               </details>
               <Button disabled={busy} onClick={() => guarded(report)}>
@@ -1473,14 +1416,13 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
               </Button>
               {editable && (
                 <>
-                  <label style={{ display: "flex", gap: 10, marginBlock: 16 }}>
+                  <label style={{ display: 'flex', gap: 10, marginBlock: 16 }}>
                     <input
                       type="checkbox"
                       checked={ack}
                       onChange={(event) => setAck(event.target.checked)}
-                    />{" "}
-                    He revisado las advertencias, discrepancias aceptadas y
-                    datos desconocidos.
+                    />{' '}
+                    He revisado las advertencias, discrepancias aceptadas y datos desconocidos.
                   </label>
                   <Button
                     disabled={busy || review.incident_counts.error > 0 || !ack}
@@ -1492,30 +1434,22 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
               )}
             </section>
           )}
-          {review.status === "simulated" && (
+          {review.status === 'simulated' && (
             <section className="panel padded">
               <h3>4. Simulación terminada</h3>
               <Notice>
-                La simulación ha aplicado el mismo importador en una copia
-                aislada. Se verificará de nuevo cada registro al confirmar.
+                La simulación ha aplicado el mismo importador en una copia aislada. Se verificará de
+                nuevo cada registro al confirmar.
               </Notice>
-              <Button
-                tone="primary"
-                disabled={busy}
-                onClick={() => setConfirm("import")}
-              >
+              <Button tone="primary" disabled={busy} onClick={() => setConfirm('import')}>
                 Continuar con la importación
               </Button>
             </section>
           )}
-          {["running", "paused"].includes(review.status) && (
+          {['running', 'paused'].includes(review.status) && (
             <section className="panel padded">
               <h3>Lote conservado: {review.cursor} registros revisados</h3>
-              <Button
-                tone="primary"
-                disabled={busy}
-                onClick={() => guarded(run)}
-              >
+              <Button tone="primary" disabled={busy} onClick={() => guarded(run)}>
                 Reanudar importación
               </Button>
             </section>
@@ -1523,18 +1457,33 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
           {reconciliation && (
             <section className="panel padded">
               <h3>5. Conciliación</h3>
-              <Notice tone={reconciliation.balanced ? "success" : "warning"}>
+              <Notice tone={reconciliation.balanced ? 'success' : 'warning'}>
                 {reconciliation.balanced
-                  ? "Lote conciliado: registros e importes coinciden con el origen seleccionado."
-                  : "Revisa las diferencias o el estado revertido del lote."}
+                  ? 'Lote conciliado: registros e importes coinciden con el origen seleccionado.'
+                  : 'Revisa las diferencias o el estado revertido del lote.'}
               </Notice>
               <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
-                      <SortHeader label="Dato" field="label" sort={reconciliationSort} onSort={sortReconciliation} />
-                      <SortHeader label="Origen incluido" field="source" sort={reconciliationSort} onSort={sortReconciliation} />
-                      <SortHeader label="Destino activo" field="destination" sort={reconciliationSort} onSort={sortReconciliation} />
+                      <SortHeader
+                        label="Dato"
+                        field="label"
+                        sort={reconciliationSort}
+                        onSort={sortReconciliation}
+                      />
+                      <SortHeader
+                        label="Origen incluido"
+                        field="source"
+                        sort={reconciliationSort}
+                        onSort={sortReconciliation}
+                      />
+                      <SortHeader
+                        label="Destino activo"
+                        field="destination"
+                        sort={reconciliationSort}
+                        onSort={sortReconciliation}
+                      />
                     </tr>
                   </thead>
                   <tbody>
@@ -1542,22 +1491,22 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
                       <tr key={key}>
                         <th scope="row">{label}</th>
                         <td>
-                          {key.endsWith("cents")
-                            ? reconciliation.totals["source_" + key] === null
-                              ? `No consta (${reconciliation.totals["source_unknown_" + key]} históricos)`
-                              : reconciliation.totals["source_unknown_" + key]
-                              ? `${reconciliation.totals["source_unknown_" + key]} no constan; suma conocida: ${money(reconciliation.totals["source_" + key])}`
-                              : money(reconciliation.totals["source_" + key])
-                            : reconciliation.totals["source_" + key]}
+                          {key.endsWith('cents')
+                            ? reconciliation.totals['source_' + key] === null
+                              ? `No consta (${reconciliation.totals['source_unknown_' + key]} históricos)`
+                              : reconciliation.totals['source_unknown_' + key]
+                                ? `${reconciliation.totals['source_unknown_' + key]} no constan; suma conocida: ${money(reconciliation.totals['source_' + key])}`
+                                : money(reconciliation.totals['source_' + key])
+                            : reconciliation.totals['source_' + key]}
                         </td>
                         <td>
-                          {key.endsWith("cents")
-                            ? reconciliation.totals["destination_" + key] === null
-                              ? `No consta (${reconciliation.totals["destination_unknown_" + key]} históricos)`
-                              : reconciliation.totals["destination_unknown_" + key]
-                              ? `${reconciliation.totals["destination_unknown_" + key]} no constan; suma conocida: ${money(reconciliation.totals["destination_" + key])}`
-                              : money(reconciliation.totals["destination_" + key])
-                            : reconciliation.totals["destination_" + key]}
+                          {key.endsWith('cents')
+                            ? reconciliation.totals['destination_' + key] === null
+                              ? `No consta (${reconciliation.totals['destination_unknown_' + key]} históricos)`
+                              : reconciliation.totals['destination_unknown_' + key]
+                                ? `${reconciliation.totals['destination_unknown_' + key]} no constan; suma conocida: ${money(reconciliation.totals['destination_' + key])}`
+                                : money(reconciliation.totals['destination_' + key])
+                            : reconciliation.totals['destination_' + key]}
                         </td>
                       </tr>
                     ))}
@@ -1565,38 +1514,41 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
                 </table>
               </div>
               <p>
-                Facturas con cobro no documentado:{" "}
-                {reconciliation.totals.unknown_payment}. Excluidas
-                o conservadas para revisión: {reconciliation.totals.excluded} (pendientes: {reconciliation.totals.quarantined || 0}). Documentos con
-                diferencias: {reconciliation.totals.differences}.
+                Facturas con cobro no documentado: {reconciliation.totals.unknown_payment}.
+                Excluidas o conservadas para revisión: {reconciliation.totals.excluded} (pendientes:{' '}
+                {reconciliation.totals.quarantined || 0}). Documentos con diferencias:{' '}
+                {reconciliation.totals.differences}.
               </p>
               <details>
                 <summary>Diferencias por documento</summary>
                 <ul>
                   {reconciliation.items.map((item) => (
                     <li key={item.source_key}>
-                      {item.source_key} ·{" "}
-                      <EntityReference entity="document" id={item.target_id} navigate={navigate} disabled={busy}>
-                        {item.full_number || "Factura sin número conservado"}
-                      </EntityReference> ·{" "}
+                      {item.source_key} ·{' '}
+                      <EntityReference
+                        entity="document"
+                        id={item.target_id}
+                        navigate={navigate}
+                        disabled={busy}
+                      >
+                        {item.full_number || 'Factura sin número conservado'}
+                      </EntityReference>{' '}
+                      ·{' '}
                       {item.excluded
-                        ? "Excluido"
+                        ? 'Excluido'
                         : Object.values(item.differences).some(Boolean)
                           ? JSON.stringify(item.differences)
-                          : "Coincide"}
+                          : 'Coincide'}
                     </li>
                   ))}
                 </ul>
                 <Pager
-                  total={
-                    reconciliation.totals.source_invoices +
-                    reconciliation.totals.excluded
-                  }
+                  total={reconciliation.totals.source_invoices + reconciliation.totals.excluded}
                   page={reconciliation.page}
                   onChange={(page: number) =>
                     guarded(async () =>
                       setReconciliation(
-                        await api("import.reconcile", {
+                        await api('import.reconcile', {
                           batch_id: review.batch_id,
                           page,
                         }),
@@ -1611,102 +1563,94 @@ export function ImportPanel({ refresh, notify, navigate }: Props) {
             <section className="panel padded">
               <h3>Descartar este ensayo sin importar</h3>
               <p>
-                Elimina la copia temporal y su mapeo de este ensayo. El archivo
-                que seleccionaste fuera de la aplicación permanece intacto. Los
-                lotes aplicados solo se pueden revertir conservando su
-                evidencia.
+                Elimina la copia temporal y su mapeo de este ensayo. El archivo que seleccionaste
+                fuera de la aplicación permanece intacto. Los lotes aplicados solo se pueden
+                revertir conservando su evidencia.
               </p>
               <Input
                 label="Motivo para descartar el ensayo"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
-              <Button
-                disabled={busy || !reason.trim()}
-                onClick={() => setConfirm("discard")}
-              >
+              <Button disabled={busy || !reason.trim()} onClick={() => setConfirm('discard')}>
                 Descartar ensayo
               </Button>
             </section>
           )}
-          {["completed", "running", "paused"].includes(review.status) && (
+          {['completed', 'running', 'paused'].includes(review.status) && (
             <section className="panel padded">
               <h3>Revertir este lote</h3>
               <p>
-                Se conservan originales y auditoría. Si una ficha o factura
-                tiene actividad posterior, la reversión se detiene para
-                protegerla.
+                Se conservan originales y auditoría. Si una ficha o factura tiene actividad
+                posterior, la reversión se detiene para protegerla.
               </p>
               <Input
                 label="Motivo de reversión"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
-              <Button
-                disabled={busy || !reason.trim()}
-                onClick={() => setConfirm("rollback")}
-              >
+              <Button disabled={busy || !reason.trim()} onClick={() => setConfirm('rollback')}>
                 Revisar reversión del lote
               </Button>
             </section>
           )}
         </>
       )}
-      <Presence>{confirm && (
-        <Confirm
-          title={
-            confirm === "import"
-              ? "Confirmar importación"
-              : confirm === "discard"
-                ? "Descartar ensayo"
-                : "Revertir lote"
-          }
-          text={
-            confirm === "import"
-              ? "Se guardará una copia previa. Cada paso de hasta 250 registros es transaccional y puede reanudarse. Revisa después la conciliación."
-              : confirm === "discard"
-                ? "Este ensayo no tiene cambios aplicados. Se eliminará su almacenamiento temporal; el archivo seleccionado originalmente no se modifica."
-                : "Se desactivarán los históricos y fichas creados por este lote si no tienen actividad posterior. Se conservarán los originales y la auditoría."
-          }
-          confirm={
-            confirm === "import"
-              ? "Importar datos"
-              : confirm === "discard"
-                ? "Descartar copia temporal"
-                : "Revertir con comprobación"
-          }
-          onClose={() => setConfirm(null)}
-          onConfirm={async () => {
-            const action = confirm;
-            setConfirm(null);
-            await guarded(async () => {
-              if (action === "import") await run();
-              else if (action === "discard" && review) {
-                await api("import.discard", {
-                  upload_id: review.batch_id,
-                  reason,
-                });
-                setReview(null);
-                setProfile(null);
-                setRecords([]);
-                setReconciliation(null);
-                setReason("");
-                notify(
-                  "Ensayo descartado; el archivo original no se ha modificado.",
-                );
-              } else if (review) {
-                await api("import.rollback", {
-                  batch_id: review.batch_id,
-                  reason,
-                });
-                await loadBatch(review.batch_id);
-                await refresh();
-                notify("Lote revertido; originales conservados.");
-              }
-            });
-          }}
-        />
-      )}</Presence>
+      <Presence>
+        {confirm && (
+          <Confirm
+            title={
+              confirm === 'import'
+                ? 'Confirmar importación'
+                : confirm === 'discard'
+                  ? 'Descartar ensayo'
+                  : 'Revertir lote'
+            }
+            text={
+              confirm === 'import'
+                ? 'Se guardará una copia previa. Cada paso de hasta 250 registros es transaccional y puede reanudarse. Revisa después la conciliación.'
+                : confirm === 'discard'
+                  ? 'Este ensayo no tiene cambios aplicados. Se eliminará su almacenamiento temporal; el archivo seleccionado originalmente no se modifica.'
+                  : 'Se desactivarán los históricos y fichas creados por este lote si no tienen actividad posterior. Se conservarán los originales y la auditoría.'
+            }
+            confirm={
+              confirm === 'import'
+                ? 'Importar datos'
+                : confirm === 'discard'
+                  ? 'Descartar copia temporal'
+                  : 'Revertir con comprobación'
+            }
+            onClose={() => setConfirm(null)}
+            onConfirm={async () => {
+              const action = confirm;
+              setConfirm(null);
+              await guarded(async () => {
+                if (action === 'import') await run();
+                else if (action === 'discard' && review) {
+                  await api('import.discard', {
+                    upload_id: review.batch_id,
+                    reason,
+                  });
+                  setReview(null);
+                  setProfile(null);
+                  setRecords([]);
+                  setReconciliation(null);
+                  setReason('');
+                  notify('Ensayo descartado; el archivo original no se ha modificado.');
+                } else if (review) {
+                  await api('import.rollback', {
+                    batch_id: review.batch_id,
+                    reason,
+                  });
+                  await loadBatch(review.batch_id);
+                  await refresh();
+                  notify('Lote revertido; originales conservados.');
+                }
+              });
+            }}
+          />
+        )}
+      </Presence>
     </>
   );
 }

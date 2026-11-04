@@ -1,29 +1,29 @@
-import AxeBuilder from "@axe-core/playwright";
-import { test, expect, navigateSidebar } from "./fixtures";
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect, navigateSidebar } from './fixtures';
 
-for (const theme of ["light", "dark"]) {
+for (const theme of ['light', 'dark']) {
   test(`accesibilidad ${theme}: inicio, formulario, factura y agenda estrecha`, async ({
     page,
     rpc,
   }, info) => {
-    await rpc("demo.load");
-    await rpc("settings.save", {
-      section: "appearance",
-      values: { theme, font_size: "large" },
+    await rpc('demo.load');
+    await rpc('settings.save', {
+      section: 'appearance',
+      values: { theme, font_size: 'large' },
     });
     await page.setViewportSize({ width: 1024, height: 768 });
-    await page.goto("/");
-    await expect(page.locator(".topbar")).toBeVisible();
+    await page.goto('/');
+    await expect(page.locator('.topbar')).toBeVisible();
     const audit = async (step: string) => {
       const result = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
         .analyze();
-      await info.attach(step + "-axe.json", {
+      await info.attach(step + '-axe.json', {
         body: JSON.stringify(result, null, 2),
-        contentType: "application/json",
+        contentType: 'application/json',
       });
       await page.screenshot({
-        path: info.outputPath(step + ".png"),
+        path: info.outputPath(step + '.png'),
         fullPage: true,
       });
       expect(
@@ -36,20 +36,18 @@ for (const theme of ["light", "dark"]) {
         ),
       ).toEqual([]);
       expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= window.innerWidth,
-        ),
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
     };
-    await audit("inicio");
-    await page.getByRole("button", { name: /Nuevo cliente/ }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await audit("cliente");
-    await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: /Nueva factura/ }).click();
-    await audit("factura");
-    await navigateSidebar(page, "Agenda");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Agenda");
-    await audit("agenda");
+    await audit('inicio');
+    await page.getByRole('button', { name: /Nuevo cliente/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await audit('cliente');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: /Nueva factura/ }).click();
+    await audit('factura');
+    await navigateSidebar(page, 'Agenda');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Agenda');
+    await audit('agenda');
   });
 }

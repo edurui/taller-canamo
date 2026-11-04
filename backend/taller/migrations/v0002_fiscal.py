@@ -1,7 +1,8 @@
 """Preserve immutable v1 records and enable traced repeated corrections."""
+
 VERSION = 2
-NAME = 'fiscal_corrections_and_reconciliation'
-SQL = '''
+NAME = "fiscal_corrections_and_reconciliation"
+SQL = """
 CREATE TABLE fiscal_records_new (
  seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
  document_id TEXT NOT NULL REFERENCES documents(id),
@@ -39,4 +40,4 @@ CREATE TRIGGER fiscal_reconciliation_no_update BEFORE UPDATE ON fiscal_reconcili
 CREATE TRIGGER fiscal_reconciliation_no_delete BEFORE DELETE ON fiscal_reconciliations BEGIN SELECT RAISE(ABORT,'Consulta fiscal inalterable'); END;
 CREATE TRIGGER fiscal_attempt_no_update BEFORE UPDATE ON fiscal_attempts BEGIN SELECT RAISE(ABORT,'Intento fiscal inalterable'); END;
 CREATE TRIGGER fiscal_attempt_no_delete BEFORE DELETE ON fiscal_attempts BEGIN SELECT RAISE(ABORT,'Intento fiscal inalterable'); END;
-'''
+"""

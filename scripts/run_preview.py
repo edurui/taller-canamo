@@ -1,9 +1,12 @@
 """Run the built UI + loopback service. No cloud or fiscal production calls."""
+
 import argparse
 import sys
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -14,7 +17,9 @@ def main():
     if not (ROOT / "dist" / "index.html").is_file():
         parser.error("Falta compilar la interfaz. Ejecuta npm install y npm run build.")
     from taller.server import run
+
     run(args.data, ROOT / "dist", args.port, not args.no_open)
+
 
 if __name__ == "__main__":
     main()

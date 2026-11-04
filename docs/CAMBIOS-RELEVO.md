@@ -1,6 +1,37 @@
-# Relevo técnico · actualizado el 29/09/2026
+# Relevo técnico · actualizado el 04/11/2026
 
-La especificación principal es `PROMPT_MAESTRO_TALLER_CANAMO.md`. La revisión local ha terminado. Leer primero `ESTADO-VERIFICADO.md` y `PROGRESO.md`, que sustituyen las afirmaciones
+Fase actual: `../reports/CALIDAD-WINDOWS-2026-11-04.md`. Publicación en rama nueva
+y workflow Windows autorizados por el usuario. Lint/formato corregidos y fijados;
+batería funcional posterior al formateo correcta (842 Python/166 E2E, typechecks,
+build y dependencias, sin cambios de fuentes). Conservar la exclusión de
+recursos externos y datos privados. No reutilizar el instalador anterior para
+atribuirle el código formateado ni la revisión de calidad nueva.
+
+Revisión actual: leer `../reports/REVISION-ENTREGA-2026-11-04.md` y la primera
+sección de `ESTADO-VERIFICADO.md`. Se corrigieron dependencias vulnerables y el
+inventario incompleto de construcción; el instalador del 27/10 necesita reemplazo.
+La estrategia anterior de reutilizarlo ya no es válida. El workflow completo
+conserva la instalación temporal, compara hashes y comprueba su ventana con Edge
+Driver firmado por Microsoft. Se mantiene el método de conexión a WebView2 de
+la revisión anterior, sin darlo por ejecutado. No hubo push ni acceso a datos reales.
+Además se corrigió la repetición de cabeceras y la alineación al dividir líneas de
+facturas largas: 14 pruebas dirigidas y nueve páginas renderizadas revisadas. El
+servicio empaquetado Linux supera sus nueve comprobaciones funcionales con el PDF
+corregido y las dependencias nuevas. Batería integrada final correcta: 841 Python,
+166 E2E/Axe, ambos typechecks, build y pip check, sin fallos/omitidas/reintentos
+ni cambios de fuentes. Pasan 18 Rust. No repetir estas baterías sin cambios o
+un riesgo concreto; el siguiente paso es el build y ensayo Windows autorizado.
+
+### Antecedentes del 27/10 (no son el estado actual)
+
+Entrega Windows reanudada: instalador de `10bb937` generado e instalado, baterías
+Windows completas correctas; conexión WebDriver a la ventana pendiente. Conservar
+sus bytes y usar `windows-verify-installer.yml` para repetir la prueba nativa sin
+otro build. No subir datos reales. Autorización del push de herramientas solicitada;
+no confundir esa dependencia con un fallo de compilación. Copia cifrada real y EXE
+en la entrega privada local. Informe: `../reports/ENTREGA-WINDOWS-2026-10-27.md`.
+
+La especificación principal es `PROMPT_MAESTRO_TALLER_CANAMO.md`. Leer primero `ESTADO-VERIFICADO.md` y `PROGRESO.md`, que sustituyen las afirmaciones
 históricas de este archivo sobre herramientas que antes no estaban disponibles.
 
 ## Ajustes posteriores de Configuración y campos

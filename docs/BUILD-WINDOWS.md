@@ -1,9 +1,10 @@
 # Construir, instalar y comprobar Windows
 
-Revisión 2026-10-27: se está ejecutando el workflow real en `windows-2025`, con
-datos sintéticos, para construir y ensayar un candidato. Se han corregido errores
-detectados allí; **todavía no hay un instalador Windows aceptado**. Resultado,
-fuentes exactas y límites: `reports/PREPARACION-WINDOWS-2026-10-27.md`.
+Revisión 2026-11-04: **hace falta una nueva construcción Windows**. El instalador
+del 27/10 está conservado, pero no incorpora las correcciones de dependencias ni
+su manifiesto cubre todos los recursos. Su prueba de ventana quedó fallida.
+El workflow corregido debe ejecutarse con datos sintéticos en `windows-2025`.
+Resultado y límites: `../reports/REVISION-ENTREGA-2026-11-04.md`.
 La ejecución Tauri/PyInstaller Linux y la comprobación de tipos MSVC de septiembre
 son evidencia anterior, en `reports/escritorio-final-2026-09-23.md`.
 
@@ -103,14 +104,20 @@ Este diagnóstico no abre la interfaz; la siguiente prueba verifica el WebView r
 En una cuenta **desechable de desarrollo/pruebas**, instalar herramientas de automatización:
 
 ```powershell
-cargo +1.98.1 install tauri-driver --version 2.0.6 --locked
-cargo +1.98.1 install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
-msedgedriver-tool
-.\.venv\Scripts\python.exe src-tauri\tests\desktop_smoke.py --application src-tauri\target\release\taller-canamo.exe --native-driver .\msedgedriver.exe --isolated-windows-account
+.\src-tauri\tests\prepare-webdriver.ps1
+.\src-tauri\tests\verify-installed.ps1 -Installer 'C:\ruta\Talleres-setup.exe' -Manifest reports\windows-artifacts.json -KeepInstalled
+$installed = Get-Content reports\windows-installed-sidecar.json -Raw | ConvertFrom-Json
+$app = $installed.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq 'taller-canamo.exe' }
+.\.venv\Scripts\python.exe src-tauri\tests\desktop_smoke.py --application $app.path --native-driver .\edge-driver\msedgedriver.exe --isolated-windows-account --attach-edge
 ```
 
-El descargador recomendado por Tauri selecciona Edge Driver correspondiente al WebView2
-instalado y descarga de Microsoft. Los drivers son exclusivos de pruebas y no se empaquetan.
+El preparador consulta el WebView2 instalado, descarga la versión coincidente de
+Microsoft y comprueba la firma Authenticode y la versión del driver. Solo la sesión
+de pruebas habilita la conexión de depuración local de WebView2, siguiendo el
+[procedimiento Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/webview2/how-to/webdriver).
+Los drivers son exclusivos de pruebas y no se empaquetan. En ejecución manual,
+desinstalar después únicamente la instalación temporal conservada por la prueba;
+el workflow realiza esa limpieza incluso ante un fallo.
 El smoke crea una demo desde los botones de Tauri, busca matrícula, comprueba el teléfono,
 abre la ficha con Enter, pide un PDF al servicio y comprueba la segunda instancia.
 Guarda `reports/desktop/result.json`, log y captura. En Windows utiliza la carpeta del usuario de
@@ -209,8 +216,16 @@ un navegador ni enviar trabajos a una impresora. La captura muestra el visor PDF
 
 `.github/workflows/windows-build.yml` es manual, usa acciones fijadas por SHA y los locks,
 compila, instala/diagnostica y ejecuta el smoke de escritorio con WebView2. No publica releases.
-**No se ha ejecutado:** no hay un remoto/runner autorizado disponible. Publicar el proyecto o
-activar un runner requiere autorización independiente. Ninguna prueba envía facturas a AEAT.
+Se ha ejecutado en el repositorio existente: `40579253295` generó e instaló el candidato
+de `10bb937`, con 819 pytest y 166 E2E correctas. La conexión WebDriver a la ventana
+agotó su timeout; no acredita todavía el recorrido nativo Windows. El workflow
+`windows-verify-installer.yml` permite repetir ese recorrido sobre un build nuevo
+con manifiesto de entradas v2, hashes y baterías completas. Comprueba casos reales
+del informe, sin fijar una cifra histórica de tests ni aceptar omisiones/reintentos.
+Rechaza el instalador del 27/10 y cualquier entrada de ejecución distinta o ausente;
+no sirve para atribuir correcciones nuevas a bytes antiguos. No publica una release.
+Estado actual: `../reports/REVISION-ENTREGA-2026-11-04.md`. Ninguna prueba envía
+facturas a AEAT.
 
 ## Fuentes oficiales consultadas el 2026-09-23
 

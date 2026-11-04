@@ -1,5 +1,5 @@
 # Runtime inputs. Install requirements.lock for the complete hashed resolution.
-Pillow==12.3.0
+Pillow==13.0.0
 cryptography==50.0.1
 reportlab==4.4.9
 lxml==6.1.1

@@ -26,6 +26,24 @@ python -m pytest
 
 La preparación de Access requiere un JDK 17 o posterior para construir el lector; el paquete final incluye su JRE. Los modelos pequeños de voz/OCR se descargan una vez, con hashes fijados, durante la preparación. La facturación no descarga modelos.
 
+Formato y lint reproducibles (con el entorno anterior y Rust fijado en `src-tauri/rust-toolchain.toml`):
+
+```bash
+npm run lint:fix
+npm run format
+python -m ruff check --fix backend/taller scripts tests src-tauri/tests
+python -m ruff format backend/taller scripts tests src-tauri/tests
+python scripts/quality.py
+```
+
+`quality.py` solo comprueba: Prettier, ESLint sin advertencias, Ruff lint/formato,
+rustfmt y Clippy de la biblioteca sin features de escritorio. Guarda comandos,
+resultados y logs en `reports/quality/`; un error impide construir el instalador.
+Los esquemas, fuentes, licencias de terceros, datos privados y documentos históricos
+quedan fuera del formateo de código. `scripts/verify.py` añade las pruebas funcionales,
+ambos typechecks y build; los tipos dinámicos `Row/any` del contrato RPC siguen
+documentados, sin confundir pasar el lint con demostrar ausencia de cualquier error.
+
 Previsualización para desarrollo con datos separados de cualquier taller real:
 
 ```bash
@@ -84,7 +102,9 @@ motores y dependencias se reconstruyen con los locks y scripts incluidos.
 PREPARAR-WINDOWS.cmd instala desde locks y comprueba el entorno de desarrollo.
 scripts/build_desktop.py prepara servicio y artefactos Tauri.
 ABRIR-PREVISUALIZACION.cmd sirve para desarrollo. El cliente final no deberá instalar
-Node, Python ni Rust. No se ha ejecutado Windows ni generado su instalador en este entorno Linux.
+Node, Python ni Rust. Hay un instalador de ensayo del 27/10 generado en GitHub Actions,
+pero la revisión del 04/11 exige reconstruirlo con dependencias corregidas y completar
+la prueba de su ventana instalada. [Estado de entrega](reports/REVISION-ENTREGA-2026-11-04.md).
 
 ## Documentación y datos
 

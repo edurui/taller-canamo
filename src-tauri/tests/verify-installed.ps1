@@ -1,6 +1,6 @@
 # Run in an isolated Windows test account, never on the workshop's operational PC.
 # This installs a development build, verifies it, and removes that installation.
-param([string]$Installer = "")
+param([string]$Installer = "", [switch]$KeepInstalled, [string]$Manifest = "")
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 if (-not $Installer) {
@@ -11,6 +11,7 @@ $existing = Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Un
 if ($existing) { throw "Ya existe una instalación de desarrollo. Usa una cuenta Windows desechable para esta prueba." }
 $installRoot = Join-Path $env:TEMP ("Cáñamo instalación " + [guid]::NewGuid().ToString("N"))
 $report = Join-Path $projectRoot "reports/windows-installed-sidecar.json"
+$verified = $false
 if (Test-Path $report) { Remove-Item $report }
 try {
     # /D must be last and is not quoted in NSIS' command line syntax.
@@ -21,6 +22,15 @@ try {
     if (-not (Test-Path $app) -or -not (Test-Path $service)) { throw "No están ambos ejecutables en la ubicación instalada." }
     $artifacts = @($Installer, $app, $service) | ForEach-Object {
         [ordered]@{ path = (Resolve-Path $_).Path; bytes = (Get-Item $_).Length; sha256 = (Get-FileHash -Algorithm SHA256 $_).Hash.ToLowerInvariant() }
+    }
+    if ($Manifest) {
+        $expectedBuild = Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
+        foreach ($artifact in $artifacts) {
+            $expected = @($expectedBuild.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq (Split-Path $artifact.path -Leaf) })
+            if ($expected.Count -ne 1 -or $artifact.sha256 -ne $expected[0].sha256 -or $artifact.bytes -ne $expected[0].bytes) {
+                throw 'Los bytes instalados no coinciden con el manifiesto de construcción.'
+            }
+        }
     }
     # The diagnostic creates a disposable database, issues synthetic documents,
     # makes a PDF, shuts down, reopens the history, and cleans its temporary data.
@@ -37,8 +47,9 @@ try {
     if ($orphans.Count -ne 0) { throw "Quedan procesos auxiliares de esta instalación." }
     $result | Add-Member -NotePropertyName artifacts -NotePropertyValue $artifacts
     $result | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 $report
+    $verified = $true
     Write-Host "Instalación, ruta con espacios/tildes, PDF, reapertura y cierre comprobados: $report"
 } finally {
     $uninstaller = Join-Path $installRoot "uninstall.exe"
-    if (Test-Path $uninstaller) { Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait | Out-Null }
+    if ((-not $KeepInstalled -or -not $verified) -and (Test-Path $uninstaller)) { Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait | Out-Null }
 }

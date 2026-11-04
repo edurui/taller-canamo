@@ -1,8 +1,8 @@
 """Separate, versioned historical estimates. Source documents remain immutable."""
 
 VERSION = 9
-NAME = 'historical_review_overlays'
-SQL = '''
+NAME = "historical_review_overlays"
+SQL = """
 CREATE TABLE historical_review_versions (
  document_id TEXT NOT NULL REFERENCES documents(id), version INTEGER NOT NULL CHECK(version>=0),
  state TEXT NOT NULL CHECK(state IN ('estimated','pending_review','verified')),
@@ -41,9 +41,10 @@ CREATE TRIGGER historical_review_queue_update AFTER UPDATE OF status,payload,bas
 INSERT INTO historical_review_pending SELECT id FROM documents WHERE kind='invoice'
  AND status IN ('historical','import_reverted')
  AND (base_cents IS NULL OR tax_cents IS NULL OR total_cents IS NULL);
-'''
+"""
 
 
 def after(conn):
     from ..historical_reviews import synchronize_defaults
+
     synchronize_defaults(conn)

@@ -1,8 +1,8 @@
 """Preserve unavailable historical dates and amounts as NULL without weakening new invoices."""
 
 VERSION = 8
-NAME = 'partial_historical_documents'
-SQL = '''
+NAME = "partial_historical_documents"
+SQL = """
 
 DROP TRIGGER doc_no_delete;
 DROP TRIGGER doc_snapshot_immutable;
@@ -41,4 +41,4 @@ CREATE TRIGGER doc_invoice_status_immutable BEFORE UPDATE OF status ON documents
  OR (OLD.status='void' AND NEW.status!='void')
  OR (OLD.status IN ('historical','import_reverted') AND NEW.status NOT IN ('historical','import_reverted')))
  BEGIN SELECT RAISE(ABORT,'El estado de la factura no puede volver a editable'); END;
-'''
+"""

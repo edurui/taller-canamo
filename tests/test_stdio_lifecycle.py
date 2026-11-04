@@ -1,4 +1,5 @@
 """Shutdown acknowledgement, backup failures, and process exit are real IPC gates."""
+
 import io
 import json
 import os
@@ -18,7 +19,9 @@ def test_protocol_preserves_unicode_with_a_legacy_console(tmp_path):
         {"id": 2, "action": "bootstrap"},
         {"id": 3, "action": "app.shutdown"},
     ]
-    incoming = io.BytesIO(("\n".join(json.dumps(row, ensure_ascii=False) for row in requests) + "\n").encode("utf-8"))
+    incoming = io.BytesIO(
+        ("\n".join(json.dumps(row, ensure_ascii=False) for row in requests) + "\n").encode("utf-8")
+    )
     output = io.BytesIO()
     console = io.TextIOWrapper(output, encoding="cp1252", newline="\n")
     serve(tmp_path / "datos-á", incoming, console, background=False)
@@ -31,9 +34,16 @@ def test_protocol_preserves_unicode_with_a_legacy_console(tmp_path):
 
 def test_shutdown_ack_exits_and_runs_backup_once(tmp_path, monkeypatch):
     calls = []
-    monkeypatch.setattr("taller.app.App.shutdown", lambda self: calls.append("backup") or {"ok": True})
+    monkeypatch.setattr(
+        "taller.app.App.shutdown", lambda self: calls.append("backup") or {"ok": True}
+    )
     target = io.StringIO()
-    serve(tmp_path, io.BytesIO(b'{"id":1,"action":"app.shutdown"}\n{"id":2,"action":"bootstrap"}\n'), target, background=False)
+    serve(
+        tmp_path,
+        io.BytesIO(b'{"id":1,"action":"app.shutdown"}\n{"id":2,"action":"bootstrap"}\n'),
+        target,
+        background=False,
+    )
     rows = [json.loads(line) for line in target.getvalue().splitlines()]
     assert len(rows) == 1 and rows[0]["ok"] and rows[0]["id"] == 1
     assert calls == ["backup"]
@@ -50,7 +60,14 @@ def test_failed_backup_keeps_ipc_available_for_recovery(tmp_path, monkeypatch):
 
     monkeypatch.setattr("taller.app.App.shutdown", fail_then_recover)
     target = io.StringIO()
-    serve(tmp_path, io.BytesIO(b'{"id":1,"action":"app.shutdown"}\n{"id":2,"action":"bootstrap"}\n{"id":3,"action":"app.shutdown"}\n'), target, background=False)
+    serve(
+        tmp_path,
+        io.BytesIO(
+            b'{"id":1,"action":"app.shutdown"}\n{"id":2,"action":"bootstrap"}\n{"id":3,"action":"app.shutdown"}\n'
+        ),
+        target,
+        background=False,
+    )
     rows = [json.loads(line) for line in target.getvalue().splitlines()]
     assert not rows[0]["ok"] and "Disco" in rows[0]["error"]["message"]
     assert rows[1]["ok"] and rows[2]["ok"]
@@ -61,7 +78,10 @@ def test_shutdown_exits_without_waiting_for_stdin_eof(tmp_path):
     root = Path(__file__).resolve().parents[1]
     process = subprocess.Popen(
         [sys.executable, "-m", "taller.stdio", "--data", str(tmp_path), "--no-background"],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
         env={**os.environ, "PYTHONPATH": str(root / "backend")},
     )
     try:

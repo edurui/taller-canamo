@@ -1,10 +1,10 @@
-import { test as base, expect } from "@playwright/test";
-import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
-import { once } from "node:events";
+import { test as base, expect } from '@playwright/test';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { once } from 'node:events';
 
 type Rpc = <T = Record<string, unknown>>(
   action: string,
@@ -18,34 +18,36 @@ export const test = base.extend<Fixtures>({
   page: async ({ page }, use) => {
     // Normal E2E never consult a public provider, even when an old test edits
     // an address. Dedicated autocomplete tests install their own synthetic reply.
-    await page.route("**/api", async route => {
+    await page.route('**/api', async (route) => {
       const payload = route.request().postDataJSON() as { action?: string };
-      if (payload?.action === "addresses.search") {
-        await route.fulfill({ json: { ok: true, result: { status: "unavailable", items: [] } } });
+      if (payload?.action === 'addresses.search') {
+        await route.fulfill({ json: { ok: true, result: { status: 'unavailable', items: [] } } });
       } else {
         await route.fallback();
       }
     });
     await use(page);
   },
+  // Playwright inspects this pattern to declare a fixture with no dependencies.
+  // eslint-disable-next-line no-empty-pattern
   backend: async ({}, use) => {
-    const root = await mkdtemp(join(tmpdir(), "canamo-e2e-á "));
+    const root = await mkdtemp(join(tmpdir(), 'canamo-e2e-á '));
     const python = resolve(
-      process.platform === "win32"
-        ? ".venv/Scripts/python.exe"
-        : ".venv/bin/python",
+      process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python',
     );
     if (!existsSync(python))
-      throw new Error(
-        "Crea .venv e instala requirements-dev.lock antes de ejecutar E2E.",
-      );
+      throw new Error('Crea .venv e instala requirements-dev.lock antes de ejecutar E2E.');
     let child: ChildProcess;
-    let url = "";
-    let diagnostics = "";
-    const start = async (port = "0") => {
+    let url = '';
+    let diagnostics = '';
+    const start = async (port = '0') => {
       child = spawn(
         python,
-        ["-X", "utf8", "-c", `
+        [
+          '-X',
+          'utf8',
+          '-c',
+          `
 import runpy
 import sys
 sys.path.insert(0, "backend")
@@ -55,30 +57,36 @@ def offline_addresses(*args, **kwargs):
 addresses._http_get = offline_addresses
 sys.argv = ["scripts/run_preview.py", *sys.argv[1:]]
 runpy.run_path("scripts/run_preview.py", run_name="__main__")
-`, "--no-open", "--port", port, "--data", root],
+`,
+          '--no-open',
+          '--port',
+          port,
+          '--data',
+          root,
+        ],
         {
-          cwd: resolve("."),
-          stdio: ["ignore", "pipe", "pipe"],
+          cwd: resolve('.'),
+          stdio: ['ignore', 'pipe', 'pipe'],
         },
       );
-      diagnostics = "";
-      child.stderr!.on("data", (chunk: Buffer) => {
+      diagnostics = '';
+      child.stderr!.on('data', (chunk: Buffer) => {
         diagnostics += chunk.toString();
       });
       await new Promise<void>((accept, reject) => {
         const timer = setTimeout(() => {
-          reject(new Error("No arrancó el backend: " + diagnostics));
+          reject(new Error('No arrancó el backend: ' + diagnostics));
         }, 15_000);
-        child.once("error", (err) => {
+        child.once('error', (err) => {
           clearTimeout(timer);
           reject(err);
         });
-        child.once("exit", (code) => {
+        child.once('exit', (code) => {
           clearTimeout(timer);
           reject(new Error(`Backend terminó (${code}): ${diagnostics}`));
         });
-        let out = "";
-        child.stdout!.on("data", (chunk: Buffer) => {
+        let out = '';
+        child.stdout!.on('data', (chunk: Buffer) => {
           out += chunk.toString();
           const found = out.match(/http:\/\/127\.0\.0\.1:\d+/);
           if (found) {
@@ -91,9 +99,9 @@ runpy.run_path("scripts/run_preview.py", run_name="__main__")
     };
     const stop = async () => {
       if (child && child.exitCode === null && child.signalCode === null) {
-        const exited = once(child, "exit");
+        const exited = once(child, 'exit');
         child.kill();
-        const timer = setTimeout(() => child.kill("SIGKILL"), 5_000);
+        const timer = setTimeout(() => child.kill('SIGKILL'), 5_000);
         try {
           await exited;
         } finally {
@@ -125,28 +133,24 @@ runpy.run_path("scripts/run_preview.py", run_name="__main__")
   },
   baseURL: async ({ backend }, use) => use(backend.url),
   rpc: async ({ backend, request }, use) => {
-    await use(
-      async <T>(action: string, params: Record<string, unknown> = {}) => {
-        const runtime = await (
-          await request.get(backend.url + "/runtime.js")
-        ).text();
-        const token = JSON.parse(
-          runtime.slice(runtime.indexOf("=") + 1, runtime.lastIndexOf(";")),
-        ) as string;
-        const response = await request.post(backend.url + "/api", {
-          headers: { "X-Canamo-Token": token },
-          data: { action, params },
-        });
-        expect(response.ok()).toBe(true);
-        const answer = (await response.json()) as {
-          ok: boolean;
-          result: T;
-          error?: { message: string };
-        };
-        expect(answer.ok, answer.error?.message).toBe(true);
-        return answer.result;
-      },
-    );
+    await use(async <T>(action: string, params: Record<string, unknown> = {}) => {
+      const runtime = await (await request.get(backend.url + '/runtime.js')).text();
+      const token = JSON.parse(
+        runtime.slice(runtime.indexOf('=') + 1, runtime.lastIndexOf(';')),
+      ) as string;
+      const response = await request.post(backend.url + '/api', {
+        headers: { 'X-Canamo-Token': token },
+        data: { action, params },
+      });
+      expect(response.ok()).toBe(true);
+      const answer = (await response.json()) as {
+        ok: boolean;
+        result: T;
+        error?: { message: string };
+      };
+      expect(answer.ok, answer.error?.message).toBe(true);
+      return answer.result;
+    });
   },
 });
 
@@ -154,24 +158,29 @@ export { expect };
 
 // The disclosure can be visible before its clipping/scroll layout has settled.
 // Wait for its real animations, rather than clicking a moving ancestor's child.
-export async function navigateSidebar(page: import("@playwright/test").Page, name: string) {
-  await expect(page.locator(".topbar")).toBeVisible();
-  const sidebar = page.locator(".sidebar");
+export async function navigateSidebar(page: import('@playwright/test').Page, name: string) {
+  await expect(page.locator('.topbar')).toBeVisible();
+  const sidebar = page.locator('.sidebar');
   if (!(await sidebar.isVisible()))
-    await page.getByRole("button", { name: "Abrir menú", exact: true }).click();
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
   await expect(sidebar).toBeVisible();
-  const target = sidebar.getByRole("button", { name, exact: true });
+  const target = sidebar.getByRole('button', { name, exact: true });
   if (!(await target.isVisible())) {
-    const tools = sidebar.getByRole("button", { name: "Más herramientas", exact: true });
-    if ((await tools.getAttribute("aria-expanded")) !== "true") await tools.click();
-    await expect(tools).toHaveAttribute("aria-expanded", "true");
+    const tools = sidebar.getByRole('button', { name: 'Más herramientas', exact: true });
+    if ((await tools.getAttribute('aria-expanded')) !== 'true') await tools.click();
+    await expect(tools).toHaveAttribute('aria-expanded', 'true');
   }
-  await sidebar.evaluate(async element => {
+  await sidebar.evaluate(async (element) => {
     while (true) {
-      const animations = element.getAnimations({ subtree: true }).filter(animation =>
-        animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
+      const animations = element
+        .getAnimations({ subtree: true })
+        .filter(
+          (animation) =>
+            animation.playState === 'running' &&
+            Number.isFinite(animation.effect?.getComputedTiming().endTime),
+        );
       if (!animations.length) return;
-      await Promise.all(animations.map(animation => animation.finished.catch(() => undefined)));
+      await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)));
     }
   });
   await target.click();
@@ -179,26 +188,21 @@ export async function navigateSidebar(page: import("@playwright/test").Page, nam
 
 // Exercise the visible picker, including options portalled outside a parent dialog.
 export async function chooseOption(
-  control: import("@playwright/test").Locator,
+  control: import('@playwright/test').Locator,
   option: string | { label: string },
 ) {
   const page = control.page();
-  control = control.and(page.getByRole("combobox"));
-  if ((await control.getAttribute("aria-expanded")) !== "true")
-    await control.click();
-  await expect(control).toHaveAttribute("aria-expanded", "true");
-  const listId = await control.getAttribute("aria-controls");
+  control = control.and(page.getByRole('combobox'));
+  if ((await control.getAttribute('aria-expanded')) !== 'true') await control.click();
+  await expect(control).toHaveAttribute('aria-expanded', 'true');
+  const listId = await control.getAttribute('aria-controls');
   expect(listId).toBeTruthy();
   // A previous picker may still be animating out. Use this control's active list.
-  const list = page.getByRole("listbox").and(
-    page.locator("[id=" + JSON.stringify(listId) + "]"),
-  );
+  const list = page.getByRole('listbox').and(page.locator('[id=' + JSON.stringify(listId) + ']'));
   const target =
-    typeof option === "string"
-      ? list.getByRole("option").and(
-          page.locator("[data-value=" + JSON.stringify(option) + "]"),
-        )
-      : list.getByRole("option", { name: option.label, exact: true });
+    typeof option === 'string'
+      ? list.getByRole('option').and(page.locator('[data-value=' + JSON.stringify(option) + ']'))
+      : list.getByRole('option', { name: option.label, exact: true });
   await target.click();
-  await expect(control).toHaveAttribute("aria-expanded", "false");
+  await expect(control).toHaveAttribute('aria-expanded', 'false');
 }

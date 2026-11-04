@@ -1,8 +1,8 @@
 """Structured B2B documents, local commercial states and unsent obligations."""
 
 VERSION = 6
-NAME = 'b2b_documents_and_commercial_states'
-SQL = '''
+NAME = "b2b_documents_and_commercial_states"
+SQL = """
 CREATE TABLE b2b_documents (
  id TEXT PRIMARY KEY, document_id TEXT REFERENCES documents(id), direction TEXT NOT NULL CHECK(direction IN ('outbound','inbound')),
  syntax TEXT NOT NULL, xml TEXT NOT NULL, digest TEXT NOT NULL UNIQUE, issuer_nif TEXT NOT NULL, recipient_nif TEXT NOT NULL,
@@ -31,4 +31,4 @@ CREATE TRIGGER b2b_event_no_update BEFORE UPDATE ON b2b_events
  BEGIN SELECT RAISE(ABORT,'El estado B2B se corrige con otro evento'); END;
 CREATE TRIGGER b2b_event_no_delete BEFORE DELETE ON b2b_events
  BEGIN SELECT RAISE(ABORT,'El estado B2B se corrige con otro evento'); END;
-'''
+"""

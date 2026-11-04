@@ -1,9 +1,13 @@
-import { EntityRow, RowActions, SortHeader, useListSort, useListData } from "./list-controls.js";
-import { Presence } from "./overlays.js";
-import { Select, Textarea, TextInput, Autocomplete } from "./controls.js";
-import * as React from "react";
-import { EntityReference } from "./entity-navigation.js";
-import { HistoricalReviewBadge, HistoricalReviewPanel, HistoricalTotal } from "./historical-review.js";
+import { EntityRow, RowActions, SortHeader, useListSort, useListData } from './list-controls.js';
+import { Presence } from './overlays.js';
+import { Select, Textarea, TextInput, Autocomplete } from './controls.js';
+import * as React from 'react';
+import { EntityReference } from './entity-navigation.js';
+import {
+  HistoricalReviewBadge,
+  HistoricalReviewPanel,
+  HistoricalTotal,
+} from './historical-review.js';
 import {
   Row,
   api,
@@ -29,113 +33,113 @@ import {
   Badge,
   CustomerSearch,
   PdfPreview,
-} from "./core.js";
-import { TextAssistance, MessageButton } from "./assistant.js";
-import { CustomerForm, VehicleForm } from "./people.js";
+} from './core.js';
+import { TextAssistance, MessageButton } from './assistant.js';
+import { CustomerForm, VehicleForm } from './people.js';
 const nouns: Row = {
-  invoice: ["Factura", "Facturas", "Nueva factura"],
-  quote: ["Presupuesto", "Presupuestos", "Nuevo presupuesto"],
-  order: [
-    "Orden de reparaci\u00f3n",
-    "\u00d3rdenes de reparaci\u00f3n",
-    "Nueva orden",
-  ],
+  invoice: ['Factura', 'Facturas', 'Nueva factura'],
+  quote: ['Presupuesto', 'Presupuestos', 'Nuevo presupuesto'],
+  order: ['Orden de reparaci\u00f3n', '\u00d3rdenes de reparaci\u00f3n', 'Nueva orden'],
 };
 export const methods: Row = {
-  cash: "Efectivo",
-  card: "Tarjeta",
-  transfer: "Transferencia",
-  bizum: "Bizum",
-  other: "Otro",
+  cash: 'Efectivo',
+  card: 'Tarjeta',
+  transfer: 'Transferencia',
+  bizum: 'Bizum',
+  other: 'Otro',
 };
 const decimalCents = (value: number) => {
   const v = BigInt(value);
   return (
-    (v < 0n ? "-" : "") +
+    (v < 0n ? '-' : '') +
     String((v < 0n ? -v : v) / 100n) +
-    "." +
-    String((v < 0n ? -v : v) % 100n).padStart(2, "0")
+    '.' +
+    String((v < 0n ? -v : v) % 100n).padStart(2, '0')
   );
 };
 function parsedCents(value: string): number {
-  const text = value.trim().replace(",", ".");
+  const text = value.trim().replace(',', '.');
   if (!/^-?\d{1,8}(\.\d{1,2})?$/.test(text))
-    throw new Error(
-      "Introduce una cuota en euros, con signo y un máximo de dos decimales.",
-    );
-  const [whole, fraction = ""] = text.replace("-", "").split(".");
+    throw new Error('Introduce una cuota en euros, con signo y un máximo de dos decimales.');
+  const [whole, fraction = ''] = text.replace('-', '').split('.');
   return (
-    Number(BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"))) *
-    (text.startsWith("-") ? -1 : 1)
+    Number(BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'))) * (text.startsWith('-') ? -1 : 1)
   );
 }
 function addDateDays(date: string, days: number): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
-  const value = new Date(date + "T12:00:00Z");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+  const value = new Date(date + 'T12:00:00Z');
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
 }
-export function DocumentsPage({ kind = "invoice", navigate }: Row) {
-  const [query, setQuery] = useState(""),
-    [status, setStatus] = useState(""),
-    [reviewState, setReviewState] = useState(""),
+export function DocumentsPage({ kind = 'invoice', navigate }: Row) {
+  const [query, setQuery] = useState(''),
+    [status, setStatus] = useState(''),
+    [reviewState, setReviewState] = useState(''),
     [page, setPage] = useState(0);
   const ordering = useListSort<Row>();
   const [refresh, setRefresh] = useState(0);
   const [deleteDraft, setDeleteDraft] = useState<Row | null>(null);
   const [preview, setPreview] = useState<Row | null>(null);
-  const [actionError, setActionError] = useState("");
+  const [actionError, setActionError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
-  const sortColumn = (key: string) => { ordering.toggle(key); setPage(0); };
+  const sortColumn = (key: string) => {
+    ordering.toggle(key);
+    setPage(0);
+  };
   const [data, loading, error] = useListData<Row>(
-    "documents.list",
-    { kind, query, status, page, sort_by: ordering.sort?.key || "", sort_direction: ordering.sort?.direction || "asc", ...(kind === "invoice" ? { review_state: reviewState } : {}) },
+    'documents.list',
+    {
+      kind,
+      query,
+      status,
+      page,
+      sort_by: ordering.sort?.key || '',
+      sort_direction: ordering.sort?.direction || 'asc',
+      ...(kind === 'invoice' ? { review_state: reviewState } : {}),
+    },
     { items: [], total: 0 },
     refresh,
   );
   const filters =
-    kind === "invoice"
+    kind === 'invoice'
       ? [
-          ["", "Todas"],
-          ["draft", "Borradores"],
-          ["issued", "Emitidas"],
-          ["historical", "Hist\u00f3ricas"],
-          ["void", "Anuladas"],
+          ['', 'Todas'],
+          ['draft', 'Borradores'],
+          ['issued', 'Emitidas'],
+          ['historical', 'Hist\u00f3ricas'],
+          ['void', 'Anuladas'],
         ]
-      : kind === "quote"
+      : kind === 'quote'
         ? [
-            ["", "Todos"],
-            ["draft", "Borradores"],
-            ["sent", "Enviados"],
-            ["accepted", "Aceptados"],
-            ["rejected", "Rechazados"],
+            ['', 'Todos'],
+            ['draft', 'Borradores'],
+            ['sent', 'Enviados'],
+            ['accepted', 'Aceptados'],
+            ['rejected', 'Rechazados'],
           ]
         : [
-            ["", "Todas"],
-            ["received", "Recibidas"],
-            ["repairing", "En reparaci\u00f3n"],
-            ["waiting_parts", "Esperando piezas"],
-            ["ready", "Terminadas"],
-            ["delivered", "Entregadas"],
+            ['', 'Todas'],
+            ['received', 'Recibidas'],
+            ['repairing', 'En reparaci\u00f3n'],
+            ['waiting_parts', 'Esperando piezas'],
+            ['ready', 'Terminadas'],
+            ['delivered', 'Entregadas'],
           ];
   return (
     <>
       <PageHead
         title={nouns[kind][1]}
         subtitle={
-          kind === "invoice"
-            ? "Crea, encuentra e imprime. Sin pasos de m\u00e1s."
-            : kind === "quote"
-              ? "Prepara una propuesta y convi\u00e9rtela en factura cuando toque."
-              : "Del primer ruido a la entrega. A tu ritmo."
+          kind === 'invoice'
+            ? 'Crea, encuentra e imprime. Sin pasos de m\u00e1s.'
+            : kind === 'quote'
+              ? 'Prepara una propuesta y convi\u00e9rtela en factura cuando toque.'
+              : 'Del primer ruido a la entrega. A tu ritmo.'
         }
-        eyebrow={kind !== "invoice" ? "M\u00c1S HERRAMIENTAS" : undefined}
+        eyebrow={kind !== 'invoice' ? 'M\u00c1S HERRAMIENTAS' : undefined}
       >
-        <Button
-          tone="primary"
-          icon="plus"
-          onClick={() => navigate("editor", { kind })}
-        >
+        <Button tone="primary" icon="plus" onClick={() => navigate('editor', { kind })}>
           {nouns[kind][2]}
         </Button>
       </PageHead>
@@ -158,7 +162,7 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
-              if (e.target.value !== "historical") setReviewState("");
+              if (e.target.value !== 'historical') setReviewState('');
               setPage(0);
             }}
           >
@@ -168,95 +172,202 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
               </option>
             ))}
           </Select>
-          {kind === "invoice" && <Select
-            aria-label="Revisión del histórico"
-            value={reviewState}
-            onChange={(event) => {
-              setReviewState(event.target.value);
-              setPage(0);
-              if (event.target.value) setStatus("historical");
-            }}
-          >
-            <option value="">Todas las revisiones</option>
-            <option value="pending_review">Pendiente de revisión</option>
-            <option value="estimated">Estimada</option>
-            <option value="verified">Contrastada con original</option>
-          </Select>}
+          {kind === 'invoice' && (
+            <Select
+              aria-label="Revisión del histórico"
+              value={reviewState}
+              onChange={(event) => {
+                setReviewState(event.target.value);
+                setPage(0);
+                if (event.target.value) setStatus('historical');
+              }}
+            >
+              <option value="">Todas las revisiones</option>
+              <option value="pending_review">Pendiente de revisión</option>
+              <option value="estimated">Estimada</option>
+              <option value="verified">Contrastada con original</option>
+            </Select>
+          )}
           <span className="subtle">{data.total} documentos</span>
         </div>
         {(error || actionError) && <Notice tone="error">{error || actionError}</Notice>}
-        {loading && data.items.length > 0 && <p className="padded subtle" role="status">Actualizando… Se muestran resultados anteriores.</p>}
+        {loading && data.items.length > 0 && (
+          <p className="padded subtle" role="status">
+            Actualizando… Se muestran resultados anteriores.
+          </p>
+        )}
         {loading && !data.items.length ? (
           <Loading />
         ) : data.items.length ? (
           <div className="table-scroll">
-            <table aria-busy={loading} aria-label={loading || error ? "Resultados anteriores de documentos" : nouns[kind][1]}>
+            <table
+              aria-busy={loading}
+              aria-label={loading || error ? 'Resultados anteriores de documentos' : nouns[kind][1]}
+            >
               <thead>
                 <tr>
-                  <SortHeader label="Número" field="full_number" secondary={{ label: "Fecha", field: "issue_date" }} sort={ordering.sort} onSort={sortColumn} />
-                  <SortHeader label="Cliente" field="customer_name" sort={ordering.sort} onSort={sortColumn} />
-                  <SortHeader label="Matrícula" field="plate" sort={ordering.sort} onSort={sortColumn} />
-                  <SortHeader label="Estado" field="status" sort={ordering.sort} onSort={sortColumn} />
-                  <SortHeader label="Total" field="total_cents" sort={ordering.sort} onSort={sortColumn} className="right" />
-                  {kind === "invoice" && <SortHeader label="Pendiente" field="pending_cents" sort={ordering.sort} onSort={sortColumn} className="right" />}
-                  <th scope="col"><span className="sr-only">Acciones</span></th>
+                  <SortHeader
+                    label="Número"
+                    field="full_number"
+                    secondary={{ label: 'Fecha', field: 'issue_date' }}
+                    sort={ordering.sort}
+                    onSort={sortColumn}
+                  />
+                  <SortHeader
+                    label="Cliente"
+                    field="customer_name"
+                    sort={ordering.sort}
+                    onSort={sortColumn}
+                  />
+                  <SortHeader
+                    label="Matrícula"
+                    field="plate"
+                    sort={ordering.sort}
+                    onSort={sortColumn}
+                  />
+                  <SortHeader
+                    label="Estado"
+                    field="status"
+                    sort={ordering.sort}
+                    onSort={sortColumn}
+                  />
+                  <SortHeader
+                    label="Total"
+                    field="total_cents"
+                    sort={ordering.sort}
+                    onSort={sortColumn}
+                    className="right"
+                  />
+                  {kind === 'invoice' && (
+                    <SortHeader
+                      label="Pendiente"
+                      field="pending_cents"
+                      sort={ordering.sort}
+                      onSort={sortColumn}
+                      className="right"
+                    />
+                  )}
+                  <th scope="col">
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((d: Row) => (
-                  <EntityRow key={d.id} disabled={loading || !!error || actionBusy}
-                    onOpen={() => navigate("editor", { id: d.id, kind })}>
+                  <EntityRow
+                    key={d.id}
+                    disabled={loading || !!error || actionBusy}
+                    onOpen={() => navigate('editor', { id: d.id, kind })}
+                  >
                     <td>
-                      <EntityReference entity="document" id={d.id} kind={kind} navigate={navigate} disabled={loading || !!error || actionBusy}>
-                        <strong>
-                          {d.full_number || "Borrador sin n\u00famero"}
-                        </strong>
+                      <EntityReference
+                        entity="document"
+                        id={d.id}
+                        kind={kind}
+                        navigate={navigate}
+                        disabled={loading || !!error || actionBusy}
+                      >
+                        <strong>{d.full_number || 'Borrador sin n\u00famero'}</strong>
                       </EntityReference>
-                      <small className="block subtle">
-                        {dateText(d.issue_date)}
-                      </small>
+                      <small className="block subtle">{dateText(d.issue_date)}</small>
                     </td>
                     <td>
-                      <EntityReference entity="customer" id={d.customer_id} navigate={navigate} disabled={loading || !!error || actionBusy}>
-                        {d.customer_name?.trim() || d.current_customer_name || "Cliente no disponible"}
+                      <EntityReference
+                        entity="customer"
+                        id={d.customer_id}
+                        navigate={navigate}
+                        disabled={loading || !!error || actionBusy}
+                      >
+                        {d.customer_name?.trim() ||
+                          d.current_customer_name ||
+                          'Cliente no disponible'}
                       </EntityReference>
                       {!d.customer_name?.trim() && d.current_customer_name && (
                         <small className="block subtle">Ficha actual</small>
                       )}
                     </td>
                     <td>
-                      <EntityReference entity="vehicle" id={d.vehicle_id} navigate={navigate} disabled={loading || !!error || actionBusy} className="plate-text">
-                        {d.plate || (d.vehicle_id ? "Vehículo sin matrícula conservada" : "—")}
+                      <EntityReference
+                        entity="vehicle"
+                        id={d.vehicle_id}
+                        navigate={navigate}
+                        disabled={loading || !!error || actionBusy}
+                        className="plate-text"
+                      >
+                        {d.plate || (d.vehicle_id ? 'Vehículo sin matrícula conservada' : '—')}
                       </EntityReference>
                     </td>
                     <td>
                       <div className="historical-document-badges">
                         <Badge value={d.status} />
-                        {d.historical_review && <HistoricalReviewBadge review={d.historical_review} />}
+                        {d.historical_review && (
+                          <HistoricalReviewBadge review={d.historical_review} />
+                        )}
                       </div>
                     </td>
-                    <td className="right amount"><HistoricalTotal total={d.total_cents} review={d.historical_review} /></td>
-                    {kind === "invoice" && (
+                    <td className="right amount">
+                      <HistoricalTotal total={d.total_cents} review={d.historical_review} />
+                    </td>
+                    {kind === 'invoice' && (
                       <td className="right subtle">
-                        {d.status === "issued" || d.status === "historical"
+                        {d.status === 'issued' || d.status === 'historical'
                           ? d.payment_known
                             ? money(d.total_cents - d.paid_cents)
-                            : "Cobro no documentado"
-                          : "\u2014"}
+                            : 'Cobro no documentado'
+                          : '\u2014'}
                       </td>
                     )}
                     <td>
-                      <RowActions label={d.full_number || "borrador"} disabled={loading || !!error || actionBusy} items={[
-                        { label: d.status === "draft" ? "Editar borrador" : "Abrir documento", onSelect: () => navigate("editor", { id: d.id, kind }) },
-                        ...(d.status !== "draft" ? [{ label: "Ver PDF", onSelect: async () => {
-                          setActionBusy(true); setActionError("");
-                          try { setPreview(await api("documents.pdf", { identifier: d.id })); }
-                          catch (failure: any) { setActionError(failure.message); }
-                          finally { setActionBusy(false); }
-                        } }] : [{ label: "Eliminar borrador", danger: true, onSelect: () => setDeleteDraft(d) }]),
-                        ...(d.customer_id ? [{ label: "Ver cliente", onSelect: () => navigate("customer", { id: d.customer_id }) }] : []),
-                        ...(d.vehicle_id ? [{ label: "Ver vehículo", onSelect: () => navigate("vehicle", { id: d.vehicle_id }) }] : []),
-                      ]} />
+                      <RowActions
+                        label={d.full_number || 'borrador'}
+                        disabled={loading || !!error || actionBusy}
+                        items={[
+                          {
+                            label: d.status === 'draft' ? 'Editar borrador' : 'Abrir documento',
+                            onSelect: () => navigate('editor', { id: d.id, kind }),
+                          },
+                          ...(d.status !== 'draft'
+                            ? [
+                                {
+                                  label: 'Ver PDF',
+                                  onSelect: async () => {
+                                    setActionBusy(true);
+                                    setActionError('');
+                                    try {
+                                      setPreview(await api('documents.pdf', { identifier: d.id }));
+                                    } catch (failure: any) {
+                                      setActionError(failure.message);
+                                    } finally {
+                                      setActionBusy(false);
+                                    }
+                                  },
+                                },
+                              ]
+                            : [
+                                {
+                                  label: 'Eliminar borrador',
+                                  danger: true,
+                                  onSelect: () => setDeleteDraft(d),
+                                },
+                              ]),
+                          ...(d.customer_id
+                            ? [
+                                {
+                                  label: 'Ver cliente',
+                                  onSelect: () => navigate('customer', { id: d.customer_id }),
+                                },
+                              ]
+                            : []),
+                          ...(d.vehicle_id
+                            ? [
+                                {
+                                  label: 'Ver vehículo',
+                                  onSelect: () => navigate('vehicle', { id: d.vehicle_id }),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
                     </td>
                   </EntityRow>
                 ))}
@@ -265,35 +376,40 @@ export function DocumentsPage({ kind = "invoice", navigate }: Row) {
           </div>
         ) : (
           <Empty
-            title={
-              query
-                ? "No encontramos ese documento"
-                : "Todo preparado para empezar"
-            }
+            title={query ? 'No encontramos ese documento' : 'Todo preparado para empezar'}
             text={
               query
-                ? "Prueba con otra fecha, n\u00famero o cliente."
-                : "Los documentos se guardan aqu\u00ed y en el historial del cliente."
+                ? 'Prueba con otra fecha, n\u00famero o cliente.'
+                : 'Los documentos se guardan aqu\u00ed y en el historial del cliente.'
             }
           >
-            <Button
-              icon="plus"
-              tone="primary"
-              onClick={() => navigate("editor", { kind })}
-            >
+            <Button icon="plus" tone="primary" onClick={() => navigate('editor', { kind })}>
               {nouns[kind][2]}
             </Button>
           </Empty>
         )}
         <Pager total={data.total} page={page} onChange={setPage} />
       </section>
-      <Presence>{preview && <PdfPreview data={preview} onClose={() => setPreview(null)} />}</Presence>
-      <Presence>{deleteDraft && <Confirm title="Eliminar borrador" danger confirm="Eliminar borrador"
-        text="Solo se borrará este borrador sin número. Las facturas emitidas no se pueden borrar."
-        onClose={() => setDeleteDraft(null)} onConfirm={async () => {
-          await api("documents.delete", { identifier: deleteDraft.id });
-          setDeleteDraft(null); setPage(0); setRefresh(value => value + 1);
-        }} />}</Presence>
+      <Presence>
+        {preview && <PdfPreview data={preview} onClose={() => setPreview(null)} />}
+      </Presence>
+      <Presence>
+        {deleteDraft && (
+          <Confirm
+            title="Eliminar borrador"
+            danger
+            confirm="Eliminar borrador"
+            text="Solo se borrará este borrador sin número. Las facturas emitidas no se pueden borrar."
+            onClose={() => setDeleteDraft(null)}
+            onConfirm={async () => {
+              await api('documents.delete', { identifier: deleteDraft.id });
+              setDeleteDraft(null);
+              setPage(0);
+              setRefresh((value) => value + 1);
+            }}
+          />
+        )}
+      </Presence>
     </>
   );
 }
@@ -307,29 +423,27 @@ function PaymentForm({
   onSaved: (document: Row) => void;
 }) {
   const [value, setValue] = useState(decimalCents(doc.pending_cents)),
-    [method, setMethod] = useState(doc.payload.payment_method || "cash"),
+    [method, setMethod] = useState(doc.payload.payment_method || 'cash'),
     [date, setDate] = useState(localDate()),
-    [notes, setNotes] = useState(""),
-    [error, setError] = useState(""),
+    [notes, setNotes] = useState(''),
+    [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const key = useRef(uuid());
   return (
     <Modal
-      title={
-        doc.pending_cents < 0 ? "Registrar devoluci\u00f3n" : "Registrar cobro"
-      }
+      title={doc.pending_cents < 0 ? 'Registrar devoluci\u00f3n' : 'Registrar cobro'}
       onClose={() => !busy && onClose()}
     >
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
-          setError("");
+          setError('');
           try {
             onSaved(
-              await api("payments.add", {
+              await api('payments.add', {
                 identifier: doc.id,
-                value: value.replace(",", "."),
+                value: value.replace(',', '.'),
                 method,
                 paid_on: date,
                 notes,
@@ -400,23 +514,22 @@ function CorrectionForm({
   onClose: () => void;
   onSaved: (document: Row) => void;
 }) {
-  const [reason, setReason] = useState(""),
-    [confirmation, setConfirmation] = useState(""),
-    [invoiceType, setInvoiceType] = useState("R4"),
-    [error, setError] = useState(""),
+  const [reason, setReason] = useState(''),
+    [confirmation, setConfirmation] = useState(''),
+    [invoiceType, setInvoiceType] = useState('R4'),
+    [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
-  const taxOnly = invoiceType === "R2" || invoiceType === "R3";
+  const taxOnly = invoiceType === 'R2' || invoiceType === 'R3';
   const [operationDate, setOperationDate] = useState(
-    doc.payload.operation_date ||
-      (doc.status === "historical" ? "" : doc.issue_date),
+    doc.payload.operation_date || (doc.status === 'historical' ? '' : doc.issue_date),
   );
   const [quotas, setQuotas] = useState<Row[]>(() => {
     const taxes = doc.payload.taxes.filter(
-      (tax: Row) => tax.kind === "S1" && tax.rate && tax.tax_cents > 0,
+      (tax: Row) => tax.kind === 'S1' && tax.rate && tax.tax_cents > 0,
     );
-    return (taxes.length ? taxes : [{ rate: "" }]).map((tax: Row) => ({
+    return (taxes.length ? taxes : [{ rate: '' }]).map((tax: Row) => ({
       tax_rate: tax.rate,
-      amount: "",
+      amount: '',
     }));
   });
   const incomplete = doc.payload.lines.some(
@@ -424,17 +537,17 @@ function CorrectionForm({
       line.quantity == null ||
       line.unit_price == null ||
       !line.tax_rate ||
-      line.tax_kind === "historical",
+      line.tax_kind === 'historical',
   );
   const [manualLines, setManualLines] = useState<Row[]>(
     doc.payload.lines.map((line: Row) => ({
       description: line.description,
-      quantity: "",
-      unit_price: "",
-      tax_rate: "",
-      tax_kind: "",
-      tax_reason: "",
-      discount: "0",
+      quantity: '',
+      unit_price: '',
+      tax_rate: '',
+      tax_kind: '',
+      tax_reason: '',
+      discount: '0',
     })),
   );
   const editLine = (index: number, field: string, next: string) =>
@@ -443,13 +556,9 @@ function CorrectionForm({
     );
   return (
     <Modal
-      title={
-        mode === "void"
-          ? "Anular por error material"
-          : "Crear factura rectificativa"
-      }
+      title={mode === 'void' ? 'Anular por error material' : 'Crear factura rectificativa'}
       onClose={() => !busy && onClose()}
-      wide={(incomplete || taxOnly) && mode !== "void"}
+      wide={(incomplete || taxOnly) && mode !== 'void'}
     >
       <form
         onSubmit={async (e) => {
@@ -458,8 +567,8 @@ function CorrectionForm({
           try {
             onSaved(
               await api(
-                mode === "void" ? "documents.void" : "documents.rectify",
-                mode === "void"
+                mode === 'void' ? 'documents.void' : 'documents.rectify',
+                mode === 'void'
                   ? { identifier: doc.id, reason, confirmation }
                   : {
                       identifier: doc.id,
@@ -487,23 +596,18 @@ function CorrectionForm({
         }}
       >
         <Notice tone="warning">
-          {mode === "void"
-            ? "No borra el documento ni permite reutilizar su n\u00famero. Para devoluciones, descuentos o correcciones comerciales, crea una rectificativa."
+          {mode === 'void'
+            ? 'No borra el documento ni permite reutilizar su n\u00famero. Para devoluciones, descuentos o correcciones comerciales, crea una rectificativa.'
             : taxOnly
-              ? "R2/R3 rectifica exclusivamente la cuota de IVA por diferencias; la base permanece en cero. Documenta el motivo legal y revisa las cuotas disponibles del original antes de emitir."
+              ? 'R2/R3 rectifica exclusivamente la cuota de IVA por diferencias; la base permanece en cero. Documenta el motivo legal y revisa las cuotas disponibles del original antes de emitir.'
               : incomplete
-                ? "El histórico no conserva datos suficientes para invertir sus líneas. Introduce los importes y el tratamiento fiscal de esta corrección según los documentos originales. No se completarán automáticamente."
-                : "Se crea un borrador con las cantidades invertidas y referencia a la factura original. Revísalo y confirma el motivo fiscal con tu asesor."}
+                ? 'El histórico no conserva datos suficientes para invertir sus líneas. Introduce los importes y el tratamiento fiscal de esta corrección según los documentos originales. No se completarán automáticamente.'
+                : 'Se crea un borrador con las cantidades invertidas y referencia a la factura original. Revísalo y confirma el motivo fiscal con tu asesor.'}
         </Notice>
         <Field label="Motivo" required>
-          <Textarea
-            required
-            rows={3}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
+          <Textarea required rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
-        {mode === "void" ? (
+        {mode === 'void' ? (
           <Input
             label="Escribe ANULAR para confirmar"
             value={confirmation}
@@ -512,10 +616,7 @@ function CorrectionForm({
           />
         ) : (
           <Field label="Tipo de rectificaci&oacute;n">
-            <Select
-              value={invoiceType}
-              onChange={(e) => setInvoiceType(e.target.value)}
-            >
+            <Select value={invoiceType} onChange={(e) => setInvoiceType(e.target.value)}>
               <option value="R4">R4 &middot; Resto de rectificaciones</option>
               <option value="R1">
                 R1 &middot; Error fundado en derecho / art. 80.1, 80.2, 80.6
@@ -525,7 +626,7 @@ function CorrectionForm({
             </Select>
           </Field>
         )}
-        {mode !== "void" && (
+        {mode !== 'void' && (
           <Input
             label="Fecha de operación original"
             type="date"
@@ -536,17 +637,17 @@ function CorrectionForm({
             hint="Fecha del trabajo facturado originalmente. Si no consta en el histórico, compruébala en el original; no se deduce de la fecha de emisión."
           />
         )}
-        {taxOnly && mode !== "void" && (
+        {taxOnly && mode !== 'void' && (
           <section>
             <h3>Cuotas de IVA a rectificar</h3>
             <p>
-              Introduce la cuota con signo negativo para reducirla. No se
-              modifica la base ni se vuelven a descontar existencias.
+              Introduce la cuota con signo negativo para reducirla. No se modifica la base ni se
+              vuelven a descontar existencias.
             </p>
             {quotas.map((item, index) => (
               <div className="form-grid" key={index}>
                 <Input
-                  label={"Tipo de IVA de cuota " + (index + 1)}
+                  label={'Tipo de IVA de cuota ' + (index + 1)}
                   value={item.tax_rate}
                   inputMode="decimal"
                   required
@@ -556,7 +657,7 @@ function CorrectionForm({
                         i === index
                           ? {
                               ...row,
-                              tax_rate: event.target.value.replace(",", "."),
+                              tax_rate: event.target.value.replace(',', '.'),
                             }
                           : row,
                       ),
@@ -564,7 +665,7 @@ function CorrectionForm({
                   }
                 />
                 <Input
-                  label={"Cuota rectificativa en EUR " + (index + 1)}
+                  label={'Cuota rectificativa en EUR ' + (index + 1)}
                   value={item.amount}
                   inputMode="decimal"
                   required
@@ -572,9 +673,7 @@ function CorrectionForm({
                   onChange={(event) =>
                     setQuotas((old) =>
                       old.map((row, i) =>
-                        i === index
-                          ? { ...row, amount: event.target.value }
-                          : row,
+                        i === index ? { ...row, amount: event.target.value } : row,
                       ),
                     )
                   }
@@ -583,65 +682,54 @@ function CorrectionForm({
             ))}
           </section>
         )}
-        {incomplete && mode !== "void" && !taxOnly && (
+        {incomplete && mode !== 'void' && !taxOnly && (
           <section>
             <h3>Conceptos e impuestos de la rectificación</h3>
             <p>
-              Usa cantidades negativas para abonos. Los campos vacíos requieren
-              revisión del original; el nuevo borrador conserva su referencia.
+              Usa cantidades negativas para abonos. Los campos vacíos requieren revisión del
+              original; el nuevo borrador conserva su referencia.
             </p>
             {manualLines.map((line, index) => (
               <div className="panel padded" key={index}>
                 <Input
-                  label={"Concepto rectificativo " + (index + 1)}
+                  label={'Concepto rectificativo ' + (index + 1)}
                   value={line.description}
                   required
                   maxLength={1500}
-                  onChange={(event) =>
-                    editLine(index, "description", event.target.value)
-                  }
+                  onChange={(event) => editLine(index, 'description', event.target.value)}
                 />
                 <div className="form-grid">
                   <Input
-                    label={"Cantidad rectificativa " + (index + 1)}
+                    label={'Cantidad rectificativa ' + (index + 1)}
                     inputMode="decimal"
                     value={line.quantity}
                     required
                     onChange={(event) =>
-                      editLine(
-                        index,
-                        "quantity",
-                        event.target.value.replace(",", "."),
-                      )
+                      editLine(index, 'quantity', event.target.value.replace(',', '.'))
                     }
                   />
                   <Input
-                    label={"Precio rectificativo " + (index + 1)}
+                    label={'Precio rectificativo ' + (index + 1)}
                     inputMode="decimal"
                     value={line.unit_price}
                     required
                     onChange={(event) =>
-                      editLine(
-                        index,
-                        "unit_price",
-                        event.target.value.replace(",", "."),
-                      )
+                      editLine(index, 'unit_price', event.target.value.replace(',', '.'))
                     }
                   />
-                  <Field label={"Tratamiento fiscal " + (index + 1)} required>
+                  <Field label={'Tratamiento fiscal ' + (index + 1)} required>
                     <Select
                       required
                       value={line.tax_kind}
                       onChange={(event) => {
                         const value = event.target.value;
-                        editLine(index, "tax_kind", value);
-                        if (value && value !== "S1")
-                          editLine(index, "tax_rate", "0");
+                        editLine(index, 'tax_kind', value);
+                        if (value && value !== 'S1') editLine(index, 'tax_rate', '0');
                       }}
                     >
                       <option value="">Seleccionar según original</option>
                       <option value="S1">Sujeta a IVA</option>
-                      {["E1", "E2", "E3", "E4", "E5", "E6"].map((kind) => (
+                      {['E1', 'E2', 'E3', 'E4', 'E5', 'E6'].map((kind) => (
                         <option key={kind} value={kind}>
                           Exención {kind}
                         </option>
@@ -649,34 +737,26 @@ function CorrectionForm({
                     </Select>
                   </Field>
                   <Input
-                    label={"IVA rectificativo " + (index + 1)}
+                    label={'IVA rectificativo ' + (index + 1)}
                     inputMode="decimal"
                     value={line.tax_rate}
                     required
                     onChange={(event) =>
-                      editLine(
-                        index,
-                        "tax_rate",
-                        event.target.value.replace(",", "."),
-                      )
+                      editLine(index, 'tax_rate', event.target.value.replace(',', '.'))
                     }
                   />
                 </div>
-                {line.tax_kind && line.tax_kind !== "S1" && (
+                {line.tax_kind && line.tax_kind !== 'S1' && (
                   <Input
-                    label={"Causa legal " + (index + 1)}
+                    label={'Causa legal ' + (index + 1)}
                     value={line.tax_reason}
                     required
-                    onChange={(event) =>
-                      editLine(index, "tax_reason", event.target.value)
-                    }
+                    onChange={(event) => editLine(index, 'tax_reason', event.target.value)}
                   />
                 )}
                 <Button
                   disabled={manualLines.length === 1}
-                  onClick={() =>
-                    setManualLines((old) => old.filter((_, i) => i !== index))
-                  }
+                  onClick={() => setManualLines((old) => old.filter((_, i) => i !== index))}
                 >
                   Quitar concepto {index + 1}
                 </Button>
@@ -687,13 +767,13 @@ function CorrectionForm({
                 setManualLines((old) => [
                   ...old,
                   {
-                    description: "",
-                    quantity: "",
-                    unit_price: "",
-                    tax_rate: "",
-                    tax_kind: "",
-                    tax_reason: "",
-                    discount: "0",
+                    description: '',
+                    quantity: '',
+                    unit_price: '',
+                    tax_rate: '',
+                    tax_kind: '',
+                    tax_reason: '',
+                    discount: '0',
                   },
                 ])
               }
@@ -705,14 +785,8 @@ function CorrectionForm({
         {error && <Notice tone="error">{error}</Notice>}
         <div className="form-actions">
           <Button onClick={onClose}>Volver</Button>
-          <Button
-            type="submit"
-            tone={mode === "void" ? "danger" : "primary"}
-            busy={busy}
-          >
-            {mode === "void"
-              ? "Anular documento"
-              : "Crear borrador rectificativo"}
+          <Button type="submit" tone={mode === 'void' ? 'danger' : 'primary'} busy={busy}>
+            {mode === 'void' ? 'Anular documento' : 'Crear borrador rectificativo'}
           </Button>
         </div>
       </form>
@@ -729,47 +803,40 @@ function PaymentStateForm({
   onClose: () => void;
   onSaved: (doc: Row) => void;
 }) {
-  const [amount, setAmount] = useState(
-    doc.payment_known ? decimalCents(doc.paid_cents) : "",
-  );
-  const [evidence, setEvidence] = useState("");
+  const [amount, setAmount] = useState(doc.payment_known ? decimalCents(doc.paid_cents) : '');
+  const [evidence, setEvidence] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const key = useRef(uuid());
   return (
     <Modal
-      title={
-        doc.payment_known
-          ? "Corregir saldo documentado"
-          : "Documentar cobro histórico"
-      }
+      title={doc.payment_known ? 'Corregir saldo documentado' : 'Documentar cobro histórico'}
       onClose={() => !busy && onClose()}
     >
       <p>
-        Indica cuánto consta cobrado de esta factura según una fuente
-        comprobable. Se conserva la factura original y se registra esta
-        conciliación por separado.
+        Indica cuánto consta cobrado de esta factura según una fuente comprobable. Se conserva la
+        factura original y se registra esta conciliación por separado.
       </p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          setError("");
-          const normalized = amount.trim().replace(",", ".");
+          setError('');
+          const normalized = amount.trim().replace(',', '.');
           if (!/^-?\d{1,8}(\.\d{1,2})?$/.test(normalized)) {
-            setError("Introduce un importe con un máximo de dos decimales.");
+            setError('Introduce un importe con un máximo de dos decimales.');
             return;
           }
-          const [whole, fraction = ""] = normalized.replace("-", "").split(".");
+          const [whole, fraction = ''] = normalized.replace('-', '').split('.');
           const cents =
-            Number(BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"))) *
-            (normalized.startsWith("-") ? -1 : 1);
+            Number(BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'))) *
+            (normalized.startsWith('-') ? -1 : 1);
           setBusy(true);
           try {
             onSaved(
               await api(
                 doc.payment_known
-                  ? "documents.adjust_payment_state"
-                  : "documents.record_payment_state",
+                  ? 'documents.adjust_payment_state'
+                  : 'documents.record_payment_state',
                 {
                   identifier: doc.id,
                   paid_cents: cents,
@@ -818,9 +885,9 @@ function PaymentStateForm({
 
 export function DocumentEditor({
   id,
-  kind = "invoice",
-  customerId = "",
-  vehicleId = "",
+  kind = 'invoice',
+  customerId = '',
+  vehicleId = '',
   vehicleKilometres = 0,
   config,
   productionReleased = false,
@@ -833,59 +900,56 @@ export function DocumentEditor({
   // Editor-only identities keep focus attached to the same line when it moves.
   const withLineKeys = (lines: Row[]) =>
     lines.map((line) => ({ ...line, _uiKey: line._uiKey || uuid() }));
-  const persistedLines = (lines: Row[]) =>
-    lines.map(({ _uiKey, ...line }) => line);
+  const persistedLines = (lines: Row[]) => lines.map(({ _uiKey, ...line }) => line);
   const defaults = () => ({
     id: id || newId.current,
     kind,
-    status: "draft",
+    status: 'draft',
     customer_id: customerId,
     vehicle_id: vehicleId,
     issue_date: localDate(),
     operation_date: localDate(),
     due_date:
-      kind === "order"
-        ? ""
+      kind === 'order'
+        ? ''
         : addDateDays(
             localDate(),
-            kind === "quote"
-              ? config.billing.quote_days
-              : config.billing.due_days,
+            kind === 'quote' ? config.billing.quote_days : config.billing.due_days,
           ),
-    series_id: "",
+    series_id: '',
     version: undefined,
-    invoice_type: "F1",
+    invoice_type: 'F1',
     reference_id: null,
     origin_id: null,
     kilometres: vehicleId ? vehicleKilometres : 0,
     payment_method: config.billing.payment_method,
-    notes: "",
+    notes: '',
     footer: config.billing.footer,
     stock_affect: false,
     lines: [
       {
         _uiKey: uuid(),
-        description: "",
-        quantity: "1",
-        unit_price: "0",
-        discount: "0",
+        description: '',
+        quantity: '1',
+        unit_price: '0',
+        discount: '0',
         tax_rate: config.billing.vat,
-        tax_kind: "S1",
-        tax_reason: "",
+        tax_kind: 'S1',
+        tax_reason: '',
       },
     ],
   });
   const [value, setValue] = useState<Row>(defaults),
     [doc, setDoc] = useState<Row | null>(null),
     [loading, setLoading] = useState(!!id),
-    [error, setError] = useState(""),
+    [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false),
     [customer, setCustomer] = useState<Row | null>(null),
     [newCustomer, setNewCustomer] = useState(false),
     [newVehicle, setNewVehicle] = useState(false),
-    [confirm, setConfirm] = useState(""),
-    [correction, setCorrection] = useState(""),
+    [confirm, setConfirm] = useState(''),
+    [correction, setCorrection] = useState(''),
     [pdf, setPdf] = useState<Row | null>(null),
     [payment, setPayment] = useState(false),
     [paymentState, setPaymentState] = useState(false),
@@ -897,20 +961,24 @@ export function DocumentEditor({
       lines: [],
       taxes: [],
     }),
-    [calcError, setCalcError] = useState(""),
+    [calcError, setCalcError] = useState(''),
     [advanced, setAdvanced] = useState(false);
   const [draggedLine, setDraggedLine] = useState<string | null>(null);
   const [dragTarget, setDragTarget] = useState<string | null>(null);
-  const [orderMessage, setOrderMessage] = useState("");
+  const [orderMessage, setOrderMessage] = useState('');
   const [paymentDetail, setPaymentDetail] = useState<Row | null>(null);
-  const paymentNote = (row: Row) => row.method === "opening_adjustment" ? JSON.parse(row.notes).evidence : row.notes;
-  const paymentMethod = (row: Row) => methods[row.method] || (row.method === "opening_adjustment" ? "Ajuste documental" : row.method);
+  const paymentNote = (row: Row) =>
+    row.method === 'opening_adjustment' ? JSON.parse(row.notes).evidence : row.notes;
+  const paymentMethod = (row: Row) =>
+    methods[row.method] || (row.method === 'opening_adjustment' ? 'Ajuste documental' : row.method);
   const paymentOrder = useListSort<Row>(doc?.payments || [], {
-    paid_on: row => row.paid_on, method: paymentMethod, notes: paymentNote,
-    amount_cents: row => row.amount_cents,
+    paid_on: (row) => row.paid_on,
+    method: paymentMethod,
+    notes: paymentNote,
+    amount_cents: (row) => row.amount_cents,
   });
-  const [products] = useLoad<Row[]>("products.list", {}, []);
-  const [concepts] = useLoad<Row[]>("documents.concepts", {}, []);
+  const [products] = useLoad<Row[]>('products.list', {}, []);
+  const [concepts] = useLoad<Row[]>('documents.concepts', {}, []);
   const serial = useRef(0),
     saving = useRef(false),
     current = useRef(value);
@@ -920,12 +988,12 @@ export function DocumentEditor({
     setValue({ ...d, ...d.payload, lines: withLineKeys(d.payload.lines) });
     setTotals(d.payload);
     setDirty(false);
-    setError("");
+    setError('');
   }
   useEffect(() => {
     let active = true;
     if (id)
-      api("documents.get", { identifier: id })
+      api('documents.get', { identifier: id })
         .then((d) => {
           if (active) hydrate(d);
         })
@@ -942,7 +1010,7 @@ export function DocumentEditor({
   useEffect(() => {
     let active = true;
     if (value.customer_id)
-      api("customers.get", { identifier: value.customer_id })
+      api('customers.get', { identifier: value.customer_id })
         .then((c) => {
           if (active) setCustomer(c);
         })
@@ -959,24 +1027,20 @@ export function DocumentEditor({
     const handler = (e: BeforeUnloadEvent) => {
       if (dirty) {
         e.preventDefault();
-        e.returnValue = "";
+        e.returnValue = '';
       }
     };
-    window.addEventListener("beforeunload", handler);
+    window.addEventListener('beforeunload', handler);
     return () => {
       onDirty?.(false);
-      window.removeEventListener("beforeunload", handler);
+      window.removeEventListener('beforeunload', handler);
     };
   }, [dirty]);
   const editable =
-    !doc ||
-    doc.status === "draft" ||
-    (kind === "order" && doc.status !== "delivered");
-  const isDraft = !doc || doc.status === "draft";
-  const historical =
-    doc?.status === "historical" || doc?.status === "import_reverted";
-  const identityEditable =
-    editable && !doc?.conversion_identity_locked && !doc?.reference_id;
+    !doc || doc.status === 'draft' || (kind === 'order' && doc.status !== 'delivered');
+  const isDraft = !doc || doc.status === 'draft';
+  const historical = doc?.status === 'historical' || doc?.status === 'import_reverted';
+  const identityEditable = editable && !doc?.conversion_identity_locked && !doc?.reference_id;
   const editVersion = useRef(0);
   const kilometresRevision = useRef(0);
   const displayedCustomer = editable ? customer : doc?.payload.customer;
@@ -994,10 +1058,10 @@ export function DocumentEditor({
       : [];
   const change = (key: string, next: any) => {
     editVersion.current++;
-    if (key === "kilometres") kilometresRevision.current++;
+    if (key === 'kilometres') kilometresRevision.current++;
     setValue((v) => ({
       ...v,
-      [key]: key === "lines" ? withLineKeys(next) : next,
+      [key]: key === 'lines' ? withLineKeys(next) : next,
     }));
     setDirty(true);
   };
@@ -1005,16 +1069,14 @@ export function DocumentEditor({
     editVersion.current++;
     setValue((v) => ({
       ...v,
-      lines: v.lines.map((l: Row, i: number) =>
-        i === index ? { ...l, [key]: next } : l,
-      ),
+      lines: v.lines.map((l: Row, i: number) => (i === index ? { ...l, [key]: next } : l)),
     }));
     setDirty(true);
   };
   function moveLine(from: number, to: number) {
     if (
       !editable ||
-      value.correction_mode === "tax_only" ||
+      value.correction_mode === 'tax_only' ||
       from < 0 ||
       to < 0 ||
       to >= value.lines.length ||
@@ -1025,7 +1087,7 @@ export function DocumentEditor({
     const [moved] = lines.splice(from, 1);
     lines.splice(to, 0, moved);
     serial.current++;
-    change("lines", lines);
+    change('lines', lines);
     setTotals((previous) => {
       const calculated = [...(previous.lines || [])];
       if (calculated.length !== lines.length) return previous;
@@ -1039,16 +1101,16 @@ export function DocumentEditor({
     const n = ++serial.current;
     if (!editable) return;
     const t = setTimeout(() => {
-      api("documents.calculate", {
+      api('documents.calculate', {
         lines: persistedLines(value.lines),
-        corrective: value.invoice_type.startsWith("R"),
+        corrective: value.invoice_type.startsWith('R'),
         invoice_type: value.invoice_type,
         tax_adjustments: value.tax_adjustments || null,
       })
         .then((tot) => {
           if (n === serial.current) {
             setTotals(tot);
-            setCalcError("");
+            setCalcError('');
           }
         })
         .catch((e) => {
@@ -1069,10 +1131,10 @@ export function DocumentEditor({
     if (saving.current) return null;
     saving.current = true;
     setBusy(true);
-    setError("");
+    setError('');
     const submittedVersion = editVersion.current;
     try {
-      const d = await api("documents.save", {
+      const d = await api('documents.save', {
         data: {
           ...current.current,
           lines: persistedLines(current.current.lines),
@@ -1082,12 +1144,12 @@ export function DocumentEditor({
         setDoc(d);
         setValue((latest) => ({ ...latest, version: d.version }));
         setError(
-          "Has seguido editando durante el guardado. Guarda los cambios nuevos antes de revisar o imprimir.",
+          'Has seguido editando durante el guardado. Guarda los cambios nuevos antes de revisar o imprimir.',
         );
         return null;
       }
       hydrate(d);
-      if (!quiet) notify("Borrador guardado");
+      if (!quiet) notify('Borrador guardado');
       return d;
     } catch (e: any) {
       setError(e.message);
@@ -1099,17 +1161,17 @@ export function DocumentEditor({
   }
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         if (editable) void save();
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         void preview();
       }
     };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
   }, [editable, doc, dirty]);
   async function preview() {
     let d = doc;
@@ -1119,7 +1181,7 @@ export function DocumentEditor({
     }
     setBusy(true);
     try {
-      setPdf(await api("documents.pdf", { identifier: d.id }));
+      setPdf(await api('documents.pdf', { identifier: d.id }));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -1129,8 +1191,8 @@ export function DocumentEditor({
   async function convert(target: string) {
     setBusy(true);
     try {
-      const d = await api("documents.convert", { identifier: doc!.id, target });
-      navigate("editor", { kind: target, id: d.id });
+      const d = await api('documents.convert', { identifier: doc!.id, target });
+      navigate('editor', { kind: target, id: d.id });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -1139,19 +1201,19 @@ export function DocumentEditor({
   }
   function selectCustomer(c: Row) {
     const selectedCustomer = c.customer_id || c.id;
-    const selectedVehicle = c.vehicle_id || "";
-    change("customer_id", selectedCustomer);
-    change("vehicle_id", selectedVehicle);
-    change("kilometres", 0);
+    const selectedVehicle = c.vehicle_id || '';
+    change('customer_id', selectedCustomer);
+    change('vehicle_id', selectedVehicle);
+    change('kilometres', 0);
     if (selectedVehicle) {
       const revision = kilometresRevision.current;
       const stillSelected = () =>
         revision === kilometresRevision.current &&
         current.current.customer_id === selectedCustomer &&
         current.current.vehicle_id === selectedVehicle;
-      api<Row>("vehicles.get", { identifier: selectedVehicle })
+      api<Row>('vehicles.get', { identifier: selectedVehicle })
         .then((vehicle) => {
-          if (stillSelected()) change("kilometres", vehicle.km);
+          if (stillSelected()) change('kilometres', vehicle.km);
         })
         .catch((error) => {
           if (stillSelected()) setError(error.message);
@@ -1163,16 +1225,12 @@ export function DocumentEditor({
   const options = series.filter(
     (s: Row) =>
       !s.archived &&
-      s.kind ===
-        (value.invoice_type.startsWith("R") ? "rectification" : kind) &&
-      (s.year === 0 || s.year === Number((value.issue_date ?? "").slice(0, 4))),
+      s.kind === (value.invoice_type.startsWith('R') ? 'rectification' : kind) &&
+      (s.year === 0 || s.year === Number((value.issue_date ?? '').slice(0, 4))),
   );
   return (
     <>
-      <button
-        className="back-link"
-        onClick={() => navigate("documents", { kind })}
-      >
+      <button className="back-link" onClick={() => navigate('documents', { kind })}>
         <Icon name="back" size={17} />
         {nouns[kind][1]}
       </button>
@@ -1180,17 +1238,17 @@ export function DocumentEditor({
         title={docTitle}
         subtitle={
           isDraft
-            ? "El n\u00famero se asigna al confirmar, nunca al guardar el borrador."
-            : nouns[kind][0] + " guardado en el historial."
+            ? 'El n\u00famero se asigna al confirmar, nunca al guardar el borrador.'
+            : nouns[kind][0] + ' guardado en el historial.'
         }
       >
-        <Badge value={doc?.status || "draft"} />
+        <Badge value={doc?.status || 'draft'} />
         <Button icon="print" onClick={preview} busy={busy}>
           Vista previa / PDF
         </Button>
         {editable && (
           <Button icon="check" onClick={() => save()} busy={busy}>
-            {dirty ? "Guardar cambios" : "Guardar borrador"}
+            {dirty ? 'Guardar cambios' : 'Guardar borrador'}
           </Button>
         )}
         {isDraft && (
@@ -1200,65 +1258,58 @@ export function DocumentEditor({
             busy={busy}
             onClick={async () => {
               const d = await save(true);
-              if (d) setConfirm("publish");
+              if (d) setConfirm('publish');
             }}
           >
-            {kind === "invoice"
-              ? "Revisar y emitir"
-              : kind === "quote"
-                ? "Confirmar presupuesto"
-                : "Abrir orden"}
+            {kind === 'invoice'
+              ? 'Revisar y emitir'
+              : kind === 'quote'
+                ? 'Confirmar presupuesto'
+                : 'Abrir orden'}
           </Button>
         )}
       </PageHead>
       {error && <Notice tone="error">{error}</Notice>}
-      {historical && (doc?.amounts_state !== "known" || !doc?.issue_date) && (
+      {historical && (doc?.amounts_state !== 'known' || !doc?.issue_date) && (
         <div className="historical-incomplete-notice">
-        <Notice>
-          Histórico incompleto. Los datos ausentes figuran como «No consta».
-          Los importes originales sin clasificación fiscal no acreditan la base,
-          el IVA ni el total de la factura.
-          {doc?.date_state === "conflict" && " El origen conserva fechas diferentes; no se ha elegido una por defecto."}
-        </Notice>
+          <Notice>
+            Histórico incompleto. Los datos ausentes figuran como «No consta». Los importes
+            originales sin clasificación fiscal no acreditan la base, el IVA ni el total de la
+            factura.
+            {doc?.date_state === 'conflict' &&
+              ' El origen conserva fechas diferentes; no se ha elegido una por defecto.'}
+          </Notice>
         </div>
       )}
       {doc &&
         !isDraft &&
-        !["void", "import_reverted"].includes(doc.status) &&
-        (kind === "invoice" ||
-          kind === "quote" ||
-          ["ready", "delivered"].includes(doc.status)) && (
+        !['void', 'import_reverted'].includes(doc.status) &&
+        (kind === 'invoice' || kind === 'quote' || ['ready', 'delivered'].includes(doc.status)) && (
           <div className="row-actions document-message-actions">
             <MessageButton
               identifier={doc.id}
-              purpose={
-                kind === "order"
-                  ? "vehicle_ready"
-                  : kind === "quote"
-                    ? "quote"
-                    : "invoice"
-              }
+              purpose={kind === 'order' ? 'vehicle_ready' : kind === 'quote' ? 'quote' : 'invoice'}
             />
           </div>
         )}
-      {!isDraft && kind === "invoice" && (
+      {!isDraft && kind === 'invoice' && (
         <div className="document-statusbar">
           <span>
             <Icon name="lock" size={17} /> Datos de emisi&oacute;n protegidos
           </span>
           <span>
             {historical ? (
-              "No remitido como nuevo"
+              'No remitido como nuevo'
             ) : (
-              <Badge value={doc?.fiscal_status?.status || "local_only"} />
+              <Badge value={doc?.fiscal_status?.status || 'local_only'} />
             )}
           </span>
           <span>
             {historical
-              ? "Histórico importado · conserve el original"
+              ? 'Histórico importado · conserve el original'
               : doc?.payload.test_document !== false
-                ? "Entorno de pruebas · Sin validez fiscal"
-                : "Documento emitido"}
+                ? 'Entorno de pruebas · Sin validez fiscal'
+                : 'Documento emitido'}
           </span>
         </div>
       )}
@@ -1268,11 +1319,7 @@ export function DocumentEditor({
             <div className="section-head flush">
               <h2>1. Cliente y veh&iacute;culo</h2>
               {identityEditable && (
-                <Button
-                  icon="plus"
-                  tone="ghost"
-                  onClick={() => setNewCustomer(true)}
-                >
+                <Button icon="plus" tone="ghost" onClick={() => setNewCustomer(true)}>
                   Nuevo cliente
                 </Button>
               )}
@@ -1285,21 +1332,26 @@ export function DocumentEditor({
             )}
             {editable && !identityEditable && (
               <p className="small subtle">
-                Cliente y vehículo conservados del documento de origen. Puedes
-                editar los trabajos y las notas.
+                Cliente y vehículo conservados del documento de origen. Puedes editar los trabajos y
+                las notas.
               </p>
             )}
             {displayedCustomer?.name?.trim() ? (
               <div className="selected-customer">
                 <div>
                   <strong>
-                    <EntityReference entity="customer" id={value.customer_id} navigate={navigate} disabled={busy}>
+                    <EntityReference
+                      entity="customer"
+                      id={value.customer_id}
+                      navigate={navigate}
+                      disabled={busy}
+                    >
                       {displayedCustomer.name}
                     </EntityReference>
                   </strong>
                   <span>
-                    {displayedCustomer.tax_id} &middot;{" "}
-                    {displayedCustomer.phone || "Sin tel\u00e9fono"}
+                    {displayedCustomer.tax_id} &middot;{' '}
+                    {displayedCustomer.phone || 'Sin tel\u00e9fono'}
                   </span>
                   <small>{displayedCustomer.address}</small>
                 </div>
@@ -1308,7 +1360,7 @@ export function DocumentEditor({
                     tone="ghost"
                     icon="users"
                     disabled={busy}
-                    onClick={() => navigate("customer", { id: value.customer_id })}
+                    onClick={() => navigate('customer', { id: value.customer_id })}
                   >
                     Ver ficha
                   </Button>
@@ -1318,38 +1370,39 @@ export function DocumentEditor({
               <div className="subtle document-current-customer">
                 {!editable && value.customer_id && doc?.current_customer_name ? (
                   <div className="document-current-customer-reference">
-                  <small>Ficha actual del cliente</small>
-                  <EntityReference entity="customer" id={value.customer_id} navigate={navigate} disabled={busy}>
-                    {doc.current_customer_name}
-                  </EntityReference>
+                    <small>Ficha actual del cliente</small>
+                    <EntityReference
+                      entity="customer"
+                      id={value.customer_id}
+                      navigate={navigate}
+                      disabled={busy}
+                    >
+                      {doc.current_customer_name}
+                    </EntityReference>
                   </div>
                 ) : (
-                  <p>{editable
-                    ? "Selecciona un cliente para empezar. No es necesario crear una orden."
-                    : "Cliente no disponible"}</p>
+                  <p>
+                    {editable
+                      ? 'Selecciona un cliente para empezar. No es necesario crear una orden.'
+                      : 'Cliente no disponible'}
+                  </p>
                 )}
               </div>
             )}
             <div className="vehicle-fields">
               <Field label="Veh&iacute;culo (opcional)">
                 <Select
-                  value={value.vehicle_id || ""}
+                  value={value.vehicle_id || ''}
                   disabled={!identityEditable || !customer}
                   onChange={(e) => {
-                    change("vehicle_id", e.target.value);
-                    const v = customer?.vehicles.find(
-                      (x: Row) => x.id === e.target.value,
-                    );
-                    change("kilometres", v?.km || 0);
+                    change('vehicle_id', e.target.value);
+                    const v = customer?.vehicles.find((x: Row) => x.id === e.target.value);
+                    change('kilometres', v?.km || 0);
                   }}
                 >
-                  {!editable &&
-                    value.vehicle_id &&
-                    !displayedVehicles.length && (
-                      <option value={value.vehicle_id}>
-                        Vehículo original no documentado
-                      </option>
-                    )}
+                  {!editable && value.vehicle_id && !displayedVehicles.length && (
+                    <option value={value.vehicle_id}>Vehículo original no documentado</option>
+                  )}
                   <option value="">Sin veh&iacute;culo</option>
                   {displayedVehicles.map((v: Row) => (
                     <option value={v.id} key={v.id}>
@@ -1360,13 +1413,13 @@ export function DocumentEditor({
               </Field>
               <Input
                 label="Kil&oacute;metros"
-                value={value.kilometres ?? ""}
-                placeholder={historical ? "No consta" : undefined}
+                value={value.kilometres ?? ''}
+                placeholder={historical ? 'No consta' : undefined}
                 type="number"
                 min={0}
                 max={10000000}
                 disabled={!editable}
-                onChange={(e) => change("kilometres", Number(e.target.value))}
+                onChange={(e) => change('kilometres', Number(e.target.value))}
               />
               {identityEditable && customer ? (
                 <div className="align-end">
@@ -1378,8 +1431,15 @@ export function DocumentEditor({
             </div>
             {value.vehicle_id && (
               <p>
-                <EntityReference entity="vehicle" id={value.vehicle_id} navigate={navigate} disabled={busy}>
-                  Ver vehículo: {displayedVehicles.find((vehicle: Row) => vehicle.id === value.vehicle_id)?.plate || "matrícula no conservada"}
+                <EntityReference
+                  entity="vehicle"
+                  id={value.vehicle_id}
+                  navigate={navigate}
+                  disabled={busy}
+                >
+                  Ver vehículo:{' '}
+                  {displayedVehicles.find((vehicle: Row) => vehicle.id === value.vehicle_id)
+                    ?.plate || 'matrícula no conservada'}
                 </EntityReference>
               </p>
             )}
@@ -1388,11 +1448,7 @@ export function DocumentEditor({
             <div className="section-head">
               <h2>2. Trabajos y materiales</h2>
               {editable && (
-                <Button
-                  icon="box"
-                  tone="ghost"
-                  onClick={() => setShowProducts(true)}
-                >
+                <Button icon="box" tone="ghost" onClick={() => setShowProducts(true)}>
                   Del cat&aacute;logo
                 </Button>
               )}
@@ -1407,15 +1463,15 @@ export function DocumentEditor({
               {value.lines.map((line: Row, i: number) => (
                 <div
                   className={
-                    "invoice-line" +
-                    (draggedLine === line._uiKey ? " dragging" : "") +
-                    (dragTarget === line._uiKey ? " drag-target" : "")
+                    'invoice-line' +
+                    (draggedLine === line._uiKey ? ' dragging' : '') +
+                    (dragTarget === line._uiKey ? ' drag-target' : '')
                   }
                   key={line._uiKey}
                   onDragOver={(event) => {
                     if (draggedLine && editable) {
                       event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
+                      event.dataTransfer.dropEffect = 'move';
                       setDragTarget(line._uiKey);
                     }
                   }}
@@ -1423,103 +1479,91 @@ export function DocumentEditor({
                     event.preventDefault();
                     if (draggedLine)
                       moveLine(
-                        value.lines.findIndex(
-                          (item: Row) => item._uiKey === draggedLine,
-                        ),
+                        value.lines.findIndex((item: Row) => item._uiKey === draggedLine),
                         i,
                       );
                     setDraggedLine(null);
                     setDragTarget(null);
                   }}
                 >
-                  {editable &&
-                    value.correction_mode !== "tax_only" &&
-                    value.lines.length > 1 && (
-                      <div className="line-order">
-                        <span>Línea {i + 1}</span>
-                        <Button
-                          tone="ghost icon-only drag-handle"
-                          aria-label={"Arrastrar línea " + (i + 1)}
-                          title="Arrastra para ordenar; también puedes usar las flechas"
-                          draggable
-                          onDragStart={(event) => {
-                            setDraggedLine(line._uiKey);
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData(
-                              "text/plain",
-                              line._uiKey,
-                            );
-                          }}
-                          onDragEnd={() => {
-                            setDraggedLine(null);
-                            setDragTarget(null);
-                          }}
-                          onKeyDown={(event) => {
-                            if (
-                              event.key === "ArrowUp" ||
-                              event.key === "ArrowDown"
-                            ) {
-                              event.preventDefault();
-                              moveLine(
-                                i,
-                                i + (event.key === "ArrowUp" ? -1 : 1),
-                              );
-                            }
-                          }}
-                        >
-                          ⠿
-                        </Button>
-                        <Button
-                          tone="ghost icon-only"
-                          aria-label={"Subir línea " + (i + 1)}
-                          disabled={i === 0}
-                          onClick={() => moveLine(i, i - 1)}
-                        >
-                          ↑
-                        </Button>
-                        <Button
-                          tone="ghost icon-only"
-                          aria-label={"Bajar línea " + (i + 1)}
-                          disabled={i === value.lines.length - 1}
-                          onClick={() => moveLine(i, i + 1)}
-                        >
-                          ↓
-                        </Button>
-                      </div>
-                    )}
+                  {editable && value.correction_mode !== 'tax_only' && value.lines.length > 1 && (
+                    <div className="line-order">
+                      <span>Línea {i + 1}</span>
+                      <Button
+                        tone="ghost icon-only drag-handle"
+                        aria-label={'Arrastrar línea ' + (i + 1)}
+                        title="Arrastra para ordenar; también puedes usar las flechas"
+                        draggable
+                        onDragStart={(event) => {
+                          setDraggedLine(line._uiKey);
+                          event.dataTransfer.effectAllowed = 'move';
+                          event.dataTransfer.setData('text/plain', line._uiKey);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedLine(null);
+                          setDragTarget(null);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            moveLine(i, i + (event.key === 'ArrowUp' ? -1 : 1));
+                          }
+                        }}
+                      >
+                        ⠿
+                      </Button>
+                      <Button
+                        tone="ghost icon-only"
+                        aria-label={'Subir línea ' + (i + 1)}
+                        disabled={i === 0}
+                        onClick={() => moveLine(i, i - 1)}
+                      >
+                        ↑
+                      </Button>
+                      <Button
+                        tone="ghost icon-only"
+                        aria-label={'Bajar línea ' + (i + 1)}
+                        disabled={i === value.lines.length - 1}
+                        onClick={() => moveLine(i, i + 1)}
+                      >
+                        ↓
+                      </Button>
+                    </div>
+                  )}
                   <div className="line-description">
                     <span className="line-number">{i + 1}</span>
                     <Field label="Concepto">
                       <Autocomplete
-                        aria-label={"Concepto " + (i + 1)}
+                        aria-label={'Concepto ' + (i + 1)}
                         suggestions={concepts.map((item) => item.description)}
                         onSuggestion={(description) => {
-                          const match = concepts.find(
-                            (item) => item.description === description,
-                          );
-                          if (editable && match && line.unit_price === "0") {
-                            lineChange(i, "unit_price", match.unit_price);
-                            lineChange(i, "tax_rate", match.tax_rate);
+                          const match = concepts.find((item) => item.description === description);
+                          if (editable && match && line.unit_price === '0') {
+                            lineChange(i, 'unit_price', match.unit_price);
+                            lineChange(i, 'tax_rate', match.tax_rate);
                           }
                         }}
                         value={line.description}
                         disabled={!editable}
-                        placeholder={editable ? "Por ejemplo, cambio de aceite y filtro" : "No consta"}
-                        onChange={(e) =>
-                          lineChange(i, "description", e.target.value)
+                        placeholder={
+                          editable ? 'Por ejemplo, cambio de aceite y filtro' : 'No consta'
                         }
+                        onChange={(e) => lineChange(i, 'description', e.target.value)}
                         onBlur={(e) => {
-                          const match = concepts.find(
-                            (c) => c.description === e.target.value,
-                          );
-                          if (editable && match && line.unit_price === "0") {
-                            lineChange(i, "unit_price", match.unit_price);
-                            lineChange(i, "tax_rate", match.tax_rate);
+                          const match = concepts.find((c) => c.description === e.target.value);
+                          if (editable && match && line.unit_price === '0') {
+                            lineChange(i, 'unit_price', match.unit_price);
+                            lineChange(i, 'tax_rate', match.tax_rate);
                           }
                         }}
                       />
                       {line.product_id && (
-                        <EntityReference entity="product" id={line.product_id} navigate={navigate} disabled={busy}>
+                        <EntityReference
+                          entity="product"
+                          id={line.product_id}
+                          navigate={navigate}
+                          disabled={busy}
+                        >
                           Consultar artículo vinculado
                         </EntityReference>
                       )}
@@ -1527,62 +1571,49 @@ export function DocumentEditor({
                   </div>
                   {historical && line.amount_raw != null && (
                     <p className="small subtle">
-                      Importe original sin clasificación fiscal: {String(line.amount_raw).replace(".", ",")}
+                      Importe original sin clasificación fiscal:{' '}
+                      {String(line.amount_raw).replace('.', ',')}
                     </p>
                   )}
                   <div className="line-values">
                     <Input
                       label="Cantidad"
-                      aria-label={"Cantidad " + (i + 1)}
+                      aria-label={'Cantidad ' + (i + 1)}
                       inputMode="decimal"
-                      value={line.quantity ?? ""}
-                      placeholder={editable ? undefined : "No consta"}
-                      disabled={
-                        !editable || value.correction_mode === "tax_only"
-                      }
-                      onChange={(e) =>
-                        lineChange(
-                          i,
-                          "quantity",
-                          e.target.value.replace(",", "."),
-                        )
-                      }
+                      value={line.quantity ?? ''}
+                      placeholder={editable ? undefined : 'No consta'}
+                      disabled={!editable || value.correction_mode === 'tax_only'}
+                      onChange={(e) => lineChange(i, 'quantity', e.target.value.replace(',', '.'))}
                     />
                     <Input
-                      label={historical && doc?.amounts_state !== "known" ? "Precio original" : "Precio sin IVA"}
-                      aria-label={"Precio " + (i + 1)}
-                      inputMode="decimal"
-                      value={line.unit_price ?? ""}
-                      placeholder={editable ? undefined : "No consta"}
-                      disabled={
-                        !editable || value.correction_mode === "tax_only"
+                      label={
+                        historical && doc?.amounts_state !== 'known'
+                          ? 'Precio original'
+                          : 'Precio sin IVA'
                       }
+                      aria-label={'Precio ' + (i + 1)}
+                      inputMode="decimal"
+                      value={line.unit_price ?? ''}
+                      placeholder={editable ? undefined : 'No consta'}
+                      disabled={!editable || value.correction_mode === 'tax_only'}
                       onChange={(e) =>
-                        lineChange(
-                          i,
-                          "unit_price",
-                          e.target.value.replace(",", "."),
-                        )
+                        lineChange(i, 'unit_price', e.target.value.replace(',', '.'))
                       }
                     />
                     <Field label="IVA">
                       <Select
-                        aria-label={"IVA " + (i + 1)}
-                        disabled={
-                          !editable || value.correction_mode === "tax_only"
-                        }
-                        value={line.tax_rate ?? ""}
-                        onChange={(e) =>
-                          lineChange(i, "tax_rate", e.target.value)
-                        }
+                        aria-label={'IVA ' + (i + 1)}
+                        disabled={!editable || value.correction_mode === 'tax_only'}
+                        value={line.tax_rate ?? ''}
+                        onChange={(e) => lineChange(i, 'tax_rate', e.target.value)}
                       >
                         {!line.tax_rate && <option value="">No consta</option>}
                         {Array.from(
                           new Set([
-                            "21",
-                            "10",
-                            "4",
-                            "0",
+                            '21',
+                            '10',
+                            '4',
+                            '0',
                             ...(line.tax_rate ? [String(line.tax_rate)] : []),
                           ]),
                         ).map((x) => (
@@ -1598,15 +1629,15 @@ export function DocumentEditor({
                         {money(totals.lines?.[i]?.base_cents ?? (editable ? 0 : null))}
                       </strong>
                     </div>
-                    {editable && value.correction_mode !== "tax_only" && (
+                    {editable && value.correction_mode !== 'tax_only' && (
                       <Button
                         icon="trash"
                         tone="ghost icon-only"
-                        aria-label={"Quitar l\u00ednea " + (i + 1)}
+                        aria-label={'Quitar l\u00ednea ' + (i + 1)}
                         disabled={value.lines.length === 1}
                         onClick={() =>
                           change(
-                            "lines",
+                            'lines',
                             value.lines.filter((_: Row, n: number) => n !== i),
                           )
                         }
@@ -1617,75 +1648,64 @@ export function DocumentEditor({
                     <div className="line-advanced">
                       <Input
                         label="Descuento %"
-                        value={line.discount ?? (editable ? "0" : "")}
-                        placeholder={editable ? undefined : "No consta"}
-                        disabled={
-                          !editable || value.correction_mode === "tax_only"
-                        }
+                        value={line.discount ?? (editable ? '0' : '')}
+                        placeholder={editable ? undefined : 'No consta'}
+                        disabled={!editable || value.correction_mode === 'tax_only'}
                         inputMode="decimal"
                         onChange={(e) =>
-                          lineChange(
-                            i,
-                            "discount",
-                            e.target.value.replace(",", "."),
-                          )
+                          lineChange(i, 'discount', e.target.value.replace(',', '.'))
                         }
                       />
                       <Field label="Tratamiento del IVA">
                         <Select
-                          disabled={
-                            !editable || value.correction_mode === "tax_only"
-                          }
-                          value={line.tax_kind || (historical ? "historical" : "S1")}
+                          disabled={!editable || value.correction_mode === 'tax_only'}
+                          value={line.tax_kind || (historical ? 'historical' : 'S1')}
                           onChange={(e) => {
-                            lineChange(i, "tax_kind", e.target.value);
-                            if (e.target.value !== "S1")
-                              lineChange(i, "tax_rate", "0");
+                            lineChange(i, 'tax_kind', e.target.value);
+                            if (e.target.value !== 'S1') lineChange(i, 'tax_rate', '0');
                           }}
                         >
                           {historical && (
                             <option value="historical">No consta clasificación fiscal</option>
                           )}
                           <option value="S1">Sujeta y no exenta</option>
-                          {["E1", "E2", "E3", "E4", "E5", "E6"].map((x) => (
+                          {['E1', 'E2', 'E3', 'E4', 'E5', 'E6'].map((x) => (
                             <option key={x} value={x}>
                               Exenta {x} (revisar causa)
                             </option>
                           ))}
                         </Select>
                       </Field>
-                      {line.tax_kind && line.tax_kind !== "S1" && line.tax_kind !== "historical" && (
-                        <Input
-                          label="Motivo legal de exenci&oacute;n"
-                          value={line.tax_reason || ""}
-                          disabled={
-                            !editable || value.correction_mode === "tax_only"
-                          }
-                          onChange={(e) =>
-                            lineChange(i, "tax_reason", e.target.value)
-                          }
-                        />
-                      )}
+                      {line.tax_kind &&
+                        line.tax_kind !== 'S1' &&
+                        line.tax_kind !== 'historical' && (
+                          <Input
+                            label="Motivo legal de exenci&oacute;n"
+                            value={line.tax_reason || ''}
+                            disabled={!editable || value.correction_mode === 'tax_only'}
+                            onChange={(e) => lineChange(i, 'tax_reason', e.target.value)}
+                          />
+                        )}
                     </div>
                   )}
                 </div>
               ))}
             </div>
             <div className="lines-footer">
-              {editable && value.correction_mode !== "tax_only" && (
+              {editable && value.correction_mode !== 'tax_only' && (
                 <Button
                   icon="plus"
                   tone="ghost"
                   onClick={() =>
-                    change("lines", [
+                    change('lines', [
                       ...value.lines,
                       {
-                        description: "",
-                        quantity: "1",
-                        unit_price: "0",
+                        description: '',
+                        quantity: '1',
+                        unit_price: '0',
                         tax_rate: config.billing.vat,
-                        discount: "0",
-                        tax_kind: "S1",
+                        discount: '0',
+                        tax_kind: 'S1',
                       },
                     ])
                   }
@@ -1693,22 +1713,22 @@ export function DocumentEditor({
                   A&ntilde;adir concepto
                 </Button>
               )}
-              {editable && value.correction_mode !== "tax_only" && (
+              {editable && value.correction_mode !== 'tax_only' && (
                 <Button
                   tone="ghost"
                   icon="tool"
                   onClick={() => {
                     const line = {
-                      description: "Mano de obra",
-                      quantity: "1",
-                      unit_price: config.billing.labor_rate || "0",
-                      discount: "0",
+                      description: 'Mano de obra',
+                      quantity: '1',
+                      unit_price: config.billing.labor_rate || '0',
+                      discount: '0',
                       tax_rate: config.billing.vat,
-                      tax_kind: "S1",
-                      tax_reason: "",
+                      tax_kind: 'S1',
+                      tax_reason: '',
                     };
                     change(
-                      "lines",
+                      'lines',
                       value.lines.length === 1 && !value.lines[0].description
                         ? [line]
                         : [...value.lines, line],
@@ -1718,33 +1738,26 @@ export function DocumentEditor({
                   Mano de obra
                 </Button>
               )}
-              <Button
-                tone="ghost"
-                icon="settings"
-                onClick={() => setAdvanced(!advanced)}
-              >
-                {advanced ? "Ocultar opciones" : "Descuentos y exenciones"}
+              <Button tone="ghost" icon="settings" onClick={() => setAdvanced(!advanced)}>
+                {advanced ? 'Ocultar opciones' : 'Descuentos y exenciones'}
               </Button>
             </div>
-            {value.correction_mode === "tax_only" && (
+            {value.correction_mode === 'tax_only' && (
               <div className="padded">
                 <Notice>
-                  Rectificación exclusiva de cuota de IVA. Bases, precios y
-                  existencias permanecen sin cambio.
+                  Rectificación exclusiva de cuota de IVA. Bases, precios y existencias permanecen
+                  sin cambio.
                 </Notice>
                 {value.tax_adjustments.map((item: Row, index: number) => (
                   <Input
                     key={index}
-                    label={"Cuota IVA " + item.tax_rate + " % (EUR)"}
+                    label={'Cuota IVA ' + item.tax_rate + ' % (EUR)'}
                     disabled={!editable}
                     inputMode="decimal"
-                    value={
-                      value.quota_inputs?.[index] ??
-                      decimalCents(item.tax_cents)
-                    }
+                    value={value.quota_inputs?.[index] ?? decimalCents(item.tax_cents)}
                     onChange={(event) => {
                       const input = event.target.value;
-                      change("quota_inputs", {
+                      change('quota_inputs', {
                         ...(value.quota_inputs || {}),
                         [index]: input,
                       });
@@ -1755,7 +1768,7 @@ export function DocumentEditor({
                         /* Invalid partial input is also rejected by the backend. */
                       }
                       change(
-                        "tax_adjustments",
+                        'tax_adjustments',
                         value.tax_adjustments.map((row: Row, i: number) =>
                           i === index ? { ...row, tax_cents: cents } : row,
                         ),
@@ -1774,9 +1787,7 @@ export function DocumentEditor({
           <section className="panel padded">
             <Field
               label={
-                kind === "order"
-                  ? "Motivo de entrada / observaciones"
-                  : "Observaciones (opcional)"
+                kind === 'order' ? 'Motivo de entrada / observaciones' : 'Observaciones (opcional)'
               }
             >
               <Textarea
@@ -1784,64 +1795,55 @@ export function DocumentEditor({
                 value={value.notes}
                 disabled={!editable}
                 placeholder="Solo lo que necesites anotar."
-                onChange={(e) => change("notes", e.target.value)}
+                onChange={(e) => change('notes', e.target.value)}
               />
             </Field>
             {editable && (
               <TextAssistance
                 enabled={config.assistant.enabled}
                 value={value.notes}
-                onApply={(text) => change("notes", text)}
+                onApply={(text) => change('notes', text)}
               />
             )}
-            {editable && value.correction_mode !== "tax_only" && (
+            {editable && value.correction_mode !== 'tax_only' && (
               <label className="check-row">
                 <input
                   type="checkbox"
                   checked={value.stock_affect}
-                  onChange={(e) => change("stock_affect", e.target.checked)}
-                />{" "}
-                Descontar del almac&eacute;n los art&iacute;culos del
-                cat&aacute;logo al emitir.
+                  onChange={(e) => change('stock_affect', e.target.checked)}
+                />{' '}
+                Descontar del almac&eacute;n los art&iacute;culos del cat&aacute;logo al emitir.
                 <small>Opcional. No afecta a conceptos escritos a mano.</small>
               </label>
             )}
           </section>
-          {!isDraft && kind === "invoice" && (
+          {!isDraft && kind === 'invoice' && (
             <section className="panel">
               <div className="section-head">
                 <h2>Cobros y devoluciones</h2>
-                {doc!.status !== "void" &&
-                  doc!.payment_known &&
-                  doc!.pending_cents !== 0 && (
-                    <Button
-                      icon="plus"
-                      tone="primary"
-                      onClick={() => setPayment(true)}
-                    >
-                      Registrar cobro
-                    </Button>
-                  )}
+                {doc!.status !== 'void' && doc!.payment_known && doc!.pending_cents !== 0 && (
+                  <Button icon="plus" tone="primary" onClick={() => setPayment(true)}>
+                    Registrar cobro
+                  </Button>
+                )}
               </div>
               {!doc!.payment_known && (
                 <div className="padded">
                   <Notice>
                     {doc!.total_cents === null
-                      ? "El total histórico no consta. No se puede calcular un saldo ni registrar cobros."
-                      : "El archivo histórico no acredita el cobro. Esta factura se excluye del pendiente hasta documentar su saldo."}
+                      ? 'El total histórico no consta. No se puede calcular un saldo ni registrar cobros.'
+                      : 'El archivo histórico no acredita el cobro. Esta factura se excluye del pendiente hasta documentar su saldo.'}
                   </Notice>
                   {doc!.total_cents !== null && (
-                    <Button onClick={() => setPaymentState(true)}>
-                      Documentar saldo inicial
-                    </Button>
+                    <Button onClick={() => setPaymentState(true)}>Documentar saldo inicial</Button>
                   )}
                 </div>
               )}
               {doc!.payment_baseline && (
                 <div className="padded">
                   <p>
-                    Saldo inicial acreditado:{" "}
-                    <strong>{money(doc!.payment_baseline.paid_cents)}</strong>.{" "}
+                    Saldo inicial acreditado:{' '}
+                    <strong>{money(doc!.payment_baseline.paid_cents)}</strong>.{' '}
                     {doc!.payment_baseline.evidence}
                   </p>
                   <Button tone="ghost" onClick={() => setPaymentState(true)}>
@@ -1854,35 +1856,77 @@ export function DocumentEditor({
                   <table>
                     <thead>
                       <tr>
-                        <SortHeader label="Fecha" field="paid_on" sort={paymentOrder.sort} onSort={paymentOrder.toggle} />
-                        <SortHeader label="Forma" field="method" sort={paymentOrder.sort} onSort={paymentOrder.toggle} />
-                        <SortHeader label="Nota" field="notes" sort={paymentOrder.sort} onSort={paymentOrder.toggle} />
-                        <SortHeader label="Importe" field="amount_cents" sort={paymentOrder.sort} onSort={paymentOrder.toggle} className="right" />
-                        <th scope="col"><span className="sr-only">Acciones</span></th>
+                        <SortHeader
+                          label="Fecha"
+                          field="paid_on"
+                          sort={paymentOrder.sort}
+                          onSort={paymentOrder.toggle}
+                        />
+                        <SortHeader
+                          label="Forma"
+                          field="method"
+                          sort={paymentOrder.sort}
+                          onSort={paymentOrder.toggle}
+                        />
+                        <SortHeader
+                          label="Nota"
+                          field="notes"
+                          sort={paymentOrder.sort}
+                          onSort={paymentOrder.toggle}
+                        />
+                        <SortHeader
+                          label="Importe"
+                          field="amount_cents"
+                          sort={paymentOrder.sort}
+                          onSort={paymentOrder.toggle}
+                          className="right"
+                        />
+                        <th scope="col">
+                          <span className="sr-only">Acciones</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {paymentOrder.rows.map((p: Row) => (
                         <EntityRow key={p.id} onOpen={() => setPaymentDetail(p)}>
-                          <td><button type="button" className="entity-reference" onClick={() => setPaymentDetail(p)}>{dateText(p.paid_on)}</button></td>
                           <td>
-                            {methods[p.method] ||
-                              (p.method === "opening_adjustment"
-                                ? "Ajuste documental"
-                                : p.method)}
+                            <button
+                              type="button"
+                              className="entity-reference"
+                              onClick={() => setPaymentDetail(p)}
+                            >
+                              {dateText(p.paid_on)}
+                            </button>
                           </td>
                           <td>
-                            {p.method === "opening_adjustment"
+                            {methods[p.method] ||
+                              (p.method === 'opening_adjustment' ? 'Ajuste documental' : p.method)}
+                          </td>
+                          <td>
+                            {p.method === 'opening_adjustment'
                               ? JSON.parse(p.notes).evidence
-                              : p.notes || "\u2014"}
+                              : p.notes || '\u2014'}
                           </td>
                           <td className="right">{money(p.amount_cents)}</td>
                           <td>
-                            <RowActions label={`cobro del ${dateText(p.paid_on)}`} disabled={busy} items={[
-                              { label: "Ver cobro", onSelect: () => setPaymentDetail(p) },
-                              ...(p.method !== "opening_adjustment" && !p.reversal_of && !doc!.payments.some((x: Row) => x.reversal_of === p.id)
-                                ? [{ label: "Revertir cobro", danger: true, onSelect: () => setConfirm("reverse:" + p.id) }] : []),
-                            ]} />
+                            <RowActions
+                              label={`cobro del ${dateText(p.paid_on)}`}
+                              disabled={busy}
+                              items={[
+                                { label: 'Ver cobro', onSelect: () => setPaymentDetail(p) },
+                                ...(p.method !== 'opening_adjustment' &&
+                                !p.reversal_of &&
+                                !doc!.payments.some((x: Row) => x.reversal_of === p.id)
+                                  ? [
+                                      {
+                                        label: 'Revertir cobro',
+                                        danger: true,
+                                        onSelect: () => setConfirm('reverse:' + p.id),
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                            />
                           </td>
                         </EntityRow>
                       ))}
@@ -1898,14 +1942,20 @@ export function DocumentEditor({
           )}
         </div>
         <aside className="editor-side">
-          {doc?.historical_review && <HistoricalReviewPanel
-            identifier={doc.id}
-            review={doc.historical_review}
-            disabled={busy || doc.status === "import_reverted"}
-            onChanged={(review) => setDoc((currentDoc) => currentDoc ? { ...currentDoc, historical_review: review } : currentDoc)}
-          />}
+          {doc?.historical_review && (
+            <HistoricalReviewPanel
+              identifier={doc.id}
+              review={doc.historical_review}
+              disabled={busy || doc.status === 'import_reverted'}
+              onChanged={(review) =>
+                setDoc((currentDoc) =>
+                  currentDoc ? { ...currentDoc, historical_review: review } : currentDoc,
+                )
+              }
+            />
+          )}
           <section className="panel padded">
-            <h2>{doc?.historical_review ? "Importes originales" : "Resumen"}</h2>
+            <h2>{doc?.historical_review ? 'Importes originales' : 'Resumen'}</h2>
             <div className="summary-line">
               <span>Base imponible</span>
               <span>{money(totals.base_cents)}</span>
@@ -1913,11 +1963,11 @@ export function DocumentEditor({
             {totals.taxes?.map((t: Row, i: number) => (
               <div className="summary-line" key={i}>
                 <span>
-                  {t.kind === "historical"
-                    ? "IVA histórico (tipo no conservado)"
-                    : t.kind === "S1"
-                      ? "IVA " + t.rate + "%"
-                      : "Exento " + t.kind}
+                  {t.kind === 'historical'
+                    ? 'IVA histórico (tipo no conservado)'
+                    : t.kind === 'S1'
+                      ? 'IVA ' + t.rate + '%'
+                      : 'Exento ' + t.kind}
                 </span>
                 <span>{money(t.tax_cents)}</span>
               </div>
@@ -1932,77 +1982,66 @@ export function DocumentEditor({
               <span>Total</span>
               <strong>{money(totals.total_cents)}</strong>
             </div>
-            {(doc?.status === "issued" || doc?.status === "historical") &&
-              doc?.payment_known && (
-                <div className="summary-line">
-                  <span>Pendiente de cobro</span>
-                  <strong>{money(doc.pending_cents)}</strong>
-                </div>
-              )}
+            {(doc?.status === 'issued' || doc?.status === 'historical') && doc?.payment_known && (
+              <div className="summary-line">
+                <span>Pendiente de cobro</span>
+                <strong>{money(doc.pending_cents)}</strong>
+              </div>
+            )}
             <div className="divider" />
             <Input
               label="Fecha del documento"
               type="date"
-              value={value.issue_date ?? ""}
-              hint={historical && !value.issue_date ? "No consta una fecha confirmada en el origen." : undefined}
+              value={value.issue_date ?? ''}
+              hint={
+                historical && !value.issue_date
+                  ? 'No consta una fecha confirmada en el origen.'
+                  : undefined
+              }
               disabled={!editable}
               onChange={(e) => {
-                const days =
-                  kind === "quote"
-                    ? config.billing.quote_days
-                    : config.billing.due_days;
+                const days = kind === 'quote' ? config.billing.quote_days : config.billing.due_days;
                 if (
                   value.due_date &&
                   value.due_date === addDateDays(value.issue_date, days) &&
                   e.target.value
                 )
-                  change("due_date", addDateDays(e.target.value, days));
-                if (
-                  !value.reference_id &&
-                  value.operation_date === value.issue_date
-                )
-                  change("operation_date", e.target.value);
-                change("issue_date", e.target.value);
+                  change('due_date', addDateDays(e.target.value, days));
+                if (!value.reference_id && value.operation_date === value.issue_date)
+                  change('operation_date', e.target.value);
+                change('issue_date', e.target.value);
               }}
             />
             <Input
               label={
-                value.reference_id
-                  ? "Fecha de operación original"
-                  : "Fecha del trabajo / operación"
+                value.reference_id ? 'Fecha de operación original' : 'Fecha del trabajo / operación'
               }
               type="date"
-              value={value.operation_date || ""}
+              value={value.operation_date || ''}
               disabled={!editable}
               required={!historical}
               hint={
                 historical && !value.operation_date
-                  ? "No conservada en el original"
-                  : "Si el trabajo se realizó otro día, indica su fecha real."
+                  ? 'No conservada en el original'
+                  : 'Si el trabajo se realizó otro día, indica su fecha real.'
               }
-              onChange={(event) => change("operation_date", event.target.value)}
+              onChange={(event) => change('operation_date', event.target.value)}
             />
             <Input
-              label={
-                kind === "quote"
-                  ? "V&aacute;lido hasta"
-                  : "Vencimiento (opcional)"
-              }
+              label={kind === 'quote' ? 'V&aacute;lido hasta' : 'Vencimiento (opcional)'}
               type="date"
-              value={value.due_date || ""}
+              value={value.due_date || ''}
               disabled={!editable}
-              onChange={(e) => change("due_date", e.target.value)}
+              onChange={(e) => change('due_date', e.target.value)}
             />
             <Field label="Serie">
               <Select
-                value={value.series_id || ""}
+                value={value.series_id || ''}
                 disabled={!isDraft}
-                onChange={(e) => change("series_id", e.target.value)}
+                onChange={(e) => change('series_id', e.target.value)}
               >
                 <option value="">
-                  {historical
-                    ? "Numeración importada"
-                    : "Automática (anual o continua)"}
+                  {historical ? 'Numeración importada' : 'Automática (anual o continua)'}
                 </option>
                 {options.map((s: Row) => (
                   <option value={s.id} key={s.id}>
@@ -2015,10 +2054,10 @@ export function DocumentEditor({
               <Select
                 value={value.payment_method}
                 disabled={!editable}
-                onChange={(e) => change("payment_method", e.target.value)}
+                onChange={(e) => change('payment_method', e.target.value)}
               >
                 {!methods[value.payment_method] && (
-                  <option value={value.payment_method || ""}>No consta</option>
+                  <option value={value.payment_method || ''}>No consta</option>
                 )}
                 {Object.entries(methods).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -2028,13 +2067,13 @@ export function DocumentEditor({
               </Select>
             </Field>
             <p className="small subtle">
-              <Icon name="shield" size={14} />{" "}
+              <Icon name="shield" size={14} />{' '}
               {dirty
-                ? "Hay cambios sin guardar."
-                : "Los cambios confirmados est\u00e1n guardados en este equipo."}
+                ? 'Hay cambios sin guardar.'
+                : 'Los cambios confirmados est\u00e1n guardados en este equipo.'}
             </p>
           </section>
-          {!isDraft && kind !== "invoice" && (
+          {!isDraft && kind !== 'invoice' && (
             <section className="panel padded">
               <h3>Siguiente paso</h3>
               <Field label="Estado">
@@ -2043,39 +2082,33 @@ export function DocumentEditor({
                   onChange={async (e) => {
                     try {
                       hydrate(
-                        await api("documents.status", {
+                        await api('documents.status', {
                           identifier: doc!.id,
                           status: e.target.value,
                         }),
                       );
-                      notify("Estado actualizado");
+                      notify('Estado actualizado');
                     } catch (err: any) {
                       setError(err.message);
                     }
                   }}
                 >
-                  {(kind === "quote"
-                    ? ["sent", "accepted", "rejected", "expired"]
-                    : [
-                        "received",
-                        "repairing",
-                        "waiting_parts",
-                        "ready",
-                        "delivered",
-                      ]
+                  {(kind === 'quote'
+                    ? ['sent', 'accepted', 'rejected', 'expired']
+                    : ['received', 'repairing', 'waiting_parts', 'ready', 'delivered']
                   ).map((x) => (
                     <option value={x} key={x}>
                       {
                         {
-                          sent: "Enviado",
-                          accepted: "Aceptado",
-                          rejected: "Rechazado",
-                          expired: "Caducado",
-                          received: "Recibido",
-                          repairing: "En reparaci\u00f3n",
-                          waiting_parts: "Esperando piezas",
-                          ready: "Terminado",
-                          delivered: "Entregado",
+                          sent: 'Enviado',
+                          accepted: 'Aceptado',
+                          rejected: 'Rechazado',
+                          expired: 'Caducado',
+                          received: 'Recibido',
+                          repairing: 'En reparaci\u00f3n',
+                          waiting_parts: 'Esperando piezas',
+                          ready: 'Terminado',
+                          delivered: 'Entregado',
                         }[x]
                       }
                     </option>
@@ -2086,28 +2119,26 @@ export function DocumentEditor({
                 tone="primary full"
                 icon="invoice"
                 busy={busy}
-                onClick={() => convert("invoice")}
+                onClick={() => convert('invoice')}
               >
                 Convertir en factura
               </Button>
-              {kind === "quote" && (
-                <Button
-                  tone="full"
-                  icon="tool"
-                  onClick={() => convert("order")}
-                >
+              {kind === 'quote' && (
+                <Button tone="full" icon="tool" onClick={() => convert('order')}>
                   Crear orden de reparaci&oacute;n
                 </Button>
               )}
             </section>
           )}
-          {!isDraft && kind === "invoice" && doc!.status !== "void" && (
+          {!isDraft && kind === 'invoice' && doc!.status !== 'void' && (
             <section className="panel padded">
               <h3>Correcciones</h3>
-              <p className="small subtle">
-                La factura original se conserva siempre.
-              </p>
-              <Button tone="full" disabled={historical && !doc?.can_rectify} onClick={() => setCorrection("rectify")}>
+              <p className="small subtle">La factura original se conserva siempre.</p>
+              <Button
+                tone="full"
+                disabled={historical && !doc?.can_rectify}
+                onClick={() => setCorrection('rectify')}
+              >
                 Crear rectificativa
               </Button>
               {historical && !doc?.can_rectify && (
@@ -2115,11 +2146,11 @@ export function DocumentEditor({
                   Requiere fecha e importes fiscales completos acreditados en el original.
                 </p>
               )}
-              {doc!.status === "issued" && (
+              {doc!.status === 'issued' && (
                 <Button
                   tone="ghost full"
                   disabled={Boolean(doc!.active_rectifications?.length)}
-                  onClick={() => setCorrection("void")}
+                  onClick={() => setCorrection('void')}
                 >
                   Anular por error material
                 </Button>
@@ -2127,14 +2158,14 @@ export function DocumentEditor({
               {Boolean(doc!.active_rectifications?.length) && (
                 <div className="small subtle">
                   <p>
-                    Antes de anular, revisa las rectificativas emitidas y elimina
-                    los borradores rectificativos vinculados.
+                    Antes de anular, revisa las rectificativas emitidas y elimina los borradores
+                    rectificativos vinculados.
                   </p>
                   <ul>
                     {doc!.active_rectifications.map((correction: Row) => (
                       <li key={correction.id}>
                         <EntityReference entity="document" id={correction.id} navigate={navigate}>
-                          {correction.full_number || "Borrador de rectificativa"}
+                          {correction.full_number || 'Borrador de rectificativa'}
                         </EntityReference>
                       </li>
                     ))}
@@ -2144,90 +2175,85 @@ export function DocumentEditor({
             </section>
           )}
           {isDraft && doc && (
-            <Button
-              tone="ghost full"
-              icon="trash"
-              onClick={() => setConfirm("delete")}
-            >
+            <Button tone="ghost full" icon="trash" onClick={() => setConfirm('delete')}>
               Eliminar borrador
             </Button>
           )}
           {!productionReleased && (
             <div className="small side-note">
-              <Icon name="shield" /> Edici&oacute;n de validaci&oacute;n. Los
-              PDF y registros son de prueba. La emisi&oacute;n fiscal real no
-              est&aacute; habilitada.
+              <Icon name="shield" /> Edici&oacute;n de validaci&oacute;n. Los PDF y registros son de
+              prueba. La emisi&oacute;n fiscal real no est&aacute; habilitada.
             </div>
           )}
         </aside>
       </div>
       <Presence>
-        {confirm === "publish" && (
+        {confirm === 'publish' && (
           <Confirm
             title={
-              kind === "invoice"
+              kind === 'invoice'
                 ? productionReleased
-                  ? "Confirmar emisión"
-                  : "Confirmar emisi\u00f3n de prueba"
-                : "Confirmar documento"
+                  ? 'Confirmar emisión'
+                  : 'Confirmar emisi\u00f3n de prueba'
+                : 'Confirmar documento'
             }
             text={
-              kind === "invoice"
+              kind === 'invoice'
                 ? productionReleased
-                  ? "Se asignará un número, los datos quedarán protegidos y se preparará el registro fiscal para envío. Revisa cliente, fecha e importe."
-                  : "Se asignar\u00e1 un n\u00famero y los datos quedar\u00e1n protegidos. Esta edici\u00f3n NO emite facturas fiscalmente v\u00e1lidas. Revisa cliente, fecha e importe."
-                : "Se asignar\u00e1 un n\u00famero al documento. Los presupuestos y las \u00f3rdenes no son facturas."
+                  ? 'Se asignará un número, los datos quedarán protegidos y se preparará el registro fiscal para envío. Revisa cliente, fecha e importe.'
+                  : 'Se asignar\u00e1 un n\u00famero y los datos quedar\u00e1n protegidos. Esta edici\u00f3n NO emite facturas fiscalmente v\u00e1lidas. Revisa cliente, fecha e importe.'
+                : 'Se asignar\u00e1 un n\u00famero al documento. Los presupuestos y las \u00f3rdenes no son facturas.'
             }
             confirm={
-              kind === "invoice"
+              kind === 'invoice'
                 ? productionReleased
-                  ? "Emitir factura"
-                  : "Emitir prueba"
-                : "Confirmar"
+                  ? 'Emitir factura'
+                  : 'Emitir prueba'
+                : 'Confirmar'
             }
-            onClose={() => setConfirm("")}
+            onClose={() => setConfirm('')}
             onConfirm={async () => {
-              const d = await api("documents.publish", {
+              const d = await api('documents.publish', {
                 identifier: doc!.id,
                 expected_version: doc!.version,
               });
               hydrate(d);
-              notify("Documento guardado con su n\u00famero");
+              notify('Documento guardado con su n\u00famero');
             }}
           />
         )}
       </Presence>
       <Presence>
-        {confirm === "delete" && (
+        {confirm === 'delete' && (
           <Confirm
             title="Eliminar borrador"
             text="Solo se borrar&aacute; este borrador sin n&uacute;mero. Las facturas emitidas no se pueden borrar."
             danger
             confirm="Eliminar borrador"
-            onClose={() => setConfirm("")}
+            onClose={() => setConfirm('')}
             onConfirm={async () => {
-              await api("documents.delete", { identifier: doc!.id });
+              await api('documents.delete', { identifier: doc!.id });
               onDirty?.(false);
-              navigate("documents", { kind, force: true });
+              navigate('documents', { kind, force: true });
             }}
           />
         )}
       </Presence>
       <Presence>
-        {confirm.startsWith("reverse:") && (
+        {confirm.startsWith('reverse:') && (
           <Confirm
             title="Revertir cobro"
             text="Se a&ntilde;adir&aacute; un movimiento inverso. El cobro original permanecer&aacute; en el historial."
             confirm="Revertir cobro"
-            onClose={() => setConfirm("")}
+            onClose={() => setConfirm('')}
             onConfirm={async () => {
               hydrate(
-                await api("payments.reverse", {
-                  payment_id: confirm.split(":")[1],
-                  reason: "Reversi\u00f3n confirmada por el usuario",
+                await api('payments.reverse', {
+                  payment_id: confirm.split(':')[1],
+                  reason: 'Reversi\u00f3n confirmada por el usuario',
                 }),
               );
-              notify("Cobro revertido");
+              notify('Cobro revertido');
             }}
           />
         )}
@@ -2256,18 +2282,22 @@ export function DocumentEditor({
           />
         )}
       </Presence>
+      <Presence>{pdf && <PdfPreview data={pdf} onClose={() => setPdf(null)} />}</Presence>
       <Presence>
-        {pdf && <PdfPreview data={pdf} onClose={() => setPdf(null)} />}
-      </Presence>
-      <Presence>
-        {paymentDetail && <Modal title="Detalle del cobro" onClose={() => setPaymentDetail(null)}>
-          <dl>
-            <dt>Fecha</dt><dd>{dateText(paymentDetail.paid_on)}</dd>
-            <dt>Forma</dt><dd>{paymentMethod(paymentDetail)}</dd>
-            <dt>Importe</dt><dd>{money(paymentDetail.amount_cents)}</dd>
-            <dt>Nota / evidencia</dt><dd>{paymentNote(paymentDetail) || "No consta"}</dd>
-          </dl>
-        </Modal>}
+        {paymentDetail && (
+          <Modal title="Detalle del cobro" onClose={() => setPaymentDetail(null)}>
+            <dl>
+              <dt>Fecha</dt>
+              <dd>{dateText(paymentDetail.paid_on)}</dd>
+              <dt>Forma</dt>
+              <dd>{paymentMethod(paymentDetail)}</dd>
+              <dt>Importe</dt>
+              <dd>{money(paymentDetail.amount_cents)}</dd>
+              <dt>Nota / evidencia</dt>
+              <dd>{paymentNote(paymentDetail) || 'No consta'}</dd>
+            </dl>
+          </Modal>
+        )}
       </Presence>
       <Presence>
         {paymentState && doc && (
@@ -2277,7 +2307,7 @@ export function DocumentEditor({
             onSaved={(d) => {
               hydrate(d);
               setPaymentState(false);
-              notify("Saldo documentado sin modificar la factura histórica");
+              notify('Saldo documentado sin modificar la factura histórica');
             }}
           />
         )}
@@ -2290,7 +2320,7 @@ export function DocumentEditor({
             onSaved={(d) => {
               hydrate(d);
               setPayment(false);
-              notify("Cobro guardado");
+              notify('Cobro guardado');
             }}
           />
         )}
@@ -2300,21 +2330,18 @@ export function DocumentEditor({
           <CorrectionForm
             doc={doc}
             mode={correction}
-            onClose={() => setCorrection("")}
+            onClose={() => setCorrection('')}
             onSaved={(d) => {
-              setCorrection("");
+              setCorrection('');
               if (d.id === doc!.id) hydrate(d);
-              else navigate("editor", { id: d.id, kind: "invoice" });
+              else navigate('editor', { id: d.id, kind: 'invoice' });
             }}
           />
         )}
       </Presence>
       <Presence>
         {showProducts && (
-          <Modal
-            title="A&ntilde;adir del cat&aacute;logo"
-            onClose={() => setShowProducts(false)}
-          >
+          <Modal title="A&ntilde;adir del cat&aacute;logo" onClose={() => setShowProducts(false)}>
             {!products.length ? (
               <Empty
                 icon="box"
@@ -2327,18 +2354,16 @@ export function DocumentEditor({
                   <button
                     key={p.id}
                     onClick={() => {
-                      const lines = value.lines.filter((l: Row) =>
-                        l.description.trim(),
-                      );
-                      change("lines", [
+                      const lines = value.lines.filter((l: Row) => l.description.trim());
+                      change('lines', [
                         ...lines,
                         {
                           description: p.name,
-                          quantity: "1",
+                          quantity: '1',
                           unit_price: p.unit_price,
                           tax_rate: p.tax_rate,
-                          discount: "0",
-                          tax_kind: "S1",
+                          discount: '0',
+                          tax_kind: 'S1',
                           product_id: p.id,
                         },
                       ]);
@@ -2348,10 +2373,7 @@ export function DocumentEditor({
                     <span>
                       <strong>{p.name}</strong>
                       <small>
-                        {p.sku}{" "}
-                        {p.track_stock
-                          ? "\u00b7 Stock " + p.stock
-                          : "\u00b7 Servicio"}
+                        {p.sku} {p.track_stock ? '\u00b7 Stock ' + p.stock : '\u00b7 Servicio'}
                       </small>
                     </span>
                     <span>{p.unit_price} &euro;</span>

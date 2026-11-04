@@ -1,4 +1,66 @@
-# Estado verificado · 27 de octubre de 2026
+# Estado verificado · 4 de noviembre de 2026
+
+## Formato, lint y publicación autorizada · 04/11/2026
+
+El usuario ha autorizado una rama nueva y el build/ensayo Windows después de
+revisar lint/formato. Prettier, ESLint, Ruff lint/formato, rustfmt y Clippy de la
+biblioteca pasan. Controles reproducibles incorporados al verificador y constructor;
+formateo Python conservó los 120 AST antes de la limpieza explícita de lint.
+Auditorías npm/Python sin avisos conocidos, incluida la corrección de minimatch.
+Batería integrada correcta sobre las fuentes formateadas: 842 Python y 166 E2E,
+ambos typechecks, build/pip check, sin fallos/omisiones/reintentos ni cambios de
+fuentes. Exclusión posterior del driver descargado comprobada por separado. Esta fase
+requiere un instalador nuevo: las comprobaciones previas del servicio empaquetado
+no se atribuyen automáticamente a estos bytes. Seguimiento:
+`../reports/CALIDAD-WINDOWS-2026-11-04.md`.
+
+Lo que sigue es el cierre de la revisión anterior de esta misma fecha.
+
+## Revisión para entrega · 04/11/2026
+
+**El EXE del 27/10 no está aprobado para uso operativo y debe reconstruirse.**
+La revisión actual ha confirmado sus bytes y el fallo original de WebDriver en
+GitHub. Además, detectó dependencias con avisos de seguridad y un inventario de
+construcción que omitía el CSS y otros recursos. No se retiran barreras fiscales.
+
+Batería final actual: **841 pytest y 166 E2E**, ambos typechecks, build y pip check
+correctos; cero fallos/omisiones/reintentos y 287 entradas de fuentes estables. Se han fijado las
+correcciones de seis dependencias; las auditorías npm/Python posteriores ya no
+detectan vulnerabilidades conocidas. RustSec no tiene entradas en `vulnerabilities`;
+mantiene nueve avisos de mantenimiento y dos `unsound` de API Unix/Linux, con alcance
+documentado en el informe. Pasan 25 pruebas dirigidas del
+inventario y del rechazo de evidencias incompletas o alteradas.
+
+El manifiesto nuevo cubre estilos, modelos, lector Access, esquemas, licencias y
+scripts de preparación. El workflow comprobará la ventana del EXE instalado,
+contrastado con los hashes del build. Los manifiestos antiguos se rechazan.
+El servicio empaquetado Linux supera sus nueve comprobaciones funcionales con
+1.803 entradas estables. Pasan 18 pruebas Rust. Corregido y revisado visualmente el
+salto de página en facturas largas; pasan 14 pruebas dirigidas de PDF y se revisaron
+las nueve páginas renderizadas. Revisión local cerrada; resultado, comandos e
+intentos rechazados en `../reports/REVISION-ENTREGA-2026-11-04.md`.
+No se ha ejecutado el workflow corregido ni realizado push. No se han abierto
+o modificado datos reales. Las secciones siguientes son evidencia histórica.
+
+## Reanudación de la entrega · 27/10/2026, revisión posterior
+
+Ya existe instalador NSIS Windows x64 de `10bb937`, generado en el run
+`40579253295`. Pasaron 819 pytest, 166 E2E, construcción, servicio empaquetado e
+instalación/diagnóstico. El run falló únicamente al conectar WebDriver a la ventana
+(timeout); **la interfaz nativa Windows sigue sin quedar acreditada**. El instalador
+se conserva byte a byte, con SHA-256 verificado y 124 entradas versionadas coincidentes.
+Herramientas preparadas para repetir solo esa prueba sobre el mismo instalador.
+
+Nueva batería local: 819 pytest (55,95 s), 166 E2E (243,485 s), pip check, ambos
+typechecks y build correctos, sin fuentes cambiadas durante la ejecución ni pruebas
+fallidas/omitidas/flaky. Ocho pruebas posteriores de la guarda de reutilización
+correctas. Nueva comparación en solo lectura: 22 tablas idénticas, integridad/FK y
+hashes de la copia/MDB correctos. Datos reales y contraseña siguen fuera de Git.
+
+Se ha copiado el EXE a la entrega privada de ensayo; no se presenta como una entrega
+operativa ni como instalación nativa completamente aceptada. Emisión y traslado
+definitivo siguen bloqueados. Estado detallado, evidencia y límites:
+`../reports/ENTREGA-WINDOWS-2026-10-27.md`. Las secciones siguientes son anteriores.
 
 ## Entrega Windows en preparación · 27/10/2026
 

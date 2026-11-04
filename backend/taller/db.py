@@ -1,4 +1,5 @@
 """SQLite unit-of-work, invariant triggers and append-only audit trail."""
+
 import hashlib
 import json
 import sqlite3
@@ -10,7 +11,7 @@ from .validation import now, normalized
 from .migrations import LATEST_VERSION, upgrade
 
 SCHEMA_VERSION = LATEST_VERSION
-SCHEMA = '''
+SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS customers (
  id TEXT PRIMARY KEY, legacy_code TEXT UNIQUE, name TEXT NOT NULL, search_text TEXT NOT NULL,
@@ -126,11 +127,11 @@ CREATE TRIGGER IF NOT EXISTS payment_no_update BEFORE UPDATE ON payments BEGIN S
 CREATE TRIGGER IF NOT EXISTS payment_no_delete BEFORE DELETE ON payments BEGIN SELECT RAISE(ABORT,'Utiliza una contrapartida'); END;
 CREATE TRIGGER IF NOT EXISTS stock_no_update BEFORE UPDATE ON stock_movements BEGIN SELECT RAISE(ABORT,'Utiliza otro movimiento'); END;
 CREATE TRIGGER IF NOT EXISTS stock_no_delete BEFORE DELETE ON stock_movements BEGIN SELECT RAISE(ABORT,'Utiliza otro movimiento'); END;
-'''
+"""
 
 
 def dumps(value) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(',', ':'), sort_keys=True)
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
 def uid() -> str:
@@ -146,19 +147,21 @@ class Database:
     def __init__(self, root):
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
-        self.path = self.root / 'taller.sqlite3'
+        self.path = self.root / "taller.sqlite3"
         self.lock = threading.RLock()
-        for sub in ['assets', 'pdfs', 'backups', 'secure']:
+        for sub in ["assets", "pdfs", "backups", "secure"]:
             (self.root / sub).mkdir(exist_ok=True, mode=0o700)
         conn = self.connect()
         try:
-            version = conn.execute('PRAGMA user_version').fetchone()[0]
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
             if version > SCHEMA_VERSION:
-                raise RuntimeError('La base de datos pertenece a una versi\u00f3n m\u00e1s reciente.')
+                raise RuntimeError(
+                    "La base de datos pertenece a una versi\u00f3n m\u00e1s reciente."
+                )
             if 0 < version < SCHEMA_VERSION:
                 # Complete SQLite snapshot outside the live database; never a
                 # copy of a WAL-dependent main file or a modified original.
-                snapshot = self.root/'backups'/f'pre-migration-v{version}-{uid()}.sqlite3'
+                snapshot = self.root / "backups" / f"pre-migration-v{version}-{uid()}.sqlite3"
                 backup = sqlite3.connect(snapshot)
                 try:
                     conn.backup(backup)
@@ -171,11 +174,11 @@ class Database:
     def connect(self):
         conn = sqlite3.connect(self.path, timeout=15, isolation_level=None)
         conn.row_factory = sqlite3.Row
-        conn.execute('PRAGMA foreign_keys=ON')
-        conn.execute('PRAGMA journal_mode=WAL')
-        conn.execute('PRAGMA synchronous=FULL')
-        conn.execute('PRAGMA busy_timeout=15000')
-        conn.create_function('normalized', 1, normalized, deterministic=True)
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=FULL")
+        conn.execute("PRAGMA busy_timeout=15000")
+        conn.create_function("normalized", 1, normalized, deterministic=True)
         return conn
 
     @contextmanager
@@ -183,7 +186,7 @@ class Database:
         with self.lock:
             conn = self.connect()
             try:
-                conn.execute('BEGIN IMMEDIATE')
+                conn.execute("BEGIN IMMEDIATE")
                 yield conn
                 conn.commit()
             except Exception:
@@ -203,19 +206,35 @@ class Database:
 
     @staticmethod
     def audit(conn, action: str, entity_id: str, detail: dict):
-        previous = conn.execute('SELECT hash FROM audit ORDER BY seq DESC LIMIT 1').fetchone()
-        previous = previous['hash'] if previous else ''
+        previous = conn.execute("SELECT hash FROM audit ORDER BY seq DESC LIMIT 1").fetchone()
+        previous = previous["hash"] if previous else ""
         stamp, payload = now(), dumps(detail)
-        digest = hashlib.sha256((previous + '|' + action + '|' + entity_id + '|' + payload + '|' + stamp).encode()).hexdigest()
-        conn.execute('INSERT INTO audit(action,entity_id,detail,previous_hash,hash,created_at) VALUES(?,?,?,?,?,?)',
-                     (action, entity_id, payload, previous, digest, stamp))
+        digest = hashlib.sha256(
+            (previous + "|" + action + "|" + entity_id + "|" + payload + "|" + stamp).encode()
+        ).hexdigest()
+        conn.execute(
+            "INSERT INTO audit(action,entity_id,detail,previous_hash,hash,created_at) VALUES(?,?,?,?,?,?)",
+            (action, entity_id, payload, previous, digest, stamp),
+        )
 
     def check_audit(self) -> dict:
-        previous, count = '', 0
+        previous, count = "", 0
         with self.read() as conn:
-            for row in conn.execute('SELECT * FROM audit ORDER BY seq'):
-                expected = hashlib.sha256((previous + '|' + row['action'] + '|' + row['entity_id'] + '|' + row['detail'] + '|' + row['created_at']).encode()).hexdigest()
-                if row['previous_hash'] != previous or row['hash'] != expected:
-                    return {'ok': False, 'row': row['seq'], 'checked': count}
-                previous, count = row['hash'], count + 1
-        return {'ok': True, 'checked': count}
+            for row in conn.execute("SELECT * FROM audit ORDER BY seq"):
+                expected = hashlib.sha256(
+                    (
+                        previous
+                        + "|"
+                        + row["action"]
+                        + "|"
+                        + row["entity_id"]
+                        + "|"
+                        + row["detail"]
+                        + "|"
+                        + row["created_at"]
+                    ).encode()
+                ).hexdigest()
+                if row["previous_hash"] != previous or row["hash"] != expected:
+                    return {"ok": False, "row": row["seq"], "checked": count}
+                previous, count = row["hash"], count + 1
+        return {"ok": True, "checked": count}

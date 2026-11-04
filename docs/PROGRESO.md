@@ -1,4 +1,39 @@
-# Registro de trabajo · actualizado el 27/10/2026
+# Registro de trabajo · actualizado el 04/11/2026
+
+Fase posterior de calidad: usuario autoriza rama y workflow Windows. Prettier,
+ESLint, Ruff, rustfmt y Clippy correctos; 842 Python y 166 E2E/Axe tras el formato,
+typechecks/build/pip check correctos y fuentes estables. Exclusión del driver externo
+validada después con calidad y 28 casos dirigidos. Seguimiento de publicación y
+Windows: `../reports/CALIDAD-WINDOWS-2026-11-04.md`. Lo siguiente conserva la fase previa.
+
+Revisión de entrega: verificación final actual correcta (841 Python/166 E2E,
+typechecks/build/pip check, sin fallos, omisiones, reintentos ni cambios de fuentes).
+Auditadas y corregidas seis
+dependencias; las auditorías npm/Python posteriores no detectan vulnerabilidades
+conocidas. RustSec no tiene entradas en `vulnerabilities`; conserva nueve avisos de
+mantenimiento y dos `unsound` de API Unix/Linux, documentados con su alcance.
+Corregida omisión de CSS y otros recursos del inventario, reproducida con control
+negativo. Pasan 25 casos dirigidos y 18 pruebas Rust. Workflow preparado para
+probar el EXE instalado y comparar sus bytes con el manifiesto. No se ha ejecutado
+en Windows ni hecho push. El servicio empaquetado Linux supera nueve comprobaciones
+con fuentes estables. Corregida paginación PDF, con 14 pruebas dirigidas y revisión
+visual de nueve páginas. Batería integrada final cerrada con 287 entradas estables;
+las 1.803 entradas del servicio empaquetado siguen coincidiendo con su manifiesto.
+El instalador del 27/10 necesita reconstrucción; no reutilizarlo como versión
+corregida. Datos reales intactos. Registro y cierre de esta revisión:
+`../reports/REVISION-ENTREGA-2026-11-04.md`.
+
+## Antecedentes del 27/10
+
+Reanudación posterior: `40579253295` sí generó e instaló el NSIS de `10bb937` tras
+819 pytest/166 E2E correctas. Falló la conexión WebDriver a la ventana; no se acepta
+todavía el ensayo nativo. EXE conservado y verificado por hash, 124 entradas de
+fuentes coincidentes. Nueva batería local completa correcta (819 Python/166 E2E,
+typechecks/build/pip check) y ocho pruebas de la guarda de reutilización. Copia real
+comparada de nuevo en solo lectura: 22 tablas idénticas, integridad/FK y hashes
+correctos. Herramientas para repetir Windows preparadas, autorización de publicación
+solicitada. Ver `../reports/ENTREGA-WINDOWS-2026-10-27.md`.
+Lo que sigue conserva el historial anterior a esta reanudación.
 
 Preparación de entrega Windows: copia cifrada real restaurada y verificada,
 Windows ha superado servicio/818 pytest/164 E2E/16 Rust en un intento anterior,

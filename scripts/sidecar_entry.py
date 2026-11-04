@@ -1,4 +1,5 @@
 """PyInstaller entry point; no relative imports from a script package."""
+
 import sys
 
 if __name__ == "__main__":
@@ -7,7 +8,9 @@ if __name__ == "__main__":
         # Read-only verification / explicit dossier installation must not start
         # App, migrate a database, run reminders or create a shutdown backup.
         from taller.release_tools import main
+
         raise SystemExit(main())
     else:
         from taller.stdio import main
+
         main()

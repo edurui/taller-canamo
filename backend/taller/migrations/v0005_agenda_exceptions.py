@@ -1,8 +1,8 @@
 """Calendar dates, occurrence exceptions and durable notification grouping."""
 
 VERSION = 5
-NAME = 'agenda_exceptions_and_notification_delivery'
-SQL = '''
+NAME = "agenda_exceptions_and_notification_delivery"
+SQL = """
 ALTER TABLE events ADD COLUMN start_date TEXT NOT NULL DEFAULT '';
 ALTER TABLE events ADD COLUMN end_date TEXT NOT NULL DEFAULT '';
 CREATE TABLE event_exceptions (
@@ -15,4 +15,4 @@ ALTER TABLE notifications ADD COLUMN snoozed_until TEXT;
 ALTER TABLE notifications ADD COLUMN cancelled_at TEXT;
 ALTER TABLE notifications ADD COLUMN delivery_group_ids TEXT NOT NULL DEFAULT '[]';
 UPDATE notifications SET scheduled_due_at=due_at;
-'''
+"""

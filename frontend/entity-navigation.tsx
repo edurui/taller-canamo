@@ -1,12 +1,9 @@
-import * as React from "react";
+import * as React from 'react';
 
-export type EntityNavigate = (
-  page: string,
-  params?: Record<string, unknown>,
-) => void;
+export type EntityNavigate = (page: string, params?: Record<string, unknown>) => void;
 
 type EntityReferenceProps = {
-  entity: "customer" | "vehicle" | "document" | "product" | "supplier";
+  entity: 'customer' | 'vehicle' | 'document' | 'product' | 'supplier';
   id?: string | null;
   kind?: string;
   navigate: EntityNavigate;
@@ -20,21 +17,21 @@ type EntityReferenceProps = {
 export function EntityReference({
   entity,
   id,
-  kind = "invoice",
+  kind = 'invoice',
   navigate,
   children,
-  className = "",
+  className = '',
   disabled = false,
 }: EntityReferenceProps) {
   if (!id) return <>{children}</>;
   const label =
-    typeof children === "string" && !children.trim()
+    typeof children === 'string' && !children.trim()
       ? {
-          customer: "Consultar cliente",
-          vehicle: "Consultar vehículo",
-          document: "Consultar documento",
-          product: "Consultar artículo",
-          supplier: "Consultar proveedor",
+          customer: 'Consultar cliente',
+          vehicle: 'Consultar vehículo',
+          document: 'Consultar documento',
+          product: 'Consultar artículo',
+          supplier: 'Consultar proveedor',
         }[entity]
       : children;
   return (
@@ -46,15 +43,15 @@ export function EntityReference({
         event.stopPropagation();
         if (disabled) return;
         const page = {
-          document: "editor",
-          product: "catalogue",
-          supplier: "suppliers",
-          customer: "customer",
-          vehicle: "vehicle",
+          document: 'editor',
+          product: 'catalogue',
+          supplier: 'suppliers',
+          customer: 'customer',
+          vehicle: 'vehicle',
         }[entity];
         navigate(page, {
           id,
-          ...(entity === "document" ? { kind } : {}),
+          ...(entity === 'document' ? { kind } : {}),
         });
       }}
     >

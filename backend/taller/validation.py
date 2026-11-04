@@ -1,4 +1,5 @@
 """Input checks. Syntax/checksums are NOT identity or tax-census validation."""
+
 import re
 import unicodedata
 from datetime import date, datetime, timezone
@@ -8,19 +9,24 @@ from .errors import AppError, require
 TZ = ZoneInfo("Europe/Madrid")
 LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE"
 
+
 def now() -> str:
     # UTC + one canonical representation allows safe ISO text ordering in SQLite.
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+
 def today() -> str:
     return datetime.now(TZ).date().isoformat()
+
 
 def normalized(value) -> str:
     text = unicodedata.normalize("NFKD", str(value or "")).casefold()
     return " ".join("".join(c for c in text if not unicodedata.combining(c)).split())
 
+
 def plate(value) -> str:
     return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+
 
 def clean_text(data: dict, key: str, max_length: int = 250, required: bool = False) -> str:
     require(isinstance(data, dict), "Datos no validos.")
@@ -31,15 +37,23 @@ def clean_text(data: dict, key: str, max_length: int = 250, required: bool = Fal
     value = value.strip()
     require(not required or bool(value), f"{key}: completa este campo.")
     require(len(value) <= max_length, f"{key}: maximo {max_length} caracteres.")
-    require(not any(ord(c) < 32 and c not in "\n\r\t" for c in value), f"{key}: caracteres no admitidos.")
+    require(
+        not any(ord(c) < 32 and c not in "\n\r\t" for c in value),
+        f"{key}: caracteres no admitidos.",
+    )
     return value
 
+
 def iso_date(value) -> str:
-    require(isinstance(value, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value), "Fecha no valida. Usa AAAA-MM-DD.")
+    require(
+        isinstance(value, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value),
+        "Fecha no valida. Usa AAAA-MM-DD.",
+    )
     try:
         return date.fromisoformat(value).isoformat()
     except ValueError as exc:
         raise AppError("La fecha no existe.") from exc
+
 
 def aware_date(value) -> datetime:
     require(isinstance(value, str) and len(value) <= 40, "Fecha y hora no validas.")
@@ -47,8 +61,12 @@ def aware_date(value) -> datetime:
         result = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise AppError("Fecha y hora no validas.") from exc
-    require(result.tzinfo is not None and result.utcoffset() is not None, "La fecha debe incluir su zona horaria.")
+    require(
+        result.tzinfo is not None and result.utcoffset() is not None,
+        "La fecha debe incluir su zona horaria.",
+    )
     return result
+
 
 def valid_tax_id(value) -> bool:
     value = plate(value)
@@ -72,6 +90,7 @@ def valid_tax_id(value) -> bool:
         return value[-1] == alpha
     return value[-1] in (numeric, alpha)
 
+
 def valid_iban(value) -> bool:
     # Syntax + MOD97; account existence and ownership require external checks.
     text = re.sub(r"\s+", "", str(value or "")).upper()
@@ -80,5 +99,5 @@ def valid_iban(value) -> bool:
     if text.startswith("ES") and (len(text) != 24 or not text[4:].isdigit()):
         return False
     rearranged = text[4:] + text[:4]
-    numeric = "".join(str(ord(c)-55) if c.isalpha() else c for c in rearranged)
+    numeric = "".join(str(ord(c) - 55) if c.isalpha() else c for c in rearranged)
     return int(numeric) % 97 == 1

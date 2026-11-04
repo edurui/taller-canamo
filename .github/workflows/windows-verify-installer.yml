@@ -1,0 +1,99 @@
+name: Verify an unchanged Windows installer (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Build completo con manifiesto v2; el del 27/10 ya no es reutilizable'
+        required: true
+        type: string
+      build_source_sha:
+        description: 'Commit exacto del build completo'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      BUILD_SOURCE_SHA: ${{ inputs.build_source_sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+      - name: Download the prior build without rebuilding
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download $env:BUILD_RUN_ID --repo $env:GITHUB_REPOSITORY --name taller-canamo-windows-candidate --dir build-artifact
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo descargar el candidato.' }
+      - name: Require passed full suites, stable inputs and the original installer hash
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -X utf8 scripts/verify_windows_artifact.py
+      - name: Match the Microsoft driver to the installed WebView2
+        shell: pwsh
+        run: ./src-tauri/tests/prepare-webdriver.ps1
+      - name: Install and diagnose the exact preserved candidate
+        shell: pwsh
+        run: |
+          $proof = Get-Content reports/windows-reused-artifact.json -Raw | ConvertFrom-Json
+          ./src-tauri/tests/verify-installed.ps1 -Installer $proof.installer_path -KeepInstalled -Manifest $proof.manifest_path
+          $installed = Get-Content reports/windows-installed-sidecar.json -Raw | ConvertFrom-Json
+          $manifest = Get-Content $proof.manifest_path -Raw | ConvertFrom-Json
+          foreach ($file in $installed.artifacts) {
+            $expected = @($manifest.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq (Split-Path $file.path -Leaf) })
+            if ($expected.Count -ne 1 -or $file.sha256 -ne $expected[0].sha256 -or $file.bytes -ne $expected[0].bytes) { throw 'Cambió un ejecutable del candidato.' }
+          }
+          $app = @($installed.artifacts | Where-Object { (Split-Path $_.path -Leaf) -eq 'taller-canamo.exe' })
+          if ($app.Count -ne 1) { throw 'Falta la aplicación instalada.' }
+          "CANAMO_TEST_INSTALLED_APP=$($app[0].path)" >> $env:GITHUB_ENV
+      - name: Test the installed Tauri UI through its real WebView2
+        shell: pwsh
+        run: python -X utf8 src-tauri/tests/desktop_smoke.py --application "$env:CANAMO_TEST_INSTALLED_APP" --native-driver ./edge-driver/msedgedriver.exe --isolated-windows-account --attach-edge
+      - name: Capture desktop on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory reports/desktop -Force | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          try {
+            $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
+            $bitmap.Save((Join-Path $env:GITHUB_WORKSPACE 'reports/desktop/failure-desktop.png'))
+          } finally { $graphics.Dispose(); $bitmap.Dispose() }
+          Get-Process | Where-Object { $_.Name -match 'taller-canamo|canamo-service|msedge|msedgedriver' } | Select-Object Name,Id,MainWindowTitle | ConvertTo-Json | Set-Content reports/desktop/processes.json
+      - name: Remove only the disposable test installation
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:CANAMO_TEST_INSTALLED_APP) {
+            $root = Split-Path $env:CANAMO_TEST_INSTALLED_APP
+            Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            $uninstaller = Join-Path $root 'uninstall.exe'
+            if (Test-Path $uninstaller) { Start-Process $uninstaller -ArgumentList '/S' -Wait }
+          }
+      - name: Preserve desktop evidence and the original build identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: taller-canamo-windows-desktop-verification
+          path: |
+            reports/windows-reused-artifact.json
+            reports/windows-installed-sidecar.json
+            reports/windows-webdriver.json
+            reports/desktop/
+          if-no-files-found: error
+          retention-days: 14

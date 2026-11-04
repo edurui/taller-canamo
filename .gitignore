@@ -6,6 +6,9 @@ dist/
 .eslintcache
 coverage/
 /build/
+# Microsoft WebDriver is downloaded only for disposable desktop tests.
+/edge-driver/
+/msedgedriver.exe
 
 # Entornos, compilación, cachés y cobertura de Python.
 .venv/

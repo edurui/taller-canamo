@@ -1,6 +1,9 @@
 // PCM only. No network, persistence or playback of microphone audio.
 class CanamoRecorder extends AudioWorkletProcessor {
-  constructor() { super(); this.frames = 0; }
+  constructor() {
+    super();
+    this.frames = 0;
+  }
   process(inputs) {
     const input = inputs[0]?.[0];
     if (!input || this.frames >= sampleRate * 120) return true;
@@ -15,4 +18,4 @@ class CanamoRecorder extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor("canamo-recorder", CanamoRecorder);
+registerProcessor('canamo-recorder', CanamoRecorder);

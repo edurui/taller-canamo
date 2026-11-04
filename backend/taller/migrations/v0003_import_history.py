@@ -1,8 +1,8 @@
 """Source-aware legacy imports and separately evidenced historic payments."""
 
 VERSION = 3
-NAME = 'import_sources_and_historic_numbers'
-SQL = '''
+NAME = "import_sources_and_historic_numbers"
+SQL = """
 DROP TRIGGER doc_no_delete;
 DROP TRIGGER doc_snapshot_immutable;
 CREATE TABLE documents_v3 (
@@ -72,4 +72,4 @@ CREATE TRIGGER payment_baseline_no_update BEFORE UPDATE ON document_payment_base
  BEGIN SELECT RAISE(ABORT,'La evidencia de cobro es inalterable'); END;
 CREATE TRIGGER payment_baseline_no_delete BEFORE DELETE ON document_payment_baselines
  BEGIN SELECT RAISE(ABORT,'La evidencia de cobro es inalterable'); END;
-'''
+"""

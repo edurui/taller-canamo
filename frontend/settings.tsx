@@ -1,7 +1,7 @@
-import { Presence } from "./overlays.js";
-import { EntityRow, RowActions, SortHeader, useListSort } from "./list-controls.js";
-import { Select, Textarea } from "./controls.js";
-import * as React from "react";
+import { Presence } from './overlays.js';
+import { EntityRow, RowActions, SortHeader, useListSort } from './list-controls.js';
+import { Select, Textarea } from './controls.js';
+import * as React from 'react';
 import {
   Row,
   api,
@@ -19,19 +19,16 @@ import {
   Confirm,
   Empty,
   PageHead,
-  Loading,
-  Badge,
   dateText,
-  localDate,
   fileBase64,
   saveExport,
   native,
-} from "./core.js";
-import { methods } from "./documents.js";
-import { FiscalPanel } from "./fiscal.js";
-import { B2BPanel } from "./b2b.js";
-import { ImportPanel } from "./imports.js";
-import { AssistanceStatus } from "./assistant.js";
+} from './core.js';
+import { methods } from './documents.js';
+import { FiscalPanel } from './fiscal.js';
+import { B2BPanel } from './b2b.js';
+import { ImportPanel } from './imports.js';
+import { AssistanceStatus } from './assistant.js';
 const backupSortValues = {
   name: (row: Row) => row.name,
   created_at: (row: Row) => row.created_at,
@@ -43,26 +40,26 @@ const seriesSortValues = {
   next_number: (row: Row) => Number(row.next_number),
 };
 const tabs = [
-  ["company", "Taller y logo", "home"],
-  ["billing", "Facturaci\u00f3n", "invoice"],
-  ["appearance", "Aspecto y comodidad", "sun"],
-  ["agenda", "Agenda y avisos", "calendar"],
-  ["backup", "Copias y traslado", "shield"],
-  ["import", "Importar Access", "upload"],
-  ["fiscal", "VERI*FACTU (pruebas)", "lock"],
-  ["b2b", "Factura electrónica B2B", "invoice"],
-  ["assistant", "Asistencia opcional", "sparkles"],
-  ["about", "Acerca del programa", "dots"],
+  ['company', 'Taller y logo', 'home'],
+  ['billing', 'Facturaci\u00f3n', 'invoice'],
+  ['appearance', 'Aspecto y comodidad', 'sun'],
+  ['agenda', 'Agenda y avisos', 'calendar'],
+  ['backup', 'Copias y traslado', 'shield'],
+  ['import', 'Importar Access', 'upload'],
+  ['fiscal', 'VERI*FACTU (pruebas)', 'lock'],
+  ['b2b', 'Factura electrónica B2B', 'invoice'],
+  ['assistant', 'Asistencia opcional', 'sparkles'],
+  ['about', 'Acerca del programa', 'dots'],
 ];
-export function BrandLogo({ identifier, className = "" }: Row) {
-  const [src, setSrc] = useState("");
+export function BrandLogo({ identifier, className = '' }: Row) {
+  const [src, setSrc] = useState('');
   useEffect(() => {
     let live = true;
-    setSrc("");
+    setSrc('');
     if (identifier)
-      api("asset.read", { identifier })
+      api('asset.read', { identifier })
         .then((r) => {
-          if (live) setSrc("data:" + r.mime + ";base64," + r.content);
+          if (live) setSrc('data:' + r.mime + ';base64,' + r.content);
         })
         .catch(() => {});
     return () => {
@@ -70,26 +67,18 @@ export function BrandLogo({ identifier, className = "" }: Row) {
     };
   }, [identifier]);
   return src ? (
-    <img
-      src={src}
-      className={"brand-logo " + className}
-      alt="Logo del taller"
-    />
+    <img src={src} className={'brand-logo ' + className} alt="Logo del taller" />
   ) : (
-    <span
-      className={"brand-placeholder " + className}
-      role="img"
-      aria-label="El Ca&ntilde;amo"
-    >
+    <span className={'brand-placeholder ' + className} role="img" aria-label="El Ca&ntilde;amo">
       EC
     </span>
   );
 }
 function SeriesForm({ series, onClose, onSaved }: Row) {
   const [v, setV] = useState<Row>({
-      kind: "invoice",
-      label: "Facturas",
-      prefix: "FAC-{YYYY}-",
+      kind: 'invoice',
+      label: 'Facturas',
+      prefix: 'FAC-{YYYY}-',
       year: new Date().getFullYear(),
       padding: 5,
       next_number: 1,
@@ -97,24 +86,19 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
       ...series,
     }),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState('');
   const set = (k: string, x: any) => setV((o) => ({ ...o, [k]: x }));
   const preview =
-    v.prefix
-      .replaceAll("{YYYY}", String(v.year))
-      .replaceAll("{YY}", String(v.year).slice(-2)) +
-    String(v.next_number).padStart(v.padding, "0");
+    v.prefix.replaceAll('{YYYY}', String(v.year)).replaceAll('{YY}', String(v.year).slice(-2)) +
+    String(v.next_number).padStart(v.padding, '0');
   return (
-    <Modal
-      title={series ? "Editar serie" : "Nueva serie"}
-      onClose={() => !busy && onClose()}
-    >
+    <Modal title={series ? 'Editar serie' : 'Nueva serie'} onClose={() => !busy && onClose()}>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
           try {
-            await api("series.save", { data: v });
+            await api('series.save', { data: v });
             onSaved();
           } catch (err: any) {
             setError(err.message);
@@ -125,28 +109,27 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
       >
         {series?.used ? (
           <Notice>
-            Esta serie ya se ha utilizado. Su numeraci&oacute;n est&aacute;
-            protegida: crea otra para empezar una numeraci&oacute;n diferente.
+            Esta serie ya se ha utilizado. Su numeraci&oacute;n est&aacute; protegida: crea otra
+            para empezar una numeraci&oacute;n diferente.
           </Notice>
         ) : (
           <Notice>
-            El n&uacute;mero inicial no depende de la migraci&oacute;n. Confirma
-            la continuidad con el &uacute;ltimo n&uacute;mero emitido en el
-            programa anterior.
+            El n&uacute;mero inicial no depende de la migraci&oacute;n. Confirma la continuidad con
+            el &uacute;ltimo n&uacute;mero emitido en el programa anterior.
           </Notice>
         )}
         <div className="form-grid">
           <Input
             label="Nombre de la serie"
             value={v.label}
-            onChange={(e) => set("label", e.target.value)}
+            onChange={(e) => set('label', e.target.value)}
             required
           />
           <Field label="Tipo">
             <Select
               disabled={!!series?.used}
               value={v.kind}
-              onChange={(e) => set("kind", e.target.value)}
+              onChange={(e) => set('kind', e.target.value)}
             >
               <option value="invoice">Facturas</option>
               <option value="rectification">Rectificativas</option>
@@ -158,23 +141,21 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
             label="Prefijo"
             value={v.prefix}
             disabled={!!series?.used}
-            onChange={(e) => set("prefix", e.target.value)}
+            onChange={(e) => set('prefix', e.target.value)}
             hint="{YYYY} = a&ntilde;o completo. {YY} = dos cifras."
           />
           <Field label="Continuidad">
             <Select
               disabled={!!series?.used}
-              value={v.year === 0 ? "continuous" : "annual"}
+              value={v.year === 0 ? 'continuous' : 'annual'}
               onChange={(e) => {
-                if (e.target.value === "continuous")
+                if (e.target.value === 'continuous')
                   setV((o) => ({
                     ...o,
                     year: 0,
-                    prefix: o.prefix
-                      .replaceAll("{YYYY}", "")
-                      .replaceAll("{YY}", ""),
+                    prefix: o.prefix.replaceAll('{YYYY}', '').replaceAll('{YY}', ''),
                   }));
-                else set("year", new Date().getFullYear());
+                else set('year', new Date().getFullYear());
               }}
             >
               <option value="annual">Serie de un ejercicio</option>
@@ -188,7 +169,7 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
             max={2200}
             disabled={!!series?.used || v.year === 0}
             value={v.year}
-            onChange={(e) => set("year", Number(e.target.value))}
+            onChange={(e) => set('year', Number(e.target.value))}
           />
           <Input
             label="Siguiente n&uacute;mero"
@@ -196,7 +177,7 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
             min={1}
             disabled={!!series?.used}
             value={v.next_number}
-            onChange={(e) => set("next_number", Number(e.target.value))}
+            onChange={(e) => set('next_number', Number(e.target.value))}
           />
           <Input
             label="N&uacute;mero m&iacute;nimo de cifras"
@@ -205,7 +186,7 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
             max={8}
             disabled={!!series?.used}
             value={v.padding}
-            onChange={(e) => set("padding", Number(e.target.value))}
+            onChange={(e) => set('padding', Number(e.target.value))}
           />
         </div>
         <div className="number-preview">
@@ -213,7 +194,7 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
           <strong>{preview}</strong>
         </div>
         {series && (
-          <Toggle checked={v.archived} onChange={(x) => set("archived", x)}>
+          <Toggle checked={v.archived} onChange={(x) => set('archived', x)}>
             Archivar esta serie
           </Toggle>
         )}
@@ -231,22 +212,22 @@ function SeriesForm({ series, onClose, onSaved }: Row) {
 function BackupsPanel({ config, refresh, notify }: Row) {
   const [v, setV] = useState<Row>({ ...config.backup }),
     [tick, setTick] = useState(0),
-    [password, setPassword] = useState(""),
+    [password, setPassword] = useState(''),
     [file, setFile] = useState<File | null>(null),
     [preview, setPreview] = useState<Row | null>(null),
-    [word, setWord] = useState(""),
-    [transferWord, setTransferWord] = useState(""),
+    [word, setWord] = useState(''),
+    [transferWord, setTransferWord] = useState(''),
     [prepareTransfer, setPrepareTransfer] = useState(false),
     [retention, setRetention] = useState<Row>(
       config.backup.retention || { daily: 7, weekly: 4, monthly: 12 },
     ),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const [backups] = useLoad<Row[]>("backup.list", {}, [], tick);
+    [error, setError] = useState('');
+  const [backups] = useLoad<Row[]>('backup.list', {}, [], tick);
   const [selectedBackup, setSelectedBackup] = useState<Row | null>(null);
   const { sort, toggle, rows: backupRows } = useListSort(backups.slice(0, 8), backupSortValues);
-  const [recovery] = useLoad<Row>("backup.recovery_status", {}, {}, tick);
-  const [pendingUploads] = useLoad<Row[]>("backup.upload_list", {}, [], tick);
+  const [recovery] = useLoad<Row>('backup.recovery_status', {}, {}, tick);
+  const [pendingUploads] = useLoad<Row[]>('backup.upload_list', {}, [], tick);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [validating, setValidating] = useState(false);
   const upload = useRef<{ id: string; file: File } | null>(null);
@@ -261,18 +242,18 @@ function BackupsPanel({ config, refresh, notify }: Row) {
     if (!file) return;
     pauseUpload.current = false;
     setPreview(null);
-    setWord("");
+    setWord('');
     if (upload.current && upload.current.file !== file) {
-      await api("backup.upload_cancel", { upload_id: upload.current.id });
+      await api('backup.upload_cancel', { upload_id: upload.current.id });
       upload.current = null;
     }
     let progress: Row;
     if (upload.current)
-      progress = await api("backup.upload_status", {
+      progress = await api('backup.upload_status', {
         upload_id: upload.current.id,
       });
     else {
-      progress = await api("backup.upload_start", {
+      progress = await api('backup.upload_start', {
         name: file.name,
         total_bytes: file.size,
       });
@@ -283,15 +264,15 @@ function BackupsPanel({ config, refresh, notify }: Row) {
     while (offset < file.size) {
       if (pauseUpload.current) return;
       const end = Math.min(offset + progress.chunk_bytes, file.size);
-      const block = new File([file.slice(offset, end)], "bloque.canamo");
-      const result = await api("backup.upload_chunk", {
+      const block = new File([file.slice(offset, end)], 'bloque.canamo');
+      const result = await api('backup.upload_chunk', {
         upload_id: progress.upload_id,
         offset,
         content: await fileBase64(block),
       });
       if (result.offset !== end)
         throw new Error(
-          "La carga no confirmó el bloque. Pulsa continuar para consultar su progreso.",
+          'La carga no confirmó el bloque. Pulsa continuar para consultar su progreso.',
         );
       offset = result.offset;
       setUploadProgress(Math.floor((offset / file.size) * 100));
@@ -300,7 +281,7 @@ function BackupsPanel({ config, refresh, notify }: Row) {
     setValidating(true);
     try {
       setPreview(
-        await api("backup.upload_finish", {
+        await api('backup.upload_finish', {
           upload_id: progress.upload_id,
           password,
         }),
@@ -313,7 +294,7 @@ function BackupsPanel({ config, refresh, notify }: Row) {
   }
   async function run(task: () => Promise<any>) {
     setBusy(true);
-    setError("");
+    setError('');
     try {
       await task();
     } catch (e: any) {
@@ -328,38 +309,27 @@ function BackupsPanel({ config, refresh, notify }: Row) {
     <>
       <div className="settings-title">
         <h2>Copias de seguridad y cambio de ordenador</h2>
-        <p>
-          Tu taller no depende de una nube. Pero la copia externa es
-          imprescindible.
-        </p>
+        <p>Tu taller no depende de una nube. Pero la copia externa es imprescindible.</p>
       </div>
       <section className="panel padded">
-        <Toggle
-          checked={v.daily}
-          onChange={(x) => setV((o) => ({ ...o, daily: x }))}
-        >
+        <Toggle checked={v.daily} onChange={(x) => setV((o) => ({ ...o, daily: x }))}>
           Copia autom&aacute;tica diaria
         </Toggle>
-        <Toggle
-          checked={v.on_close}
-          onChange={(x) => setV((o) => ({ ...o, on_close: x }))}
-        >
+        <Toggle checked={v.on_close} onChange={(x) => setV((o) => ({ ...o, on_close: x }))}>
           Copia al salir de la aplicaci&oacute;n
         </Toggle>
         <Input
           label="Segunda carpeta de copias (opcional)"
           value={v.external_directory}
-          onChange={(e) =>
-            setV((o) => ({ ...o, external_directory: e.target.value }))
-          }
+          onChange={(e) => setV((o) => ({ ...o, external_directory: e.target.value }))}
           placeholder="D:\CopiasTaller"
           hint="Puede ser un disco externo o una carpeta sincronizada. Nunca sincronices la base SQLite abierta."
         />
         <div className="form-grid">
           {[
-            ["daily", "Copias diarias"],
-            ["weekly", "Copias semanales"],
-            ["monthly", "Copias mensuales"],
+            ['daily', 'Copias diarias'],
+            ['weekly', 'Copias semanales'],
+            ['monthly', 'Copias mensuales'],
           ].map(([key, label]) => (
             <Input
               key={key}
@@ -368,30 +338,24 @@ function BackupsPanel({ config, refresh, notify }: Row) {
               min={1}
               max={365}
               value={retention[key]}
-              onChange={(e) =>
-                setRetention((o) => ({ ...o, [key]: Number(e.target.value) }))
-              }
+              onChange={(e) => setRetention((o) => ({ ...o, [key]: Number(e.target.value) }))}
             />
           ))}
         </div>
         <p className="small subtle">
-          Esta retención solo elimina copias automáticas antiguas. Los
-          documentos y copias manuales, previas y de traslado se conservan.
+          Esta retención solo elimina copias automáticas antiguas. Los documentos y copias manuales,
+          previas y de traslado se conservan.
         </p>
         <Button
           tone="primary"
           busy={busy}
           onClick={() =>
             run(async () => {
-              const {
-                last_success,
-                retention: ignoredRetention,
-                ...values
-              } = v;
-              await api("settings.save", { section: "backup", values });
-              await api("backup.retention", retention);
+              const { last_success, retention: ignoredRetention, ...values } = v;
+              await api('settings.save', { section: 'backup', values });
+              await api('backup.retention', retention);
               await refresh();
-              notify("Copias configuradas");
+              notify('Copias configuradas');
             })
           }
         >
@@ -415,17 +379,17 @@ function BackupsPanel({ config, refresh, notify }: Row) {
             busy={busy}
             onClick={() =>
               run(async () => {
-                const r = await api("backup.create", { password });
+                const r = await api('backup.create', { password });
                 const saved = await saveExport(r);
                 setTick((t) => t + 1);
                 await refresh();
                 notify(
                   r.warning ||
                     (saved.saved === false
-                      ? "Copia local creada. Has cancelado guardar otra copia fuera del programa."
+                      ? 'Copia local creada. Has cancelado guardar otra copia fuera del programa.'
                       : saved.saved
-                        ? "Copia guardada"
-                        : "Copia creada; descarga iniciada en el navegador"),
+                        ? 'Copia guardada'
+                        : 'Copia creada; descarga iniciada en el navegador'),
                 );
               })
             }
@@ -436,10 +400,8 @@ function BackupsPanel({ config, refresh, notify }: Row) {
             <Button
               onClick={() =>
                 run(async () => {
-                  await api("backup.password", { value: password });
-                  notify(
-                    "Contrase\u00f1a de copias autom\u00e1ticas protegida en Windows",
-                  );
+                  await api('backup.password', { value: password });
+                  notify('Contrase\u00f1a de copias autom\u00e1ticas protegida en Windows');
                 })
               }
             >
@@ -451,18 +413,18 @@ function BackupsPanel({ config, refresh, notify }: Row) {
       <section className="panel padded">
         <h3>Preparar el traslado a otro ordenador</h3>
         <p>
-          Cuando vayas a cambiar de equipo, prepara un paquete de traslado. Este
-          equipo dejará de emitir y enviar registros fiscales. Conserva el
-          paquete y actívalo solo en el ordenador de destino.
+          Cuando vayas a cambiar de equipo, prepara un paquete de traslado. Este equipo dejará de
+          emitir y enviar registros fiscales. Conserva el paquete y actívalo solo en el ordenador de
+          destino.
         </p>
         <Button
           busy={busy}
-          disabled={recovery.blocked && recovery.reason !== "transfer_source"}
+          disabled={recovery.blocked && recovery.reason !== 'transfer_source'}
           onClick={() => setPrepareTransfer(true)}
         >
-          {recovery.reason === "transfer_source"
-            ? "Volver a guardar el paquete preparado"
-            : "Preparar traslado"}
+          {recovery.reason === 'transfer_source'
+            ? 'Volver a guardar el paquete preparado'
+            : 'Preparar traslado'}
         </Button>
         {recovery.blocked && <Notice tone="warning">{recovery.message}</Notice>}
         {recovery.transfer_ready && (
@@ -475,16 +437,14 @@ function BackupsPanel({ config, refresh, notify }: Row) {
             <Button
               tone="primary"
               busy={busy}
-              disabled={transferWord !== "ACTIVAR SOLO ESTE EQUIPO"}
+              disabled={transferWord !== 'ACTIVAR SOLO ESTE EQUIPO'}
               onClick={() =>
                 run(async () => {
-                  await api("backup.activate_transfer", {
+                  await api('backup.activate_transfer', {
                     confirmation: transferWord,
                   });
-                  setTransferWord("");
-                  notify(
-                    "Traslado activado en este equipo. Conserva el anterior inactivo.",
-                  );
+                  setTransferWord('');
+                  notify('Traslado activado en este equipo. Conserva el anterior inactivo.');
                 })
               }
             >
@@ -496,10 +456,10 @@ function BackupsPanel({ config, refresh, notify }: Row) {
       <section className="panel padded">
         <h3>Restaurar una copia o recibir un traslado</h3>
         <p>
-          Instala la misma versi&oacute;n en el nuevo equipo, selecciona tu
-          archivo <code>.canamo</code> y comprueba la vista previa. Utiliza un
-          solo ordenador para emitir. Una copia antigua con historial incompleto
-          no permite volver a emitir: recupera una copia completa.
+          Instala la misma versi&oacute;n en el nuevo equipo, selecciona tu archivo{' '}
+          <code>.canamo</code> y comprueba la vista previa. Utiliza un solo ordenador para emitir.
+          Una copia antigua con historial incompleto no permite volver a emitir: recupera una copia
+          completa.
         </p>
         <input
           type="file"
@@ -509,34 +469,24 @@ function BackupsPanel({ config, refresh, notify }: Row) {
           onChange={(e) => {
             setFile(e.target.files?.[0] || null);
             setPreview(null);
-            setWord("");
+            setWord('');
           }}
         />
         <p className="small subtle">
-          La contrase&ntilde;a indicada arriba se utilizar&aacute;
-          tambi&eacute;n para abrir la copia. El certificado digital nunca se
-          incluye y debe configurarse de nuevo.
+          La contrase&ntilde;a indicada arriba se utilizar&aacute; tambi&eacute;n para abrir la
+          copia. El certificado digital nunca se incluye y debe configurarse de nuevo.
         </p>
-        <Button
-          icon="search"
-          busy={busy}
-          disabled={!file}
-          onClick={() => run(checkBackup)}
-        >
-          {upload.current ? "Continuar comprobación" : "Comprobar copia"}
+        <Button icon="search" busy={busy} disabled={!file} onClick={() => run(checkBackup)}>
+          {upload.current ? 'Continuar comprobación' : 'Comprobar copia'}
         </Button>
         {uploadProgress !== null && (
           <div>
             <p role="status">
               {validating
-                ? "Comprobando integridad y contenido de la copia…"
+                ? 'Comprobando integridad y contenido de la copia…'
                 : `Copia cargada: ${uploadProgress} %`}
             </p>
-            <progress
-              max={100}
-              value={uploadProgress}
-              aria-label="Progreso de carga de la copia"
-            />
+            <progress max={100} value={uploadProgress} aria-label="Progreso de carga de la copia" />
             {busy && !validating && (
               <Button
                 onClick={() => {
@@ -550,7 +500,7 @@ function BackupsPanel({ config, refresh, notify }: Row) {
               <Button
                 onClick={() =>
                   run(async () => {
-                    await api("backup.upload_cancel", {
+                    await api('backup.upload_cancel', {
                       upload_id: upload.current!.id,
                     });
                     upload.current = null;
@@ -563,33 +513,32 @@ function BackupsPanel({ config, refresh, notify }: Row) {
             )}
           </div>
         )}
-        {pendingUploads.filter((item) => item.upload_id !== upload.current?.id)
-          .length > 0 && (
+        {pendingUploads.filter((item) => item.upload_id !== upload.current?.id).length > 0 && (
           <div className="restore-preview">
             <h4>Cargas anteriores pendientes</h4>
             <p className="small subtle">
-              Puedes descartarlas y seleccionar de nuevo la copia. Descartar una
-              carga no borra el archivo original.
+              Puedes descartarlas y seleccionar de nuevo la copia. Descartar una carga no borra el
+              archivo original.
             </p>
             {pendingUploads
               .filter((item) => item.upload_id !== upload.current?.id)
               .map((item) => (
                 <div className="actions" key={item.upload_id}>
                   <span>
-                    {item.name || "Carga sin terminar"} ·{" "}
-                    {Math.floor((item.offset || 0) / 1024)} KB recibidos
+                    {item.name || 'Carga sin terminar'} · {Math.floor((item.offset || 0) / 1024)} KB
+                    recibidos
                   </span>
                   <Button
                     busy={busy}
                     onClick={() =>
                       run(async () => {
-                        await api("backup.upload_cancel", {
+                        await api('backup.upload_cancel', {
                           upload_id: item.upload_id,
                         });
                       })
                     }
                   >
-                    Descartar carga {item.name || "incompleta"}
+                    Descartar carga {item.name || 'incompleta'}
                   </Button>
                 </div>
               ))}
@@ -603,11 +552,11 @@ function BackupsPanel({ config, refresh, notify }: Row) {
                 <span key={k}>
                   <strong>{String(n)}</strong>
                   {{
-                    customers: "clientes",
-                    vehicles: "veh\u00edculos",
-                    documents: "documentos",
-                    fiscal_records: "registros fiscales",
-                    events: "eventos",
+                    customers: 'clientes',
+                    vehicles: 'veh\u00edculos',
+                    documents: 'documentos',
+                    fiscal_records: 'registros fiscales',
+                    events: 'eventos',
                   }[k] || k}
                 </span>
               ))}
@@ -620,20 +569,17 @@ function BackupsPanel({ config, refresh, notify }: Row) {
             <Button
               tone="danger"
               busy={busy}
-              disabled={word !== "RESTAURAR"}
+              disabled={word !== 'RESTAURAR'}
               onClick={() =>
                 run(async () => {
-                  const r = await api("backup.restore", {
+                  const r = await api('backup.restore', {
                     token: preview.token,
                     confirmation: word,
                   });
                   await refresh();
                   setPreview(null);
                   setTick((t) => t + 1);
-                  notify(
-                    "Copia restaurada. Se guard\u00f3 una copia previa: " +
-                      r.safety_copy,
-                  );
+                  notify('Copia restaurada. Se guard\u00f3 una copia previa: ' + r.safety_copy);
                 })
               }
             >
@@ -653,14 +599,14 @@ function BackupsPanel({ config, refresh, notify }: Row) {
             onConfirm={async () => {
               setPrepareTransfer(false);
               await run(async () => {
-                const result = await api("backup.prepare_transfer", {
+                const result = await api('backup.prepare_transfer', {
                   password,
                 });
                 const saved = await saveExport(result);
                 notify(
                   saved.saved === false
-                    ? "Traslado preparado y conservado en copias locales. Vuelve a guardar el paquete para llevarlo al otro equipo."
-                    : "Paquete de traslado preparado. Este equipo ha quedado inactivo para emitir.",
+                    ? 'Traslado preparado y conservado en copias locales. Vuelve a guardar el paquete para llevarlo al otro equipo.'
+                    : 'Paquete de traslado preparado. Este equipo ha quedado inactivo para emitir.',
                 );
               });
             }}
@@ -670,7 +616,9 @@ function BackupsPanel({ config, refresh, notify }: Row) {
       <section className="panel">
         <div className="section-head">
           <h3>&Uacute;ltimas copias locales</h3>
-          <span className="subtle">{backupRows.length} de {backups.length} copias</span>
+          <span className="subtle">
+            {backupRows.length} de {backups.length} copias
+          </span>
         </div>
         {backups.length ? (
           <div className="table-scroll">
@@ -679,19 +627,38 @@ function BackupsPanel({ config, refresh, notify }: Row) {
                 <tr>
                   <SortHeader label="Archivo" field="name" sort={sort} onSort={toggle} />
                   <SortHeader label="Fecha" field="created_at" sort={sort} onSort={toggle} />
-                  <SortHeader label="Tamaño" field="bytes" className="right" sort={sort} onSort={toggle} />
-                  <th><span className="sr-only">Acciones</span></th>
+                  <SortHeader
+                    label="Tamaño"
+                    field="bytes"
+                    className="right"
+                    sort={sort}
+                    onSort={toggle}
+                  />
+                  <th>
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {backupRows.map((b) => (
                   <EntityRow key={b.name} onOpen={() => setSelectedBackup(b)}>
                     <td>
-                      <button type="button" className="entity-reference" onClick={() => setSelectedBackup(b)}><code>{b.name}</code></button>
+                      <button
+                        type="button"
+                        className="entity-reference"
+                        onClick={() => setSelectedBackup(b)}
+                      >
+                        <code>{b.name}</code>
+                      </button>
                     </td>
                     <td>{dateText(b.created_at)}</td>
                     <td className="right">{Math.ceil(b.bytes / 1024)} KB</td>
-                    <td><RowActions label={b.name} items={[{ label: "Ver detalle", onSelect: () => setSelectedBackup(b) }]} /></td>
+                    <td>
+                      <RowActions
+                        label={b.name}
+                        items={[{ label: 'Ver detalle', onSelect: () => setSelectedBackup(b) }]}
+                      />
+                    </td>
                   </EntityRow>
                 ))}
               </tbody>
@@ -705,17 +672,29 @@ function BackupsPanel({ config, refresh, notify }: Row) {
           />
         )}
       </section>
-      <Presence>{selectedBackup && (
-        <Modal title="Detalle de la copia local" onClose={() => setSelectedBackup(null)}>
-          <dl className="details-list">
-            <dt>Archivo</dt><dd style={{ overflowWrap: "anywhere" }}>{selectedBackup.name}</dd>
-            <dt>Fecha</dt><dd>{new Date(selectedBackup.created_at).toLocaleString("es-ES", { timeZone: "Europe/Madrid" })}</dd>
-            <dt>Tamaño</dt><dd>{Number(selectedBackup.bytes).toLocaleString("es-ES")} bytes</dd>
-          </dl>
-          <p className="subtle">Para restaurar, selecciona el archivo en «Restaurar una copia o recibir un traslado» y revisa su contenido antes de confirmar.</p>
-          <Button onClick={() => setSelectedBackup(null)}>Cerrar detalle</Button>
-        </Modal>
-      )}</Presence>
+      <Presence>
+        {selectedBackup && (
+          <Modal title="Detalle de la copia local" onClose={() => setSelectedBackup(null)}>
+            <dl className="details-list">
+              <dt>Archivo</dt>
+              <dd style={{ overflowWrap: 'anywhere' }}>{selectedBackup.name}</dd>
+              <dt>Fecha</dt>
+              <dd>
+                {new Date(selectedBackup.created_at).toLocaleString('es-ES', {
+                  timeZone: 'Europe/Madrid',
+                })}
+              </dd>
+              <dt>Tamaño</dt>
+              <dd>{Number(selectedBackup.bytes).toLocaleString('es-ES')} bytes</dd>
+            </dl>
+            <p className="subtle">
+              Para restaurar, selecciona el archivo en «Restaurar una copia o recibir un traslado» y
+              revisa su contenido antes de confirmar.
+            </p>
+            <Button onClick={() => setSelectedBackup(null)}>Cerrar detalle</Button>
+          </Modal>
+        )}
+      </Presence>
     </>
   );
 }
@@ -725,7 +704,7 @@ export function SettingsPage({
   series,
   refresh,
   notify,
-  initialTab = "company",
+  initialTab = 'company',
   navigate,
 }: Row) {
   const [tab, setTab] = useState(initialTab);
@@ -734,7 +713,7 @@ export function SettingsPage({
     setTab(next);
     const section = content.current;
     if (section && section.getBoundingClientRect().top < 0)
-      section.scrollIntoView({ block: "start", behavior: "instant" });
+      section.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
   return (
     <>
@@ -742,20 +721,17 @@ export function SettingsPage({
         title="Configuraci&oacute;n"
         subtitle="Hazlo tuyo. Sin complicar el trabajo de cada d&iacute;a."
       >
-        <Button icon="settings" onClick={() => selectTab("appearance")}>
+        <Button icon="settings" onClick={() => selectTab('appearance')}>
           Tamaño de letra y aspecto
         </Button>
       </PageHead>
       <div className="settings-layout">
-        <nav
-          className="settings-nav"
-          aria-label="Secciones de configuraci&oacute;n"
-        >
+        <nav className="settings-nav" aria-label="Secciones de configuraci&oacute;n">
           {tabs.map(([key, label, icon]) => (
             <button
               key={key}
-              className={tab === key ? "active" : ""}
-              aria-current={tab === key ? "page" : undefined}
+              className={tab === key ? 'active' : ''}
+              aria-current={tab === key ? 'page' : undefined}
               onClick={() => selectTab(key)}
             >
               <Icon name={icon} size={18} />
@@ -764,13 +740,13 @@ export function SettingsPage({
           ))}
         </nav>
         <div className="settings-content" ref={content}>
-          {tab === "backup" ? (
+          {tab === 'backup' ? (
             <BackupsPanel config={config} refresh={refresh} notify={notify} />
-          ) : tab === "import" ? (
+          ) : tab === 'import' ? (
             <ImportPanel refresh={refresh} notify={notify} navigate={navigate} />
-          ) : tab === "fiscal" ? (
+          ) : tab === 'fiscal' ? (
             <FiscalPanel config={config} refresh={refresh} notify={notify} navigate={navigate} />
-          ) : tab === "b2b" ? (
+          ) : tab === 'b2b' ? (
             <B2BPanel navigate={navigate} />
           ) : (
             <GeneralSettings
@@ -798,9 +774,13 @@ function GeneralSettings({
 }: Row) {
   const [v, setV] = useState<Row>({ ...config[tab] }),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
+    [error, setError] = useState(''),
     [editSeries, setEditSeries] = useState<Row | null>(null);
-  const { sort: seriesSort, toggle: sortSeries, rows: seriesRows } = useListSort<Row>(series, seriesSortValues);
+  const {
+    sort: seriesSort,
+    toggle: sortSeries,
+    rows: seriesRows,
+  } = useListSort<Row>(series, seriesSortValues);
   const [startup, setStartup] = useState<boolean | null>(null);
   const [startupBusy, setStartupBusy] = useState(false);
   const [notificationBusy, setNotificationBusy] = useState(false);
@@ -808,16 +788,16 @@ function GeneralSettings({
   const savedFont = useRef(config.appearance.font_size);
   savedFont.current = config.appearance.font_size;
   useEffect(() => {
-    if (tab !== "appearance") return;
+    if (tab !== 'appearance') return;
     document.documentElement.dataset.font = v.font_size;
     return () => {
       document.documentElement.dataset.font = savedFont.current;
     };
   }, [tab, v.font_size]);
   useEffect(() => {
-    if (tab !== "about") return;
+    if (tab !== 'about') return;
     let active = true;
-    api("licenses.status")
+    api('licenses.status')
       .then((result) => {
         if (active) setLicenses(result);
       })
@@ -829,10 +809,10 @@ function GeneralSettings({
     };
   }, [tab]);
   useEffect(() => {
-    if (tab !== "agenda" || !window.__TAURI__) return;
+    if (tab !== 'agenda' || !window.__TAURI__) return;
     let active = true;
     window.__TAURI__.core
-      .invoke<boolean>("startup_status")
+      .invoke<boolean>('startup_status')
       .then((enabled) => {
         if (active) setStartup(enabled);
       })
@@ -840,7 +820,7 @@ function GeneralSettings({
         if (active) setError(String(error));
       });
     window.__TAURI__.core
-      .invoke<string | null>("notification_status")
+      .invoke<string | null>('notification_status')
       .then((error) => {
         if (active && error) setError(error);
       })
@@ -855,19 +835,14 @@ function GeneralSettings({
   const input = (key: string, label: string, props: Row = {}) => (
     <Input
       label={label}
-      value={v[key] ?? ""}
-      onChange={(e) =>
-        set(
-          key,
-          props.type === "number" ? Number(e.target.value) : e.target.value,
-        )
-      }
+      value={v[key] ?? ''}
+      onChange={(e) => set(key, props.type === 'number' ? Number(e.target.value) : e.target.value)}
       {...props}
     />
   );
   async function run(fn: () => Promise<any>) {
     setBusy(true);
-    setError("");
+    setError('');
     try {
       await fn();
       await refresh();
@@ -881,8 +856,8 @@ function GeneralSettings({
     await run(async () => {
       const values = { ...v };
       delete values.logo_id;
-      await api("settings.save", { section: tab, values });
-      notify("Configuraci\u00f3n guardada");
+      await api('settings.save', { section: tab, values });
+      notify('Configuraci\u00f3n guardada');
     });
   }
   const title = tabs.find((x) => x[0] === tab)?.[1] || tab;
@@ -891,20 +866,20 @@ function GeneralSettings({
       <div className="settings-title">
         <h2>{title}</h2>
         <p>
-          {tab === "company"
-            ? "Estos datos aparecen en los documentos nuevos. Las facturas emitidas conservan su versi\u00f3n original."
-            : tab === "billing"
-              ? "Series, impuestos, vencimientos y aspecto de los documentos."
-              : tab === "appearance"
-                ? "Un espacio c\u00f3modo para trabajar, a tu manera."
-                : tab === "agenda"
-                  ? "Tus citas, tus horarios y solo los avisos que necesites."
-                  : tab === "assistant"
-                    ? "La automatizaci\u00f3n normal no necesita IA ni suscripciones."
-                    : ""}
+          {tab === 'company'
+            ? 'Estos datos aparecen en los documentos nuevos. Las facturas emitidas conservan su versi\u00f3n original.'
+            : tab === 'billing'
+              ? 'Series, impuestos, vencimientos y aspecto de los documentos.'
+              : tab === 'appearance'
+                ? 'Un espacio c\u00f3modo para trabajar, a tu manera.'
+                : tab === 'agenda'
+                  ? 'Tus citas, tus horarios y solo los avisos que necesites.'
+                  : tab === 'assistant'
+                    ? 'La automatizaci\u00f3n normal no necesita IA ni suscripciones.'
+                    : ''}
         </p>
       </div>
-      {tab === "company" && (
+      {tab === 'company' && (
         <>
           <section className="panel padded">
             <div className="logo-settings">
@@ -912,8 +887,7 @@ function GeneralSettings({
               <div>
                 <h3>Logo del taller</h3>
                 <p>
-                  PNG, JPG o WebP. M&aacute;ximo 4 MB. Se utiliza tambi&eacute;n
-                  como marca de agua.
+                  PNG, JPG o WebP. M&aacute;ximo 4 MB. Se utiliza tambi&eacute;n como marca de agua.
                 </p>
                 <input
                   type="file"
@@ -923,10 +897,10 @@ function GeneralSettings({
                     const file = e.target.files?.[0];
                     if (file)
                       run(async () => {
-                        await api("settings.logo", {
+                        await api('settings.logo', {
                           content: await fileBase64(file),
                         });
-                        notify("Logo actualizado");
+                        notify('Logo actualizado');
                       });
                   }}
                 />
@@ -935,8 +909,8 @@ function GeneralSettings({
                     tone="ghost"
                     onClick={() =>
                       run(async () => {
-                        await api("settings.logo", { content: null });
-                        notify("Logo retirado");
+                        await api('settings.logo', { content: null });
+                        notify('Logo retirado');
                       })
                     }
                   >
@@ -949,35 +923,31 @@ function GeneralSettings({
           <section className="panel padded">
             <div className="form-grid">
               <div className="span-2">
-                {input("trading_name", "Nombre comercial", { required: true })}
+                {input('trading_name', 'Nombre comercial', { required: true })}
               </div>
-              {input("legal_name", "Nombre fiscal / titular", {
-                hint: "No sustituye al nombre comercial.",
+              {input('legal_name', 'Nombre fiscal / titular', {
+                hint: 'No sustituye al nombre comercial.',
               })}
-              {input("tax_id", "NIF del titular")}
-              {input("phone", "Tel\u00e9fono", { type: "tel" })}
-              {input("email", "Correo electr\u00f3nico", { type: "email" })}
-              <div className="span-2">{input("address", "Direcci\u00f3n")}</div>
-              {input("postal_code", "C\u00f3digo postal", { maxLength: 5 })}
-              {input("city", "Poblaci\u00f3n")}
-              {input("province", "Provincia")}
-              {input("iban", "IBAN (opcional)", {
-                placeholder: "ES00 0000 0000 0000 0000 0000",
+              {input('tax_id', 'NIF del titular')}
+              {input('phone', 'Tel\u00e9fono', { type: 'tel' })}
+              {input('email', 'Correo electr\u00f3nico', { type: 'email' })}
+              <div className="span-2">{input('address', 'Direcci\u00f3n')}</div>
+              {input('postal_code', 'C\u00f3digo postal', { maxLength: 5 })}
+              {input('city', 'Poblaci\u00f3n')}
+              {input('province', 'Provincia')}
+              {input('iban', 'IBAN (opcional)', {
+                placeholder: 'ES00 0000 0000 0000 0000 0000',
               })}
             </div>
           </section>
         </>
       )}
-      {tab === "billing" && (
+      {tab === 'billing' && (
         <>
           <section className="panel">
             <div className="section-head">
               <h3>Series y numeraci&oacute;n</h3>
-              <Button
-                tone="primary"
-                icon="plus"
-                onClick={() => setEditSeries({})}
-              >
+              <Button tone="primary" icon="plus" onClick={() => setEditSeries({})}>
                 Nueva serie
               </Button>
             </div>
@@ -987,37 +957,53 @@ function GeneralSettings({
                   <tr>
                     <SortHeader label="Serie" field="label" sort={seriesSort} onSort={sortSeries} />
                     <SortHeader label="Año" field="year" sort={seriesSort} onSort={sortSeries} />
-                    <SortHeader label="Próximo número" field="next_number" sort={seriesSort} onSort={sortSeries} />
-                    <th><span className="sr-only">Acciones</span></th>
+                    <SortHeader
+                      label="Próximo número"
+                      field="next_number"
+                      sort={seriesSort}
+                      onSort={sortSeries}
+                    />
+                    <th>
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {seriesRows.map((s: Row) => (
                     <EntityRow key={s.id} onOpen={() => setEditSeries(s)}>
                       <td>
-                        <button type="button" className="entity-reference" onClick={() => setEditSeries(s)}><strong>{s.label}</strong></button>
+                        <button
+                          type="button"
+                          className="entity-reference"
+                          onClick={() => setEditSeries(s)}
+                        >
+                          <strong>{s.label}</strong>
+                        </button>
                         <small className="block subtle">
-                          {s.kind === "rectification"
-                            ? "Rectificativa"
-                            : s.kind === "invoice"
-                              ? "Factura"
-                              : s.kind === "quote"
-                                ? "Presupuesto"
-                                : "Orden"}{" "}
-                          {s.archived ? "\u00b7 Archivada" : ""}
+                          {s.kind === 'rectification'
+                            ? 'Rectificativa'
+                            : s.kind === 'invoice'
+                              ? 'Factura'
+                              : s.kind === 'quote'
+                                ? 'Presupuesto'
+                                : 'Orden'}{' '}
+                          {s.archived ? '\u00b7 Archivada' : ''}
                         </small>
                       </td>
-                      <td>{s.year || "Continua"}</td>
+                      <td>{s.year || 'Continua'}</td>
                       <td>
                         <code>
                           {s.prefix
-                            .replaceAll("{YYYY}", String(s.year))
-                            .replaceAll("{YY}", String(s.year).slice(-2)) +
-                            String(s.next_number).padStart(s.padding, "0")}
+                            .replaceAll('{YYYY}', String(s.year))
+                            .replaceAll('{YY}', String(s.year).slice(-2)) +
+                            String(s.next_number).padStart(s.padding, '0')}
                         </code>
                       </td>
                       <td>
-                        <RowActions label={s.label} items={[{ label: "Editar serie", onSelect: () => setEditSeries(s) }]} />
+                        <RowActions
+                          label={s.label}
+                          items={[{ label: 'Editar serie', onSelect: () => setEditSeries(s) }]}
+                        />
                       </td>
                     </EntityRow>
                   ))}
@@ -1029,11 +1015,8 @@ function GeneralSettings({
             <h3>Valores habituales</h3>
             <div className="form-grid">
               <Field label="IVA por defecto">
-                <Select
-                  value={v.vat}
-                  onChange={(e) => set("vat", e.target.value)}
-                >
-                  {["21", "10", "4", "0"].map((x) => (
+                <Select value={v.vat} onChange={(e) => set('vat', e.target.value)}>
+                  {['21', '10', '4', '0'].map((x) => (
                     <option value={x} key={x}>
                       {x}%
                     </option>
@@ -1043,7 +1026,7 @@ function GeneralSettings({
               <Field label="Forma de pago por defecto">
                 <Select
                   value={v.payment_method}
-                  onChange={(e) => set("payment_method", e.target.value)}
+                  onChange={(e) => set('payment_method', e.target.value)}
                 >
                   {Object.entries(methods).map(([k, l]) => (
                     <option value={k} key={k}>
@@ -1052,19 +1035,19 @@ function GeneralSettings({
                   ))}
                 </Select>
               </Field>
-              {input("due_days", "D\u00edas hasta el vencimiento", {
-                type: "number",
+              {input('due_days', 'D\u00edas hasta el vencimiento', {
+                type: 'number',
                 min: 0,
                 max: 365,
               })}
-              {input("quote_days", "Validez del presupuesto (d\u00edas)", {
-                type: "number",
+              {input('quote_days', 'Validez del presupuesto (d\u00edas)', {
+                type: 'number',
                 min: 1,
                 max: 365,
               })}
-              {input("labor_rate", "Tarifa de mano de obra por hora (EUR)", {
-                inputMode: "decimal",
-                hint: "Se aplica al pulsar Mano de obra en un documento. Revísala antes de emitir.",
+              {input('labor_rate', 'Tarifa de mano de obra por hora (EUR)', {
+                inputMode: 'decimal',
+                hint: 'Se aplica al pulsar Mano de obra en un documento. Revísala antes de emitir.',
               })}
             </div>
             <Field label="Pie del documento">
@@ -1072,14 +1055,12 @@ function GeneralSettings({
                 value={v.footer}
                 rows={3}
                 maxLength={800}
-                onChange={(e) => set("footer", e.target.value)}
+                onChange={(e) => set('footer', e.target.value)}
               />
             </Field>
             <Field
               label={
-                "Intensidad de la marca de agua: " +
-                Math.round(v.watermark_opacity * 100) +
-                "%"
+                'Intensidad de la marca de agua: ' + Math.round(v.watermark_opacity * 100) + '%'
               }
             >
               <input
@@ -1088,17 +1069,15 @@ function GeneralSettings({
                 max="0.15"
                 step="0.01"
                 value={v.watermark_opacity}
-                onChange={(e) =>
-                  set("watermark_opacity", Number(e.target.value))
-                }
+                onChange={(e) => set('watermark_opacity', Number(e.target.value))}
               />
             </Field>
-            <Toggle checked={v.show_bank} onChange={(x) => set("show_bank", x)}>
+            <Toggle checked={v.show_bank} onChange={(x) => set('show_bank', x)}>
               Mostrar IBAN en el pie (si est&aacute; configurado)
             </Toggle>
             <Toggle
               checked={v.allow_negative_stock}
-              onChange={(x) => set("allow_negative_stock", x)}
+              onChange={(x) => set('allow_negative_stock', x)}
               hint="Desaconsejado: puede ocultar errores de inventario."
             >
               Permitir existencias negativas
@@ -1106,43 +1085,31 @@ function GeneralSettings({
           </section>
         </>
       )}
-      {tab === "appearance" && (
+      {tab === 'appearance' && (
         <>
-          <section
-            className="panel padded"
-            aria-labelledby="font-settings-title"
-          >
+          <section className="panel padded" aria-labelledby="font-settings-title">
             <h3 id="font-settings-title">Tamaño de letra</h3>
             <p>
-              Elige el tamaño que te resulte más cómodo. Puedes probarlo aquí y
-              guardar cuando lo veas bien.
+              Elige el tamaño que te resulte más cómodo. Puedes probarlo aquí y guardar cuando lo
+              veas bien.
             </p>
-            <div
-              className="font-size-choices"
-              role="group"
-              aria-label="Tamaño de letra"
-            >
+            <div className="font-size-choices" role="group" aria-label="Tamaño de letra">
               {[
-                ["normal", "Normal", "100 %"],
-                ["large", "Grande", "112,5 %"],
-                ["extra", "Muy grande", "125 %"],
+                ['normal', 'Normal', '100 %'],
+                ['large', 'Grande', '112,5 %'],
+                ['extra', 'Muy grande', '125 %'],
               ].map(([key, label, scale]) => (
                 <button
                   type="button"
                   key={key}
                   className="font-size-choice"
                   aria-pressed={v.font_size === key}
-                  onClick={() => set("font_size", key)}
+                  onClick={() => set('font_size', key)}
                 >
                   <span
                     aria-hidden="true"
                     style={{
-                      fontSize:
-                        key === "extra"
-                          ? "1.75em"
-                          : key === "large"
-                            ? "1.5em"
-                            : "1.25em",
+                      fontSize: key === 'extra' ? '1.75em' : key === 'large' ? '1.5em' : '1.25em',
                     }}
                   >
                     Aa
@@ -1155,30 +1122,29 @@ function GeneralSettings({
             <div className="font-example">
               <strong>Así se verá tu taller</strong>
               <p>
-                Buscar un cliente, preparar una factura y revisar los trabajos,
-                con una letra cómoda de leer.
+                Buscar un cliente, preparar una factura y revisar los trabajos, con una letra cómoda
+                de leer.
               </p>
             </div>
             <p className="small subtle">
-              Se ajusta el texto de la aplicación. El PDF conserva su tamaño de
-              impresión A4.
+              Se ajusta el texto de la aplicación. El PDF conserva su tamaño de impresión A4.
             </p>
           </section>
           <section className="panel padded">
             <h3>Tema de la aplicaci&oacute;n</h3>
             <div className="theme-choices">
               {[
-                ["light", "Claro", "sun"],
-                ["dark", "Oscuro", "moon"],
-                ["system", "Como Windows", "settings"],
+                ['light', 'Claro', 'sun'],
+                ['dark', 'Oscuro', 'moon'],
+                ['system', 'Como Windows', 'settings'],
               ].map(([key, label, icon]) => (
                 <button
                   key={key}
-                  className={v.theme === key ? "selected" : ""}
+                  className={v.theme === key ? 'selected' : ''}
                   aria-pressed={v.theme === key}
-                  onClick={() => set("theme", key)}
+                  onClick={() => set('theme', key)}
                 >
-                  <div className={"theme-sample " + key}>
+                  <div className={'theme-sample ' + key}>
                     <span />
                     <i />
                     <i />
@@ -1192,15 +1158,12 @@ function GeneralSettings({
                 </button>
               ))}
             </div>
-            <Toggle
-              checked={v.high_contrast}
-              onChange={(x) => set("high_contrast", x)}
-            >
+            <Toggle checked={v.high_contrast} onChange={(x) => set('high_contrast', x)}>
               M&aacute;s contraste en bordes y texto
             </Toggle>
             <Toggle
               checked={v.extras}
-              onChange={(x) => set("extras", x)}
+              onChange={(x) => set('extras', x)}
               hint="Al desactivarlo solo quedan Inicio, Clientes, Facturas y Configuraci&oacute;n. Los datos de los extras no se borran."
             >
               Mostrar &laquo;M&aacute;s herramientas&raquo;
@@ -1208,7 +1171,7 @@ function GeneralSettings({
             <Field label="Vista inicial de la agenda">
               <Select
                 value={v.calendar_start}
-                onChange={(e) => set("calendar_start", e.target.value)}
+                onChange={(e) => set('calendar_start', e.target.value)}
               >
                 <option value="month">Mes</option>
                 <option value="week">Semana</option>
@@ -1218,29 +1181,27 @@ function GeneralSettings({
           </section>
         </>
       )}
-      {tab === "agenda" && (
+      {tab === 'agenda' && (
         <section className="panel padded">
           <div className="form-grid">
-            {input("work_start", "Inicio de la jornada", { type: "time" })}
-            {input("work_end", "Fin de la jornada", { type: "time" })}
+            {input('work_start', 'Inicio de la jornada', { type: 'time' })}
+            {input('work_end', 'Fin de la jornada', { type: 'time' })}
             <Field label="Aviso por defecto para citas nuevas">
               <Select
                 value={v.reminder_minutes}
-                onChange={(e) =>
-                  set("reminder_minutes", Number(e.target.value))
-                }
+                onChange={(e) => set('reminder_minutes', Number(e.target.value))}
               >
                 {[
-                  [0, "En el momento"],
-                  [5, "5 minutos antes"],
-                  [10, "10 minutos antes"],
-                  [15, "15 minutos antes"],
-                  [30, "30 minutos antes"],
-                  [60, "1 hora antes"],
-                  [120, "2 horas antes"],
-                  [1440, "1 d\u00eda antes"],
-                  [2880, "2 d\u00edas antes"],
-                  [10080, "1 semana antes"],
+                  [0, 'En el momento'],
+                  [5, '5 minutos antes'],
+                  [10, '10 minutos antes'],
+                  [15, '15 minutos antes'],
+                  [30, '30 minutos antes'],
+                  [60, '1 hora antes'],
+                  [120, '2 horas antes'],
+                  [1440, '1 d\u00eda antes'],
+                  [2880, '2 d\u00edas antes'],
+                  [10080, '1 semana antes'],
                 ].map(([n, l]) => (
                   <option key={String(n)} value={n}>
                     {l}
@@ -1249,13 +1210,16 @@ function GeneralSettings({
               </Select>
             </Field>
           </div>
-          <Toggle checked={v.sound} onChange={(x) => set("sound", x)}
-            hint="Un único sonido del sistema. Se respeta el silencio y No molestar de Windows.">
+          <Toggle
+            checked={v.sound}
+            onChange={(x) => set('sound', x)}
+            hint="Un único sonido del sistema. Se respeta el silencio y No molestar de Windows."
+          >
             Sonido de aviso
           </Toggle>
           <Toggle
             checked={v.desktop_notifications}
-            onChange={(x) => set("desktop_notifications", x)}
+            onChange={(x) => set('desktop_notifications', x)}
             hint="Windows controla si aparecen y si suenan. En navegador debes conceder permiso."
           >
             Notificaciones del sistema
@@ -1266,24 +1230,30 @@ function GeneralSettings({
             onClick={async () => {
               if (notificationBusy) return;
               setNotificationBusy(true);
-              setError("");
+              setError('');
               try {
                 if (window.__TAURI__) {
-                  await window.__TAURI__.core.invoke("test_notification", { sound: Boolean(v.sound) });
-                  notify("Aviso solicitado al sistema. Su visibilidad y sonido dependen de sus ajustes.");
-                } else if ("Notification" in window) {
+                  await window.__TAURI__.core.invoke('test_notification', {
+                    sound: Boolean(v.sound),
+                  });
+                  notify(
+                    'Aviso solicitado al sistema. Su visibilidad y sonido dependen de sus ajustes.',
+                  );
+                } else if ('Notification' in window) {
                   const permission = await Notification.requestPermission();
-                  if (permission === "granted")
-                    new Notification("Talleres El Ca\u00f1amo", {
-                      body: "Tus avisos est\u00e1n preparados.",
+                  if (permission === 'granted')
+                    new Notification('Talleres El Ca\u00f1amo', {
+                      body: 'Tus avisos est\u00e1n preparados.',
                       silent: !v.sound,
                     });
                   else
                     notify(
-                      "El navegador no ha concedido permiso. Los avisos siguen dentro de la app.",
+                      'El navegador no ha concedido permiso. Los avisos siguen dentro de la app.',
                     );
                 } else {
-                  setError("Este navegador no admite avisos del sistema. Los recordatorios siguen dentro de la aplicación.");
+                  setError(
+                    'Este navegador no admite avisos del sistema. Los recordatorios siguen dentro de la aplicación.',
+                  );
                 }
               } catch (e: unknown) {
                 setError(e instanceof Error ? e.message : String(e));
@@ -1295,14 +1265,11 @@ function GeneralSettings({
             Probar aviso
           </Button>
           <Notice>
-            Con el ordenador apagado o la aplicaci&oacute;n completamente
-            cerrada no hay alertas. En el programa de Windows, cerrar la ventana
-            la oculta en la bandeja; &laquo;Salir&raquo; detiene el programa.
-            Los avisos pendientes reaparecen al volver a abrir.
-            Los recordatorios se comprueban cada 20 segundos; no son una alarma
-            de precisión.
-            La prueba utiliza la opción de sonido que ves aquí. Guarda para
-            aplicarla a los recordatorios.
+            Con el ordenador apagado o la aplicaci&oacute;n completamente cerrada no hay alertas. En
+            el programa de Windows, cerrar la ventana la oculta en la bandeja; &laquo;Salir&raquo;
+            detiene el programa. Los avisos pendientes reaparecen al volver a abrir. Los
+            recordatorios se comprueban cada 20 segundos; no son una alarma de precisión. La prueba
+            utiliza la opción de sonido que ves aquí. Guarda para aplicarla a los recordatorios.
           </Notice>
           {native() && startup !== null && (
             <Toggle
@@ -1314,15 +1281,11 @@ function GeneralSettings({
                 setStartupBusy(true);
                 try {
                   setStartup(
-                    await window.__TAURI__.core.invoke<boolean>("set_startup", {
+                    await window.__TAURI__.core.invoke<boolean>('set_startup', {
                       enabled,
                     }),
                   );
-                  notify(
-                    enabled
-                      ? "Inicio de sesión activado"
-                      : "Inicio de sesión desactivado",
-                  );
+                  notify(enabled ? 'Inicio de sesión activado' : 'Inicio de sesión desactivado');
                 } catch (error: unknown) {
                   setError(String(error));
                 } finally {
@@ -1335,75 +1298,69 @@ function GeneralSettings({
           )}
         </section>
       )}
-      {tab === "assistant" && (
+      {tab === 'assistant' && (
         <section className="panel padded">
           <Toggle
             checked={v.enabled}
-            onChange={(x) => set("enabled", x)}
+            onChange={(x) => set('enabled', x)}
             hint="Dictado, lectura de documentación y propuestas de texto. Revisa cada resultado antes de incorporarlo."
           >
             Activar asistencia local opcional
           </Toggle>
-          {input("model", "Modelo de Ollama para redacción (opcional)", {
-            placeholder: "Vacío: reglas de presentación locales",
-            hint: "Solo si ya tienes Ollama en este ordenador (127.0.0.1:11434). El programa no instala modelos generativos ni usa proveedores externos.",
+          {input('model', 'Modelo de Ollama para redacción (opcional)', {
+            placeholder: 'Vacío: reglas de presentación locales',
+            hint: 'Solo si ya tienes Ollama en este ordenador (127.0.0.1:11434). El programa no instala modelos generativos ni usa proveedores externos.',
           })}
           <AssistanceStatus />
           <Notice>
-            La asistencia no emite facturas ni decide reparaciones. Los textos e
-            imágenes se procesan localmente; los resultados siempre se revisan
-            antes de guardar.
+            La asistencia no emite facturas ni decide reparaciones. Los textos e imágenes se
+            procesan localmente; los resultados siempre se revisan antes de guardar.
           </Notice>
           <h3>Automatizaciones disponibles sin IA</h3>
           <p>
-            Consulta del historial, conceptos frecuentes, conversiones, avisos
-            de agenda, mensajes preparados, existencias y copias de seguridad.
-            Abrir un borrador de WhatsApp no lo envía.
+            Consulta del historial, conceptos frecuentes, conversiones, avisos de agenda, mensajes
+            preparados, existencias y copias de seguridad. Abrir un borrador de WhatsApp no lo
+            envía.
           </p>
         </section>
       )}
-      {tab === "about" && (
+      {tab === 'about' && (
         <section className="panel padded">
           <BrandLogo identifier={config.billing.logo_id} />
           <h2>Talleres El C&aacute;&ntilde;amo</h2>
           <p>
-            Versi&oacute;n {licenses?.version || "—"} &middot;{" "}
+            Versi&oacute;n {licenses?.version || '—'} &middot;{' '}
             {productionReleased
-              ? "Expediente de liberación verificado"
-              : "Edición de desarrollo y validación"}
+              ? 'Expediente de liberación verificado'
+              : 'Edición de desarrollo y validación'}
           </p>
           <div className="divider" />
           <h3>Tus datos, en tu equipo</h3>
           <p>
-            Clientes, facturas y documentos se guardan en este ordenador. Haz
-            copias periódicas en una unidad externa y comprueba su restauración.
+            Clientes, facturas y documentos se guardan en este ordenador. Haz copias periódicas en
+            una unidad externa y comprueba su restauración.
           </p>
           <h3>Licencias y componentes</h3>
           <p>
-            Direcciones: CartoCiudad (IGN/CNIG) · CC BY 4.0. Las sugerencias
-            necesitan Internet y consultan únicamente el texto de dirección.
-            Puedes escribir y guardar cualquier dirección manualmente, sin conexión.
+            Direcciones: CartoCiudad (IGN/CNIG) · CC BY 4.0. Las sugerencias necesitan Internet y
+            consultan únicamente el texto de dirección. Puedes escribir y guardar cualquier
+            dirección manualmente, sin conexión.
           </p>
-          <p>
-            Consulta los avisos, las versiones y las fuentes de los componentes
-            del programa.
-          </p>
+          <p>Consulta los avisos, las versiones y las fuentes de los componentes del programa.</p>
           <Button
             icon="download"
             busy={busy}
             disabled={!licenses?.available}
             onClick={() =>
               run(async () => {
-                await saveExport(await api("licenses.export"));
+                await saveExport(await api('licenses.export'));
               })
             }
           >
             Descargar licencias
           </Button>
           {licenses && !licenses.available && (
-            <Notice tone="error">
-              Falta el inventario de licencias. Repara la instalación.
-            </Notice>
+            <Notice tone="error">Falta el inventario de licencias. Repara la instalación.</Notice>
           )}
           <h3>Atajos</h3>
           <dl className="shortcuts">
@@ -1437,13 +1394,11 @@ function GeneralSettings({
               icon="shield"
               onClick={() =>
                 run(async () => {
-                  const r = await api("audit.check");
+                  const r = await api('audit.check');
                   notify(
                     r.ok
-                      ? "Historial de auditor\u00eda comprobado: " +
-                          r.checked +
-                          " entradas"
-                      : "La auditor\u00eda contiene incidencias",
+                      ? 'Historial de auditor\u00eda comprobado: ' + r.checked + ' entradas'
+                      : 'La auditor\u00eda contiene incidencias',
                   );
                 })
               }
@@ -1451,33 +1406,28 @@ function GeneralSettings({
               Comprobar auditor&iacute;a local
             </Button>
             {[
-              ["customers", "clientes"],
-              ["vehicles", "veh\u00edculos"],
-              ["invoices", "facturas"],
-              ["stock", "cat\u00e1logo"],
+              ['customers', 'clientes'],
+              ['vehicles', 'veh\u00edculos'],
+              ['invoices', 'facturas'],
+              ['stock', 'cat\u00e1logo'],
             ].map(([kind, name]) => (
               <Button
                 key={kind}
                 icon="download"
-                onClick={() =>
-                  run(async () =>
-                    saveExport(await api("data.export", { kind })),
-                  )
-                }
+                onClick={() => run(async () => saveExport(await api('data.export', { kind })))}
               >
                 Exportar {name}
               </Button>
             ))}
           </div>
           <p className="small subtle">
-            Consulta LEEME.md y docs/ESTADO-VERIFICADO.md para requisitos,
-            pruebas y l&iacute;mites. No es una certificaci&oacute;n oficial de
-            la AEAT.
+            Consulta LEEME.md y docs/ESTADO-VERIFICADO.md para requisitos, pruebas y l&iacute;mites.
+            No es una certificaci&oacute;n oficial de la AEAT.
           </p>
         </section>
       )}
       {error && <Notice tone="error">{error}</Notice>}
-      {tab !== "about" && (
+      {tab !== 'about' && (
         <div className="settings-save">
           <Button tone="primary" icon="check" busy={busy} onClick={save}>
             Guardar cambios
@@ -1495,7 +1445,7 @@ function GeneralSettings({
             onSaved={async () => {
               setEditSeries(null);
               await refresh();
-              notify("Serie guardada");
+              notify('Serie guardada');
             }}
           />
         )}

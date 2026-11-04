@@ -1,20 +1,8 @@
-import * as React from "react";
-import {
-  Modal,
-  Popup,
-  Presence,
-  useCompact,
-  type ModalProps,
-} from "./overlays.js";
-import { TextInput, Textarea, Select, Autocomplete } from "./controls.js";
-export { Modal, Presence } from "./overlays.js";
-export {
-  TextInput,
-  Textarea,
-  Select,
-  NumberInput,
-  DateInput,
-} from "./controls.js";
+import * as React from 'react';
+import { Modal, Popup, Presence, useCompact, type ModalProps } from './overlays.js';
+import { TextInput, Textarea, Select, Autocomplete } from './controls.js';
+export { Modal, Presence } from './overlays.js';
+export { TextInput, Textarea, Select, NumberInput, DateInput } from './controls.js';
 
 export interface CustomerMatch {
   customer_id: string;
@@ -33,8 +21,7 @@ type FieldProps = WithChildren & {
   required?: boolean;
   className?: string;
 };
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> &
-  Pick<FieldProps, "label" | "hint">;
+type InputProps = React.InputHTMLAttributes<HTMLInputElement> & Pick<FieldProps, 'label' | 'hint'>;
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: string;
   tone?: string;
@@ -45,42 +32,44 @@ export type Setter<T> = (value: T | ((previous: T) => T)) => void;
 export function useState<T>(initial: T | (() => T)): [T, Setter<T>] {
   return React.useState(initial);
 }
-export const useEffect: (
-  effect: () => void | (() => void),
-  deps?: unknown[],
-) => void = React.useEffect;
+export const useEffect: (effect: () => void | (() => void), deps?: unknown[]) => void =
+  React.useEffect;
 export function useRef<T>(initial: T): { current: T } {
   return React.useRef(initial);
 }
 export const uuid = () => crypto.randomUUID();
 export const money = (value: number | null = 0) =>
-  value === null ? "No consta" :
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(
-    (value || 0) / 100,
-  );
-export const dateText = (v: string | null = "") =>
+  value === null
+    ? 'No consta'
+    : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(
+        (value || 0) / 100,
+      );
+export const dateText = (v: string | null = '') =>
   v
-    ? new Date(v.length === 10 ? v + "T12:00:00" : v).toLocaleDateString(
-        "es-ES",
-        { day: "2-digit", month: "short", year: "numeric" },
-      )
-    : v === null ? "No consta" : "\u2014";
+    ? new Date(v.length === 10 ? v + 'T12:00:00' : v).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : v === null
+      ? 'No consta'
+      : '\u2014';
 export const localDate = (d = new Date()) =>
   [
     d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
 export const localDateTime = (d = new Date()) =>
   localDate(d) +
-  "T" +
-  String(d.getHours()).padStart(2, "0") +
-  ":" +
-  String(d.getMinutes()).padStart(2, "0");
+  'T' +
+  String(d.getHours()).padStart(2, '0') +
+  ':' +
+  String(d.getMinutes()).padStart(2, '0');
 export const normalize = (v: string) =>
   v
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 export const native = () => Boolean(window.__TAURI__);
 type RpcReply<T> =
@@ -92,46 +81,43 @@ type RpcReply<T> =
 export class RpcError extends Error {
   constructor(
     message: string,
-    public code = "transport",
+    public code = 'transport',
     public details?: unknown,
   ) {
     super(message);
-    this.name = "RpcError";
+    this.name = 'RpcError';
   }
 }
-export async function api<T = any>(
-  action: string,
-  params: Row = {},
-): Promise<T> {
+export async function api<T = any>(action: string, params: Row = {}): Promise<T> {
   try {
     let answer: RpcReply<T>;
     if (window.__TAURI__) {
-      answer = await window.__TAURI__.core.invoke<RpcReply<T>>("rpc", {
+      answer = await window.__TAURI__.core.invoke<RpcReply<T>>('rpc', {
         action,
         params,
       });
     } else {
-      const response = await fetch("/api", {
-        method: "POST",
+      const response = await fetch('/api', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "X-Canamo-Token": window.__CANAMO_DEV_TOKEN__ || "",
+          'Content-Type': 'application/json',
+          'X-Canamo-Token': window.__CANAMO_DEV_TOKEN__ || '',
         },
         body: JSON.stringify({ action, params }),
       });
       if (!response.ok)
         throw new RpcError(
-          "No se ha podido conectar con el servicio local. Reabre la aplicación y revisa el historial antes de repetir la operación.",
+          'No se ha podido conectar con el servicio local. Reabre la aplicación y revisa el historial antes de repetir la operación.',
         );
       answer = await response.json();
     }
-    if (!answer || typeof answer.ok !== "boolean")
+    if (!answer || typeof answer.ok !== 'boolean')
       throw new RpcError(
-        "Respuesta del servicio local no válida. Revisa el historial antes de repetir la operación.",
+        'Respuesta del servicio local no válida. Revisa el historial antes de repetir la operación.',
       );
     if (!answer.ok)
       throw new RpcError(
-        answer.error?.message || "No se ha podido completar la operación.",
+        answer.error?.message || 'No se ha podido completar la operación.',
         answer.error?.code,
         answer.error?.details,
       );
@@ -139,9 +125,9 @@ export async function api<T = any>(
   } catch (error: unknown) {
     if (error instanceof RpcError) throw error;
     throw new RpcError(
-      typeof error === "string"
+      typeof error === 'string'
         ? error
-        : "Se ha interrumpido la comunicación con el servicio local. Revisa el historial antes de repetir la operación.",
+        : 'Se ha interrumpido la comunicación con el servicio local. Revisa el historial antes de repetir la operación.',
     );
   }
 }
@@ -153,12 +139,12 @@ export function useLoad<T>(
 ): [T, boolean, string] {
   const [data, setData] = useState<T>(initial),
     [loading, setLoading] = useState(true),
-    [error, setError] = useState("");
+    [error, setError] = useState('');
   const key = JSON.stringify(params);
   useEffect(() => {
     let live = true;
     setLoading(true);
-    setError("");
+    setError('');
     api<T>(action, params)
       .then((v) => {
         if (live) setData(v);
@@ -176,7 +162,7 @@ export function useLoad<T>(
   return [data, loading, error];
 }
 export function Icon({
-  name = "home",
+  name = 'home',
   size = 20,
   ...rest
 }: React.SVGProps<SVGSVGElement> & { name?: string; size?: number }) {
@@ -346,8 +332,8 @@ export function Icon({
 export function Button({
   children,
   icon,
-  tone = "",
-  className = "",
+  tone = '',
+  className = '',
   busy = false,
   ...props
 }: ButtonProps) {
@@ -356,7 +342,7 @@ export function Button({
       type="button"
       {...props}
       disabled={props.disabled || busy}
-      className={"button " + tone + " " + className}
+      className={'button ' + tone + ' ' + className}
     >
       {busy ? <span className="spinner" /> : icon ? <Icon name={icon} /> : null}
       {children}
@@ -364,89 +350,70 @@ export function Button({
   );
 }
 export const badgeLabels: Row = {
-    draft: "Borrador",
-    issued: "Emitida",
-    historical: "Hist\u00f3rica",
-    void: "Anulada",
-    sent: "Enviado",
-    accepted: "Aceptado",
-    rejected: "Rechazado",
-    expired: "Caducado",
-    received: "Recibido",
-    repairing: "En reparaci\u00f3n",
-    waiting_parts: "Esperando piezas",
-    ready: "Terminado",
-    delivered: "Entregado",
-    local_only: "Prueba local",
-    pending: "Pendiente",
-    retry: "Reintento pendiente",
-    sending: "Enviando",
-    accepted_with_errors: "Aceptado con errores",
-    duplicate_review: "Revisar duplicado",
-    uncertain: "Resultado por confirmar",
-    reconciliation_conflict: "Diferencia en la consulta",
-    invalid_local: "Error de validación local",
-    superseded: "Sustituido por subsanación",
-  };
+  draft: 'Borrador',
+  issued: 'Emitida',
+  historical: 'Hist\u00f3rica',
+  void: 'Anulada',
+  sent: 'Enviado',
+  accepted: 'Aceptado',
+  rejected: 'Rechazado',
+  expired: 'Caducado',
+  received: 'Recibido',
+  repairing: 'En reparaci\u00f3n',
+  waiting_parts: 'Esperando piezas',
+  ready: 'Terminado',
+  delivered: 'Entregado',
+  local_only: 'Prueba local',
+  pending: 'Pendiente',
+  retry: 'Reintento pendiente',
+  sending: 'Enviando',
+  accepted_with_errors: 'Aceptado con errores',
+  duplicate_review: 'Revisar duplicado',
+  uncertain: 'Resultado por confirmar',
+  reconciliation_conflict: 'Diferencia en la consulta',
+  invalid_local: 'Error de validación local',
+  superseded: 'Sustituido por subsanación',
+};
 export function Badge({ value, children }: Row) {
-  return (
-    <span className={"badge status-" + value}>
-      {children || badgeLabels[value] || value}
-    </span>
-  );
+  return <span className={'badge status-' + value}>{children || badgeLabels[value] || value}</span>;
 }
-export function Field({
-  label,
-  children,
-  hint,
-  required,
-  ...rest
-}: FieldProps) {
+export function Field({ label, children, hint, required, ...rest }: FieldProps) {
   const fieldId = React.useId();
   const controls = React.Children.map(children, (child) => {
     if (
       !React.isValidElement<Row>(child) ||
-      ![
-        "input",
-        "select",
-        "textarea",
-        TextInput,
-        Textarea,
-        Select,
-        Autocomplete,
-      ].includes(child.type as any)
+      !['input', 'select', 'textarea', TextInput, Textarea, Select, Autocomplete].includes(
+        child.type as any,
+      )
     )
       return child;
     return React.cloneElement(child, {
       id: child.props.id || fieldId,
-      ...(!child.props["aria-label"] && !child.props["aria-labelledby"]
-        ? { "aria-labelledby": fieldId + "-label" }
+      ...(!child.props['aria-label'] && !child.props['aria-labelledby']
+        ? { 'aria-labelledby': fieldId + '-label' }
         : {}),
       ...(hint
         ? {
-            "aria-describedby": [
-              child.props["aria-describedby"],
-              fieldId + "-hint",
-            ]
+            'aria-describedby': [child.props['aria-describedby'], fieldId + '-hint']
               .filter(Boolean)
-              .join(" "),
+              .join(' '),
           }
         : {}),
     });
   });
   return (
-    <div className={"field " + (rest.className || "")}>
-      <label id={fieldId + "-label"} htmlFor={fieldId}>
+    <div className={'field ' + (rest.className || '')}>
+      <label id={fieldId + '-label'} htmlFor={fieldId}>
         {label}
         {required && (
           <span className="required" aria-hidden="true">
-            {" "}
+            {' '}
             *
           </span>
         )}
       </label>
       {controls}
-      {hint && <small id={fieldId + "-hint"}>{hint}</small>}
+      {hint && <small id={fieldId + '-hint'}>{hint}</small>}
     </div>
   );
 }
@@ -485,22 +452,19 @@ export function Toggle({
     </label>
   );
 }
-export function Notice({ children, tone = "info" }: Row) {
+export function Notice({ children, tone = 'info' }: Row) {
   return (
-    <div
-      className={"notice " + tone}
-      role={tone === "error" ? "alert" : "note"}
-    >
-      <Icon name={tone === "error" ? "shield" : "info"} />
+    <div className={'notice ' + tone} role={tone === 'error' ? 'alert' : 'note'}>
+      <Icon name={tone === 'error' ? 'shield' : 'info'} />
       <div>{children}</div>
     </div>
   );
 }
 export function Empty({
-  title = "Todav\u00eda no hay nada aqu\u00ed",
+  title = 'Todav\u00eda no hay nada aqu\u00ed',
   text,
   children,
-  icon = "invoice",
+  icon = 'invoice',
 }: Row) {
   return (
     <div className="empty">
@@ -535,7 +499,7 @@ export function Loading() {
 export function Confirm({
   title,
   text,
-  confirm = "Confirmar",
+  confirm = 'Confirmar',
   danger = false,
   onClose,
   onConfirm,
@@ -546,7 +510,7 @@ export function Confirm({
   onConfirm: () => unknown | Promise<unknown>;
 }) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState('');
   return (
     <Modal title={title} onClose={() => !busy && onClose()}>
       <p className="dialog-copy">{text}</p>
@@ -557,7 +521,7 @@ export function Confirm({
         </Button>
         <Button
           busy={busy}
-          tone={danger ? "danger" : "primary"}
+          tone={danger ? 'danger' : 'primary'}
           onClick={async () => {
             setBusy(true);
             try {
@@ -577,12 +541,11 @@ export function Confirm({
   );
 }
 export async function fileBase64(file: File): Promise<string> {
-  if (file.size > 200 * 1024 * 1024)
-    throw new Error("El archivo supera 200 MB.");
+  if (file.size > 200 * 1024 * 1024) throw new Error('El archivo supera 200 MB.');
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(",")[1]);
-    reader.onerror = () => reject(new Error("No se puede leer el archivo."));
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(new Error('No se puede leer el archivo.'));
     reader.readAsDataURL(file);
   });
 }
@@ -591,40 +554,32 @@ export async function saveExport(
 ): Promise<{ saved?: boolean; downloadStarted?: boolean }> {
   try {
     if (window.__TAURI__)
-      return await window.__TAURI__.core.invoke<{ saved: boolean }>(
-        "save_export",
-        {
-          name: data.name,
-          content: data.content,
-          capability: data.capability,
-          bytes: data.bytes,
-          sha256: data.sha256,
-        },
-      );
+      return await window.__TAURI__.core.invoke<{ saved: boolean }>('save_export', {
+        name: data.name,
+        content: data.content,
+        capability: data.capability,
+        bytes: data.bytes,
+        sha256: data.sha256,
+      });
     // The browser is a development preview. The Windows application writes
     // chunks directly to the selected file, with a bounded memory footprint.
     if (data.capability && !data.content && data.bytes > 256 * 1024 ** 2)
-      throw new Error(
-        "Para guardar esta copia grande, abre la aplicación de escritorio.",
-      );
+      throw new Error('Para guardar esta copia grande, abre la aplicación de escritorio.');
     const parts: Uint8Array<ArrayBuffer>[] = [];
-    if (typeof data.content === "string") {
+    if (typeof data.content === 'string') {
       parts.push(Uint8Array.from(atob(data.content), (c) => c.charCodeAt(0)));
     } else if (data.capability) {
       let offset = 0;
       while (offset < data.bytes) {
-        const chunk = await api("backup.download_chunk", {
+        const chunk = await api('backup.download_chunk', {
           capability: data.capability,
           offset,
           length: Math.min(data.chunk_bytes || 1048576, data.bytes - offset),
         });
-        const bytes = Uint8Array.from(atob(chunk.content), (c) =>
-          c.charCodeAt(0),
-        );
-        const hash = Array.from(
-          new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
-          (v) => v.toString(16).padStart(2, "0"),
-        ).join("");
+        const bytes = Uint8Array.from(atob(chunk.content), (c) => c.charCodeAt(0));
+        const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (v) =>
+          v.toString(16).padStart(2, '0'),
+        ).join('');
         if (
           chunk.offset !== offset ||
           chunk.total_bytes !== data.bytes ||
@@ -632,35 +587,26 @@ export async function saveExport(
           !bytes.length ||
           hash !== chunk.sha256
         )
-          throw new Error(
-            "La descarga no coincide con el archivo preparado. Vuelve a guardarlo.",
-          );
+          throw new Error('La descarga no coincide con el archivo preparado. Vuelve a guardarlo.');
         parts.push(bytes);
         offset += bytes.length;
         if (offset > data.bytes || chunk.eof !== (offset === data.bytes))
-          throw new Error("La descarga está incompleta. Vuelve a guardarla.");
+          throw new Error('La descarga está incompleta. Vuelve a guardarla.');
       }
-    } else throw new Error("No se ha recibido un archivo para guardar.");
+    } else throw new Error('No se ha recibido un archivo para guardar.');
     const blob = new Blob(parts, {
-      type: data.mime || "application/octet-stream",
+      type: data.mime || 'application/octet-stream',
     });
     if (data.sha256) {
       const hash = Array.from(
-        new Uint8Array(
-          await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()),
-        ),
-        (v) => v.toString(16).padStart(2, "0"),
-      ).join("");
-      if (
-        hash !== data.sha256 ||
-        (data.bytes !== undefined && blob.size !== data.bytes)
-      )
-        throw new Error(
-          "La huella de la descarga no coincide. Vuelve a guardarla.",
-        );
+        new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())),
+        (v) => v.toString(16).padStart(2, '0'),
+      ).join('');
+      if (hash !== data.sha256 || (data.bytes !== undefined && blob.size !== data.bytes))
+        throw new Error('La huella de la descarga no coincide. Vuelve a guardarla.');
     }
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = data.name;
     a.click();
@@ -668,56 +614,56 @@ export async function saveExport(
     return { downloadStarted: true };
   } finally {
     if (data.capability)
-      await api("backup.release_download", {
+      await api('backup.release_download', {
         capability: data.capability,
       }).catch(() => {});
   }
 }
 export function PdfPreview({ data, onClose }: Row) {
-  const [url, setUrl] = useState("");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState<"" | "save" | "open" | "print">("");
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState<'' | 'save' | 'open' | 'print'>('');
   useEffect(() => {
-    let u = "";
-    setError("");
-    setMessage("");
+    let u = '';
+    setError('');
+    setMessage('');
     try {
       const raw = atob(data.content);
       u = URL.createObjectURL(
         new Blob([Uint8Array.from(raw, (c) => c.charCodeAt(0))], {
-          type: "application/pdf",
+          type: 'application/pdf',
         }),
       );
       setUrl(u);
     } catch {
-      setUrl("");
-      setError("No se puede cargar el PDF recibido.");
+      setUrl('');
+      setError('No se puede cargar el PDF recibido.');
     }
     return () => {
       if (u) URL.revokeObjectURL(u);
     };
   }, [data.content]);
-  async function handlePdf(action: "open" | "print") {
+  async function handlePdf(action: 'open' | 'print') {
     if (!window.__TAURI__ || busy) return;
     setBusy(action);
-    setError("");
-    setMessage("");
+    setError('');
+    setMessage('');
     try {
-      await window.__TAURI__.core.invoke("handle_pdf", {
+      await window.__TAURI__.core.invoke('handle_pdf', {
         name: data.name,
         content: data.content,
         action,
       });
       setMessage(
-        action === "print"
-          ? "Solicitud de impresión aceptada por el sistema. Comprueba la cola o el lector para confirmar el resultado."
-          : "Se ha solicitado abrir el PDF en tu lector predeterminado.",
+        action === 'print'
+          ? 'Solicitud de impresión aceptada por el sistema. Comprueba la cola o el lector para confirmar el resultado.'
+          : 'Se ha solicitado abrir el PDF en tu lector predeterminado.',
       );
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
-      setBusy("");
+      setBusy('');
     }
   }
   return (
@@ -730,21 +676,20 @@ export function PdfPreview({ data, onClose }: Row) {
       <div className="pdf-toolbar">
         <Button
           icon="download"
-          busy={busy === "save"}
+          busy={busy === 'save'}
           disabled={Boolean(busy) || !url}
           onClick={async () => {
-            setBusy("save");
-            setError("");
-            setMessage("");
+            setBusy('save');
+            setError('');
+            setMessage('');
             try {
               const result = await saveExport(data);
-              if (result.saved) setMessage("PDF guardado.");
-              else if (result.downloadStarted)
-                setMessage("Se ha iniciado la descarga del PDF.");
+              if (result.saved) setMessage('PDF guardado.');
+              else if (result.downloadStarted) setMessage('Se ha iniciado la descarga del PDF.');
             } catch (error: unknown) {
               setError(error instanceof Error ? error.message : String(error));
             } finally {
-              setBusy("");
+              setBusy('');
             }
           }}
         >
@@ -753,46 +698,39 @@ export function PdfPreview({ data, onClose }: Row) {
         {native() ? (
           <>
             <Button
-              busy={busy === "open"}
+              busy={busy === 'open'}
               disabled={Boolean(busy) || !url}
-              onClick={() => handlePdf("open")}
+              onClick={() => handlePdf('open')}
             >
               Abrir en lector
             </Button>
             <Button
               icon="print"
-              busy={busy === "print"}
+              busy={busy === 'print'}
               disabled={Boolean(busy) || !url}
-              onClick={() => handlePdf("print")}
+              onClick={() => handlePdf('print')}
             >
               Imprimir
             </Button>
             <span>
-              Se usa la impresora predeterminada del sistema. Abre el lector si
-              necesitas elegir otra.
+              Se usa la impresora predeterminada del sistema. Abre el lector si necesitas elegir
+              otra.
             </span>
           </>
         ) : (
-          <span>
-            Para imprimir, utiliza el botón de la vista previa o abre el PDF
-            guardado.
-          </span>
+          <span>Para imprimir, utiliza el botón de la vista previa o abre el PDF guardado.</span>
         )}
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       {message && <Notice>{message}</Notice>}
-      <iframe
-        title="Vista previa de la factura"
-        className="pdf-frame"
-        src={url}
-      />
+      <iframe title="Vista previa de la factura" className="pdf-frame" src={url} />
     </Modal>
   );
 }
 export function CustomerSearch({
   onSelect,
-  placeholder = "Nombre, matrícula, teléfono o NIF",
-  initial = "",
+  placeholder = 'Nombre, matrícula, teléfono o NIF',
+  initial = '',
   global = false,
 }: {
   onSelect: (customer: CustomerMatch) => void;
@@ -802,12 +740,12 @@ export function CustomerSearch({
 }) {
   const [query, setQuery] = useState(initial);
   const [results, setResults] = useState<CustomerMatch[]>([]);
-  const [resolvedQuery, setResolvedQuery] = useState("");
+  const [resolvedQuery, setResolvedQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
   const [slow, setSlow] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const input = useRef<HTMLInputElement | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
   const serial = useRef(0);
@@ -819,19 +757,15 @@ export function CustomerSearch({
   const first = stale ? undefined : results[active];
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (
-        global &&
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "k"
-      ) {
+      if (global && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         input.current?.focus();
         input.current?.select();
         setOpen(true);
       }
     };
-    document.addEventListener("keydown", key);
-    return () => document.removeEventListener("keydown", key);
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
   }, [global]);
   useEffect(() => {
     const request = ++serial.current;
@@ -840,14 +774,14 @@ export function CustomerSearch({
       setResolvedQuery(query);
       setLoading(false);
       setSlow(false);
-      setError("");
+      setError('');
       return;
     }
     setLoading(true);
     setSlow(false);
-    setError("");
+    setError('');
     const timer = window.setTimeout(() => setSlow(true), 250);
-    api<CustomerMatch[]>("customers.search", { query })
+    api<CustomerMatch[]>('customers.search', { query })
       .then((rows) => {
         if (request === serial.current) {
           setResults(rows);
@@ -874,10 +808,7 @@ export function CustomerSearch({
     };
   }, [query]);
   useEffect(() => {
-    if (visible)
-      document
-        .getElementById(id + "-" + active)
-        ?.scrollIntoView({ block: "nearest" });
+    if (visible) document.getElementById(id + '-' + active)?.scrollIntoView({ block: 'nearest' });
   }, [active, visible, id]);
   function close() {
     suppressFocus.current = compact;
@@ -891,42 +822,39 @@ export function CustomerSearch({
   function choose(row: CustomerMatch) {
     if (stale) return;
     close();
-    updateQuery(global ? "" : row.name);
+    updateQuery(global ? '' : row.name);
     onSelect(row);
   }
   const suggestion = first
-    ? normalize(first.plate || "")
-        .replace(/[^a-z0-9]/g, "")
-        .startsWith(normalize(query).replace(/[^a-z0-9]/g, ""))
+    ? normalize(first.plate || '')
+        .replace(/[^a-z0-9]/g, '')
+        .startsWith(normalize(query).replace(/[^a-z0-9]/g, ''))
       ? first.plate
       : first.name
-    : "";
+    : '';
   const inline =
     suggestion && normalize(suggestion).startsWith(normalize(query))
       ? suggestion.slice(query.length)
-      : "";
-  const label = global ? "Buscar cliente o matrícula" : placeholder;
+      : '';
+  const label = global ? 'Buscar cliente o matrícula' : placeholder;
   function keys(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       setOpen(true);
       if (!stale)
         setActive((index) =>
           Math.max(
             0,
-            Math.min(
-              index + (event.key === "ArrowDown" ? (open ? 1 : 0) : -1),
-              results.length - 1,
-            ),
+            Math.min(index + (event.key === 'ArrowDown' ? (open ? 1 : 0) : -1), results.length - 1),
           ),
         );
     }
-    if (event.key === "Enter" && visible) {
+    if (event.key === 'Enter' && visible) {
       event.preventDefault();
       if (first) choose(first);
     }
     if (
-      event.key === "ArrowRight" &&
+      event.key === 'ArrowRight' &&
       visible &&
       inline &&
       event.currentTarget.selectionStart === query.length
@@ -934,8 +862,8 @@ export function CustomerSearch({
       event.preventDefault();
       updateQuery(query + inline);
     }
-    if (event.key === "Tab" && !compact) close();
-    if (event.key === "Escape" && open) {
+    if (event.key === 'Tab' && !compact) close();
+    if (event.key === 'Escape' && open) {
       event.preventDefault();
       event.stopPropagation();
       close();
@@ -943,14 +871,14 @@ export function CustomerSearch({
   }
   const combobox = {
     value: query,
-    role: "combobox",
-    "aria-label": label,
-    "aria-autocomplete": "both" as const,
-    "aria-expanded": visible,
-    "aria-controls": visible ? id : undefined,
-    "aria-activedescendant": visible && first ? id + "-" + active : undefined,
+    role: 'combobox',
+    'aria-label': label,
+    'aria-autocomplete': 'both' as const,
+    'aria-expanded': visible,
+    'aria-controls': visible ? id : undefined,
+    'aria-activedescendant': visible && first ? id + '-' + active : undefined,
     placeholder,
-    autoComplete: "off",
+    autoComplete: 'off',
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
       updateQuery(event.target.value);
       setOpen(true);
@@ -958,10 +886,7 @@ export function CustomerSearch({
     onKeyDown: keys,
   };
   return (
-    <div
-      className={"customer-search " + (global ? "global-search" : "")}
-      ref={box}
-    >
+    <div className={'customer-search ' + (global ? 'global-search' : '')} ref={box}>
       <div className="search-input-wrap">
         <Icon name="search" />
         {inline && open && (
@@ -998,23 +923,20 @@ export function CustomerSearch({
               <div className="search-label">
                 Clientes y vehículos
                 <span className="search-status" role="status">
-                  {slow ? "Actualizando…" : "Intro para abrir"}
+                  {slow ? 'Actualizando…' : 'Intro para abrir'}
                 </span>
               </div>
               <div id={id} role="listbox" aria-label="Coincidencias">
                 {results.map((row, index) => (
                   <button
                     type="button"
-                    key={row.customer_id + "-" + (row.vehicle_id || "")}
-                    id={id + "-" + index}
+                    key={row.customer_id + '-' + (row.vehicle_id || '')}
+                    id={id + '-' + index}
                     role="option"
                     tabIndex={-1}
                     aria-selected={!stale && active === index}
                     aria-disabled={stale}
-                    className={
-                      "search-result " +
-                      (!stale && active === index ? "active" : "")
-                    }
+                    className={'search-result ' + (!stale && active === index ? 'active' : '')}
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseMove={(event) => {
                       if (event.movementX || event.movementY) setActive(index);
@@ -1022,24 +944,21 @@ export function CustomerSearch({
                     onClick={() => choose(row)}
                   >
                     <span className="result-icon">
-                      <Icon name={row.plate ? "car" : "users"} />
+                      <Icon name={row.plate ? 'car' : 'users'} />
                     </span>
                     <span className="result-main">
                       <strong>{row.name}</strong>
                       <small>
                         {row.plate ? (
                           <>
-                            <b className="plate-text">{row.plate}</b> ·{" "}
-                            {row.make} {row.model}
+                            <b className="plate-text">{row.plate}</b> · {row.make} {row.model}
                           </>
                         ) : (
-                          row.legacy_code || "Cliente sin vehículo"
+                          row.legacy_code || 'Cliente sin vehículo'
                         )}
                       </small>
                     </span>
-                    <span className="result-phone">
-                      {row.phone || "Sin teléfono"}
-                    </span>
+                    <span className="result-phone">{row.phone || 'Sin teléfono'}</span>
                     <Icon name="arrow" size={16} />
                   </button>
                 ))}
@@ -1048,9 +967,9 @@ export function CustomerSearch({
                 <p className="search-no-results" role="status">
                   {loading
                     ? slow
-                      ? "Buscando coincidencias…"
-                      : "Escribe para buscar un cliente o vehículo."
-                    : error || "No hay coincidencias. Prueba con otro dato."}
+                      ? 'Buscando coincidencias…'
+                      : 'Escribe para buscar un cliente o vehículo.'
+                    : error || 'No hay coincidencias. Prueba con otro dato.'}
                 </p>
               )}
             </div>
@@ -1062,12 +981,12 @@ export function CustomerSearch({
 }
 export function Avatar({ name, large = false }: Row) {
   return (
-    <span className={"avatar " + (large ? "large" : "")}>
-      {String(name || "?")
-        .split(" ")
+    <span className={'avatar ' + (large ? 'large' : '')}>
+      {String(name || '?')
+        .split(' ')
         .slice(0, 2)
         .map((x) => x[0])
-        .join("")
+        .join('')
         .toUpperCase()}
     </span>
   );
@@ -1081,11 +1000,7 @@ export function Pager({ total, page, onChange, size = 50 }: Row) {
       <Button icon="left" disabled={!page} onClick={() => onChange(page - 1)}>
         Anterior
       </Button>
-      <Button
-        icon="right"
-        disabled={(page + 1) * size >= total}
-        onClick={() => onChange(page + 1)}
-      >
+      <Button icon="right" disabled={(page + 1) * size >= total} onClick={() => onChange(page + 1)}>
         Siguiente
       </Button>
     </div>
