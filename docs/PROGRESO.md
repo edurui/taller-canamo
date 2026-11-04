@@ -1,5 +1,15 @@
 # Registro de trabajo · actualizado el 04/11/2026
 
+## Cierre Windows · 04/11/2026
+
+Instalador de `0e4b4d0` comprobado en Windows Server 2025: construcción completa
+`41802145854` (843 Python/166 E2E/16 Rust) y verificación nativa `41810156535`
+correcta en 1 min 54 s, sin recompilar. Diagnóstico instalado y cinco controles
+Tauri/WebView2, hashes y 206 entradas verificados; 57 regresiones locales de las
+correcciones de pruebas. Ver `../reports/REANUDACION-WINDOWS-2026-11-04.md`.
+Candidato de ensayo; persisten los pasos físicos/fiscales y de corte para uso real.
+Los apartados anteriores en el tiempo se conservan como antecedentes.
+
 Fase posterior de calidad: usuario autoriza rama y workflow Windows. Prettier,
 ESLint, Ruff, rustfmt y Clippy correctos; 842 Python y 166 E2E/Axe tras el formato,
 typechecks/build/pip check correctos y fuentes estables. Exclusión del driver externo

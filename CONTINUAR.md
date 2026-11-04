@@ -6,6 +6,21 @@ La edición de desarrollo conserva sus avisos de prueba y no debe usarse para fa
 operativamente. Los siguientes pasos requieren medios o datos que no están disponibles
 en este entorno; no son instrucciones para volver a programar los módulos.
 
+## Candidato Windows comprobado · 04/11/2026
+
+Instalador nuevo construido en `41802145854`, commit de aplicación `0e4b4d0`;
+843 Python, 166 E2E, 16 Rust y calidad correctos. Instalación/diagnóstico y ventana
+real aprobados en `41810156535`, sin recompilar, en 1 min 54 s. El hash del NSIS
+es `674cb06eb0e1b1f4a2c48d7ac588b1e0b52834fe41f1cb7681422379d3c8f3e2`.
+Informe: `reports/REANUDACION-WINDOWS-2026-11-04.md`. No repetir build por cambios
+solo de pruebas/documentos; la reanudación comprueba integridad y fuentes.
+
+La nueva entrega de ensayo queda separada de los datos privados del 27/10.
+Siguiente paso externo: comprobar PC/impresora del taller y completar certificado,
+expediente, identidad/serie y corte de Access antes de emitir facturas operativas.
+El NSIS sigue sin firma digital. Los apartados siguientes conservan antecedentes,
+no invalidan la aceptación nativa de noviembre ni sustituyen sus bytes por los antiguos.
+
 ## Preparación Windows y copia de ensayo · 27/10/2026
 
 Copia cifrada actual creada, restaurada y comparada: 1.598 clientes, 1.292 vehículos

@@ -103,10 +103,13 @@ job `126480256385`, sobre ese SHA, iniciado el 04/11 a las 09:46:57 Europe/Madri
 166 E2E, 16 Rust, seis controles de calidad y servicio congelado. Falló después
 la comparación del EXE instalado; la causa y su corrección sin recompilar están
 en `REANUDACION-WINDOWS-2026-11-04.md`. Todavía no se atribuye éxito al recorrido
-nativo. Ver `windows-dispatch.json`, `windows-runs.json`
+nativo en esa primera ejecución. La reanudación `41810156535` **sí termina correcta**:
+instalación/diagnóstico y cinco controles nativos sobre el mismo instalador, sin
+recompilar, en 1 min 54 s. Ver `REANUDACION-WINDOWS-2026-11-04.md` y
+`windows-dispatch.json`, `windows-runs.json`
 y `publish-source-proof.json` en el directorio local de evidencias.
 
-Pendiente: candidato nuevo instalado y probado con WebView2; después, equipo del
+Pendiente: equipo del
 taller/impresora, certificado legítimo y expediente de esos bytes, identidad/serie
 y corte acordado desde Access. No se activan flags de producción ni se modifican
 datos reales como parte de esta revisión.

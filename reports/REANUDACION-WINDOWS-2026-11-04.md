@@ -107,3 +107,60 @@ Se cubre también la respuesta GitHub `steps:null` de un job omitido, sin acepta
 jobs fallidos adicionales. **57 pruebas dirigidas correctas** (incluidas seis de
 aislamiento/restauración de la política), Ruff y actionlint correctos; plantilla
 YAML formateada. Los nueve controles PS se adelantan también al build completo.
+
+## Cierre verificado
+
+Run [41810156535](https://github.com/edurui/taller-canamo/actions/runs/41810156535),
+job `126507120553`, commit de pruebas `8ca30f2719bb2f001f1f2708d900573bb67ed20e`:
+**success**, 09:49:53–09:51:47 UTC, **1 min 54 s**. Job `build` omitido. No se
+han repetido las baterías ni la compilación del instalador de `0e4b4d0`.
+
+- Integridad, 206 entradas y evidencias originales correctas; mismo SHA del NSIS.
+- Instalación con espacios/tildes, factura sintética, PDF, copia por bloques,
+  reapertura de histórico, cierre y desinstalación correctos.
+- **Cinco controles nativos**: ventana Tauri/buscador, demo desde UI/IPC real,
+  matrícula normalizada/teléfono/ficha con Enter, PDF PyInstaller desde WebView,
+  segunda instancia finalizada conservando la sesión original.
+- Arranque **16,673 s**. `native-window.png` revisada: ficha demo, buscador,
+  teléfono y vehículo legibles, aviso de edición de pruebas visible.
+- WebView2 y driver Microsoft **156.0.4314.50**. El informe confirma host elevado,
+  política específica y restauración (`original_value_present=false`, `restored=true`).
+  El ajuste del entorno resuelve la conexión; ningún cambio en bytes de la app.
+
+Evidencia GitHub `13312037113`, ZIP SHA-256
+`c1f7904f869cceeadb47de3e03455145b396772d175616b5e3ed6b9081a5610c`.
+Descargada, CRC/hash contrastados, en `calidad-windows-2026-11-04/resume-success/`.
+Los hashes reales de app/servicio coinciden entre informe instalado y nativo.
+`windows-reused-artifact.json` describe el punto previo (build, gates pendientes);
+su aceptación posterior se acredita con los informes instalado/nativo y el run
+correcto, no alterando retrospectivamente ese documento.
+
+La publicación por Git tuvo errores SSH/HTTP 500 intermitentes. El conector creó
+el árbol y la API el commit con identidad personal noreply; ambos hashes coinciden
+exactamente con Git local. Actualización fast-forward con SHA anterior esperado,
+sin force push ni modificación de `main`. Un dispatch HTTP 500 se reintentó solo
+tras comprobar que no había creado un run; la petición posterior fue correcta.
+
+Límites: Windows Server 2025 con herramientas de desarrollo en el runner; no se
+ha probado aún un Windows 11 limpio del taller ni impresora, escalas, reinicio o
+notificaciones físicas. La prueba nativa no usa los receptores de impresión Linux.
+El NSIS no tiene firma digital (directorio de seguridad PE vacío). Se mantienen
+las barreras fiscales; faltan certificado/expediente legítimos y corte/serie del taller.
+El paquete puede entregarse para **ensayo**, no para emitir facturas operativas.
+
+
+## Paquete preparado
+
+Entrega nueva: `~/Entregas/Taller-Canamo-0.9.1-ensayo-2026-11-04/` y ZIP homónimo.
+Contiene el instalador original, LEEME-PRIMERO.txt, PRUEBAS-Y-LIMITES.txt,
+SHA256SUMS.txt y evidencias de hashes/instalación/ventana. Once archivos, sin datos
+reales, certificados ni contraseñas; CRC y SHA de todos los archivos del ZIP
+comprobados. ZIP de 284.821.615 bytes, SHA-256
+`fa7243c596cf78e174bab570dcf61c7a7f02969737d2532ec25ae09d86e1447d`.
+Se preserva el candidato previo y la entrega privada del 27/10.
+Registro local: `calidad-windows-2026-11-04/delivery.json`.
+
+ZIP de fuentes actualizado: `build/entrega/taller-canamo-0.9.1-fuentes-calidad-2026-11-04.zip`, 347 archivos, 2493947 bytes,
+SHA-256 `c0a93fd9d6d1fcfbd11753a68409e0555e2ef644879f234d8677427370c735b2`; CRC y hashes internos correctos.
+Las actualizaciones finales de estado/checklist son documentales y no requieren
+repetir el build ni atribuirle un commit de aplicación distinto.

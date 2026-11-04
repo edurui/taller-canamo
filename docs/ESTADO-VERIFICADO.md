@@ -1,5 +1,28 @@
 # Estado verificado · 4 de noviembre de 2026
 
+## Candidato Windows verificado, sin recompilar · cierre 04/11/2026
+
+**Instalación y recorrido nativo Windows aprobados sobre el instalador de `0e4b4d0`.**
+Run [41810156535](https://github.com/edurui/taller-canamo/actions/runs/41810156535),
+pruebas en `8ca30f2`: correcto, **1 min 54 s**, job de build omitido. Instalador
+SHA-256 `674cb06eb0e1b1f4a2c48d7ac588b1e0b52834fe41f1cb7681422379d3c8f3e2`.
+La reutilización contrasta 206 entradas y conserva las baterías del build original:
+843 Python, 166 E2E, 16 Rust y seis controles de calidad correctos.
+
+En Windows Server 2025: NSIS por usuario en ruta con tildes/espacios; integridad,
+factura sintética/PDF/copia/reapertura/cierre; ventana Tauri y demo por IPC real,
+matrícula/teléfono/ficha con Enter, PDF desde WebView y segunda instancia correctos.
+Cinco controles nativos, arranque 16,673 s; captura revisada. La política de
+depuración específica del runner elevado se restauró (`restored=true`).
+57 regresiones locales y nueve controles PS cubren las correcciones de pruebas.
+Aplicación, servicio e instalador sin cambios después del build original.
+
+Es un **candidato de pruebas**, sin firma digital ni aprobación fiscal/operativa.
+Quedan equipo e impresora del taller, certificado/expediente, identidad/serie y
+corte de Access. Datos privados del 27/10 intactos; entrega nueva separada.
+Informe y comandos: `../reports/REANUDACION-WINDOWS-2026-11-04.md`.
+Las secciones siguientes describen fases anteriores, incluidas sus incidencias.
+
 ## Formato, lint y publicación autorizada · 04/11/2026
 
 El usuario ha autorizado una rama nueva y el build/ensayo Windows después de

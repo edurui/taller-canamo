@@ -10,7 +10,11 @@ Estos criterios no son una declaración de que ya se cumplan. Ver `ESTADO-VERIFI
 - [x] Configuración posterior del driver externo: exclusión sintética correcta,
   seis controles de calidad y 28 regresiones del proceso correctos.
 - [x] Rama nueva y ejecución Windows autorizadas expresamente por el usuario.
-- [ ] Nuevo instalador Windows construido, instalado y probado con WebView2.
+- [x] Nuevo instalador Windows construido, instalado y probado con WebView2:
+  build `41802145854` (843 Python/166 E2E/16 Rust), ensayo `41810156535` correcto
+  en 1 min 54 s sin recompilar. Cinco controles nativos y diagnóstico instalado.
+- [x] Correcciones limitadas a pruebas: 57 regresiones locales y nueve controles
+  PS; 206 entradas y hashes verificados, política temporal del runner restaurada.
 
 Evidencia de esta fase: `../reports/CALIDAD-WINDOWS-2026-11-04.md`.
 
@@ -27,7 +31,8 @@ Evidencia de esta fase: `../reports/CALIDAD-WINDOWS-2026-11-04.md`.
   y pip check; cero fallos/omitidas/reintentos, sin cambios de fuentes. 18 pruebas Rust.
 - [x] Servicio empaquetado Linux con las dependencias nuevas: nueve comprobaciones
   funcionales correctas, 1.803 entradas y hash del binario contrastados.
-- [ ] Nuevo NSIS y ventana del EXE instalado comprobados en Windows real.
+- [x] Nuevo NSIS y ventana del EXE instalado comprobados en Windows Server 2025,
+  run `41810156535`; no equivale a probar el PC/impresora del taller.
 - [ ] Ensayo del PC destino, copia/restauración, impresora y cierre/reinicio.
 - [ ] Certificado, expediente fiscal, identidad/serie y corte acordado desde Access.
 
