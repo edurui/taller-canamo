@@ -2,6 +2,16 @@
 
 Estos criterios no son una declaración de que ya se cumplan. Ver `ESTADO-VERIFICADO.md`.
 
+## Instalador con datos y manual · 04/11/2026
+
+- [x] EXE privado con carga inicial automática y manual de todos los menús con índice pulsable.
+- [x] Copia real restaurada localmente: 33 tablas, 36 recursos y origen intacto.
+- [x] Windows con datos ficticios: carga y binarios, conservación al reinstalar, rechazo
+  de carpetas existentes y preparación fallida; run `41816215691`, sin build completo.
+- [x] Manual de 24 páginas revisadas visualmente y 46 enlaces internos válidos.
+- [ ] Activación fiscal y sustitución operativa de Access: certificado no disponible aquí;
+  datos fiscales/serie por confirmar y pruebas externas/físicas pendientes.
+
 ## Calidad y publicación autorizada · 04/11/2026
 
 - [x] Formato y lint reproducibles: Prettier, ESLint, Ruff, rustfmt y Clippy sin errores.

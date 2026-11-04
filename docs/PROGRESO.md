@@ -1,5 +1,14 @@
 # Registro de trabajo · actualizado el 04/11/2026
 
+## Entrega privada con datos · 04/11/2026
+
+Preparados EXE con datos locales y manual de 24 páginas con índice pulsable.
+Copia real: 33 tablas y 36 recursos verificados sin modificar el origen.
+Windows `41816215691`: carga/reinstalación/rechazos correctos con datos ficticios,
+app sin recompilar; 58 pruebas locales dirigidas y calidad correctas. El certificado
+no está disponible aquí según el usuario. Emisión real y corte de Access pendientes.
+Detalle: `../reports/INSTALADOR-CON-DATOS-2026-11-04.md`.
+
 ## Cierre Windows · 04/11/2026
 
 Instalador de `0e4b4d0` comprobado en Windows Server 2025: construcción completa

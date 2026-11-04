@@ -1,6 +1,15 @@
 # Relevo técnico · actualizado el 04/11/2026
 
-Cierre: **Windows instalado y ventana real aprobados**, run `41810156535`,
+Entrega más reciente: **EXE privado con datos incorporados y PDF de 24 páginas** en
+`~/Entregas/Taller-Canamo-para-tu-tio-2026-11-04/`, exactamente dos archivos.
+Carga inicial/reinstalación/rechazos comprobados con datos ficticios en Windows,
+run `41816215691`, prueba `276ab1d`, app original sin recompilar. 58 pruebas locales
+dirigidas y calidad correctas. Copia real restaurada sólo localmente: 33 tablas y
+36 recursos coincidentes; origen intacto. Usuario confirma certificado no disponible
+aquí; no habilitar emisión real ni presentar la entrega como sustituto operativo de
+Access. Ver `../reports/INSTALADOR-CON-DATOS-2026-11-04.md`.
+
+Antecedente del binario: **Windows instalado y ventana real aprobados**, run `41810156535`,
 pruebas `8ca30f2`, 1 min 54 s, sin recompilar. El instalador conserva los bytes del
 build `41802145854`, aplicación `0e4b4d0`, SHA-256
 `674cb06eb0e1b1f4a2c48d7ac588b1e0b52834fe41f1cb7681422379d3c8f3e2`.

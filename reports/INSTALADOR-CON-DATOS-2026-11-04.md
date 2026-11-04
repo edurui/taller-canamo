@@ -42,12 +42,30 @@ Primer run `41815198573`: descarga/identidad correctas; falla en preparación de
 porque el contexto de SQLite no cerraba la conexión antes de borrar el temporal.
 Se corrigen ambos lectores con `closing` y se añade una regresión que exige el cierre.
 El script PowerShell usa los módulos de su propio host, aislando herencia de PowerShell 7
-al invocar Windows PowerShell 5.1. Pendiente repetir el ensayo corto; app sin cambios.
+al invocar Windows PowerShell 5.1.
+
+Run `41815703256`: empaquetado e instalación/carga inicial correctos; recuentos y
+contenido restaurado coinciden. Falló el lector del test porque Python entrecomillaba
+`/D=...` y NSIS utilizaba su destino predeterminado. El guion se corrige con la misma
+sintaxis especial sin comillas que ya emplea `verify-installed.ps1`; sin cambios en
+la aplicación o el instalador privado. Run `41815633009` cancelado al detectar que
+GitHub había rechazado la actualización previa de rama. Ensayo final correcto: run `41816215691`, fuente `276ab1d`, job `126527517202`.
+Se verifican los cuatro controles completos, incluido el contenido de cinco tablas
+de la demo, binarios intactos, conservación de cada archivo de datos tras añadir
+un cliente y reinstalar, y rechazo sin sustitución ante carpetas existentes o
+validación posterior a restauración fallida. Build omitido; mismas 206 entradas.
+Evidencia local: `calidad-windows-2026-11-04/initial-data-success/`.
+
+Batería local final: 58 pruebas dirigidas y seis controles de calidad correctos.
+Extraído el envoltorio privado: instalador original, copia inicial y script de carga
+coinciden con sus fuentes. Carpeta de entrega contiene sólo EXE y manual PDF.
 
 ## Límite operativo real
 
 La importación inicial no completa la activación fiscal ni el corte de Access. El
 adaptador VERI*FACTU está implementado, pero faltan prueba autenticada y expediente.
 La app actual sólo permite facturas nuevas de prueba hasta superar sus controles.
-El usuario ha confirmado autónomo/Access sin VERI*FACTU. Se ha solicitado únicamente
-la ubicación local del certificado para continuar, sin pedir contraseña por el chat.
+El usuario ha confirmado autónomo/Access sin VERI*FACTU. El usuario confirma que no tiene
+el certificado en este ordenador; queda bloqueada únicamente la comprobación que
+necesita ese acceso y los pasos de activación dependientes. La copia tampoco contiene
+nombre fiscal/NIF del titular ni una numeración nueva acordada: no se inventan.
