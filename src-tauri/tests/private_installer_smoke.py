@@ -42,7 +42,9 @@ def files(root):
 
 
 def rows(root):
-    with sqlite3.connect((root / "taller.sqlite3").as_uri() + "?mode=ro", uri=True) as db:
+    with contextlib.closing(
+        sqlite3.connect((root / "taller.sqlite3").as_uri() + "?mode=ro", uri=True)
+    ) as db:
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert not db.execute("PRAGMA foreign_key_check").fetchall()
         return {

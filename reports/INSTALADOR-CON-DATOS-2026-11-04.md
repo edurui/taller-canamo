@@ -19,7 +19,7 @@ Preserva todas las barreras de recuperación y fiscales. No cambia frontend/back
 - PowerShell sobre el servicio Linux empaquetado: carga sintética, rechazo de destino
   existente y limpieza de preparación tras un fallo de validación correctos. Esta
   comprobación local no se presenta como ejecución Windows.
-- `python -m pytest tests/test_private_installer.py -q`: cuatro correctas.
+- `python -m pytest tests/test_private_installer.py -q`: cinco correctas.
 - `python -m pytest tests/test_verify_windows_artifact.py tests/test_backup_streaming.py
   tests/test_source_checkout.py -q`: 53 correctas.
 - `python scripts/quality.py --report reports/calidad-windows-2026-11-04/initial-data-quality`:
@@ -38,7 +38,11 @@ omite build y baterías generales ya aprobadas. Crea exclusivamente datos fictic
 en una cuenta desechable. Verifica instalación, recuentos/contenido, binarios intactos,
 reinstalación que conserva altas posteriores y rechazo de carga incompleta.
 
-Resultado Windows pendiente de ejecución. No se declara todavía aprobado el envoltorio.
+Primer run `41815198573`: descarga/identidad correctas; falla en preparación del paquete
+porque el contexto de SQLite no cerraba la conexión antes de borrar el temporal.
+Se corrigen ambos lectores con `closing` y se añade una regresión que exige el cierre.
+El script PowerShell usa los módulos de su propio host, aislando herencia de PowerShell 7
+al invocar Windows PowerShell 5.1. Pendiente repetir el ensayo corto; app sin cambios.
 
 ## Límite operativo real
 

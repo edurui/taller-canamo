@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import sqlite3
 from pathlib import Path
 import zipfile
 
@@ -27,6 +28,26 @@ def test_backup_inspection_counts_archived_and_visible_records_separately(app, p
     assert result["counts"]["customers"] == 2
     assert result["visible_counts"]["customers"] == 1
     assert result["sha256"] == backup["sha256"]
+
+
+def test_backup_inspection_closes_database_before_removing_temporary_files(
+    app, packager, monkeypatch
+):
+    backup = app.backups._create(export=False)
+    connections = []
+    connect = sqlite3.connect
+
+    def tracked_connection(*args, **kwargs):
+        connection = connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(packager.sqlite3, "connect", tracked_connection)
+    packager.inspect_backup(app.db.root / "backups" / backup["name"])
+    assert connections
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
 
 
 @pytest.mark.parametrize("change", ["altered_database", "unlisted_file", "private_key"])

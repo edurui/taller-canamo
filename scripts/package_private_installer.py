@@ -5,6 +5,7 @@ The application binaries and all fiscal/restore controls remain unchanged.
 """
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -43,7 +44,7 @@ def inspect_backup(path):
         database = Path(temporary) / "taller.sqlite3"
         with archive.open("taller.sqlite3") as source, database.open("wb") as target:
             shutil.copyfileobj(source, target)
-        with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True) as connection:
+        with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
             if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise ValueError("La base inicial no pasa integridad.")
             if connection.execute("PRAGMA foreign_key_check").fetchall():

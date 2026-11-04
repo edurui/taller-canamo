@@ -1,5 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Service, [Parameter(Mandatory=$true)][string]$Bundle)
 $ErrorActionPreference = 'Stop'
+# Use the modules of this PowerShell host, even when launched from another version.
+$env:PSModulePath = Join-Path $PSHOME 'Modules'
 $spec = Get-Content -LiteralPath (Join-Path $Bundle 'seed.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $destination = Join-Path $env:LOCALAPPDATA 'es.tallereselcanamo.desktop.dev'
 # The initial delivery never replaces any existing installation data.
