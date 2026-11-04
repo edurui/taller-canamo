@@ -1,0 +1,49 @@
+# Instalación con datos iniciales · 04/11/2026
+
+## Alcance
+
+Un instalador privado local con el NSIS verificado del build `41802145854` sin
+alteraciones, más una copia inicial completa. El único acompañamiento para el usuario
+es un manual PDF de 24 páginas con 46 enlaces internos comprobados. Datos y entregables
+privados fuera del repositorio; no se publican bases, certificados ni datos de clientes.
+
+El script de restauración usa el protocolo existente del servicio, valida la copia y
+los recuentos y mueve la carpeta provisional sólo después del cierre correcto.
+Conserva cualquier base existente; rechaza una carpeta existente sin base reconocible.
+Preserva todas las barreras de recuperación y fiscales. No cambia frontend/backend.
+
+## Comprobaciones locales
+
+- SQLite en lectura y backup online; restauración independiente: 33 tablas, 36 recursos,
+  integridad/FK y origen intacto. 1.598 clientes, 1.292 vehículos, 5.145 históricos.
+- PowerShell sobre el servicio Linux empaquetado: carga sintética, rechazo de destino
+  existente y limpieza de preparación tras un fallo de validación correctos. Esta
+  comprobación local no se presenta como ejecución Windows.
+- `python -m pytest tests/test_private_installer.py -q`: cuatro correctas.
+- `python -m pytest tests/test_verify_windows_artifact.py tests/test_backup_streaming.py
+  tests/test_source_checkout.py -q`: 53 correctas.
+- `python scripts/quality.py --report reports/calidad-windows-2026-11-04/initial-data-quality`:
+  Prettier, ESLint, Ruff lint/formato, rustfmt y Clippy correctos.
+- `actionlint` de los dos workflows: correcto.
+- Compilador oficial NSIS 3.11 con SHA-256 verificado frente al asset de tauri-apps.
+  Compilación local mediante un prefijo Wine independiente; primer intento detectó
+  separadores de ruta no válidos y se corrigió antes de iniciar Windows.
+- PDF: 24 páginas renderizadas e inspeccionadas, 46 enlaces con destino existente.
+
+## Ensayo Windows
+
+Preparado `initial_data=true` en el workflow ya registrado, junto con el run/SHA de
+construcción original. Descarga y vuelve a contrastar la identidad del instalador;
+omite build y baterías generales ya aprobadas. Crea exclusivamente datos ficticios
+en una cuenta desechable. Verifica instalación, recuentos/contenido, binarios intactos,
+reinstalación que conserva altas posteriores y rechazo de carga incompleta.
+
+Resultado Windows pendiente de ejecución. No se declara todavía aprobado el envoltorio.
+
+## Límite operativo real
+
+La importación inicial no completa la activación fiscal ni el corte de Access. El
+adaptador VERI*FACTU está implementado, pero faltan prueba autenticada y expediente.
+La app actual sólo permite facturas nuevas de prueba hasta superar sus controles.
+El usuario ha confirmado autónomo/Access sin VERI*FACTU. Se ha solicitado únicamente
+la ubicación local del certificado para continuar, sin pedir contraseña por el chat.

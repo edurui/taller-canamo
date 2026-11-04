@@ -1,5 +1,27 @@
 # Estado verificado · 4 de noviembre de 2026
 
+## Entrega privada con datos y manual · en comprobación
+
+El usuario aclara que quiere un EXE que cargue los datos locales automáticamente y
+un PDF sencillo con índice pulsable, sin informes técnicos para su tío. Confirma que
+el titular es autónomo y trabaja actualmente con Access, sin VERI*FACTU.
+
+Se ha preparado localmente una copia mediante lectura del origen: 1.598 clientes,
+1.292 vehículos y 5.145 históricos. Restauración separada con 33 tablas y 36 recursos
+idénticos, integridad/FK correctas y origen intacto. Ningún dato real va a Git/Actions.
+Manual de 24 páginas renderizado y revisado, 46 enlaces internos válidos.
+
+El envoltorio de instalación conserva el NSIS original y usa la restauración existente
+en una carpeta provisional. Sólo publica los datos tras comprobarlos; una instalación
+existente nunca se sustituye. Probado localmente con servicio empaquetado; ensayo
+Windows específico pendiente, sin recompilar la app. Cuatro pruebas del empaquetador,
+53 regresiones de copias/reutilización/checkout y seis controles de calidad correctos.
+
+**Esto no activa la emisión real.** La integración VERI*FACTU existe, pero no hay prueba
+autenticada AEAT ni expediente de liberación completo. El código actual no ofrece una
+modalidad operativa transitoria sin VERI*FACTU: sus facturas nuevas siguen siendo pruebas.
+No eliminar esas marcas ni convertir una mera carga de datos en aceptación fiscal.
+
 ## Candidato Windows verificado, sin recompilar · cierre 04/11/2026
 
 **Instalación y recorrido nativo Windows aprobados sobre el instalador de `0e4b4d0`.**
